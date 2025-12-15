@@ -203,6 +203,16 @@ class RealtimeService {
     _socket?.emit(eventName, data);
   }
 
+  /// Emit event locally
+  void emitLocal(String eventName, dynamic data) {
+    final listeners = _eventListeners[eventName];
+    if (listeners != null) {
+      for (final l in List<Function>.from(listeners)) {
+        l(data);
+      }
+    }
+  }
+
   /// Disconnect from server
   void disconnect() {
     _shouldReconnect = false;

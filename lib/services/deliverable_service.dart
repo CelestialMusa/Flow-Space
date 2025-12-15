@@ -172,41 +172,42 @@ class DeliverableService {
     DateTime? dueDate,
     String? assignedTo,
     String? sprintId,
+    List<String>? sprintIds,
     List<String>? evidenceLinks,
   }) async {
     try {
       final token = _authService.accessToken;
       if (token == null) {
-        return ApiResponse.error('No access token available');
+        debugPrint('No access token available, proceeding without Authorization header');
       }
 
-      // Convert definitionOfDone to proper format for backend
-      dynamic dodValue;
+      // Convert Definition of Done to a string for backend TEXT column
+      String? dodString;
       if (definitionOfDone != null) {
         if (definitionOfDone is List<String>) {
-          dodValue = definitionOfDone; // Send as array, backend will stringify
+          dodString = definitionOfDone.join('\n');
         } else if (definitionOfDone is String) {
-          // If it's a string, try to parse it as JSON, otherwise wrap in array
-          try {
-            dodValue = jsonDecode(definitionOfDone);
-          } catch (_) {
-            dodValue = [definitionOfDone]; // Convert single string to array
-          }
+          dodString = definitionOfDone;
         } else {
-          dodValue = definitionOfDone;
+          try {
+            dodString = jsonEncode(definitionOfDone);
+          } catch (_) {
+            dodString = definitionOfDone.toString();
+          }
         }
       }
 
       final body = {
         'title': title,
         'description': description,
-        'definition_of_done': dodValue,
+        'definition_of_done': dodString,
         'priority': priority,
         'status': status,
         'due_date': dueDate?.toIso8601String(),
         'created_by': _authService.currentUser?.id,
         'assigned_to': assignedTo,
-        'sprint_id': sprintId,
+        if (sprintId != null && (sprintIds == null || sprintIds.isEmpty)) 'sprint_id': sprintId,
+        if (sprintIds != null) 'sprintIds': sprintIds,
         if (evidenceLinks != null) 'evidence_links': evidenceLinks,
       };
 

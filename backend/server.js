@@ -2106,7 +2106,8 @@ app.post('/api/v1/deliverables', authenticateToken, async (req, res) => {
       status = 'Draft',
       due_date,
       assigned_to,
-      sprint_id
+      sprint_id,
+      sprintIds
     } = req.body;
     
     const userId = req.user.id;
@@ -2115,80 +2116,71 @@ app.post('/api/v1/deliverables', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Title is required' });
     }
     
-    // Handle definition_of_done - can be string, array, or null
-    // Database column is JSON type, so we need valid JSON
+    // Normalize Definition of Done to JSONB
     let dodValue = null;
     if (definition_of_done) {
       if (Array.isArray(definition_of_done)) {
-        // Array: stringify to JSON array
-        dodValue = JSON.stringify(definition_of_done);
+        dodValue = definition_of_done;
       } else if (typeof definition_of_done === 'string') {
-        // String: check if it's already valid JSON, otherwise wrap in array
         const trimmed = definition_of_done.trim();
-        if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-          // Already JSON format, use as-is
-          dodValue = trimmed;
-        } else {
-          // Plain string: convert to JSON array
-          dodValue = JSON.stringify([trimmed]);
+        try {
+          const parsed = JSON.parse(trimmed);
+          dodValue = parsed;
+        } catch {
+          dodValue = [trimmed];
         }
       }
     }
     
-    // Handle evidence_links - can be array or null
-    // Database column might be JSON type, so ensure valid JSON
+    // Normalize evidence links to JSONB (stored in 'evidence' column)
     let evidenceValue = null;
     if (evidence_links) {
       if (Array.isArray(evidence_links)) {
-        // Array: stringify to JSON array
-        evidenceValue = JSON.stringify(evidence_links);
+        evidenceValue = evidence_links;
       } else if (typeof evidence_links === 'string') {
-        // String: check if it's already valid JSON, otherwise wrap in array
         const trimmed = evidence_links.trim();
-        if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-          // Already JSON format, use as-is
-          evidenceValue = trimmed;
-        } else {
-          // Plain string: convert to JSON array
-          evidenceValue = JSON.stringify([trimmed]);
+        try {
+          const parsed = JSON.parse(trimmed);
+          evidenceValue = parsed;
+        } catch {
+          evidenceValue = [trimmed];
         }
       }
     }
     
-    console.log('📦 Creating deliverable:', { title, dodValue, evidenceValue });
+    // Normalize sprint IDs (support single sprint_id and array sprintIds)
+    const normalizedSprintIds = Array.isArray(sprintIds) && sprintIds.length > 0
+      ? sprintIds.map(id => String(id))
+      : (sprint_id ? [String(sprint_id)] : []);
     
-    // Try to insert with evidence_links, fallback if column doesn't exist
+    console.log('📦 Creating deliverable:', { title, dodCount: Array.isArray(dodValue) ? dodValue.length : 0, sprintIds: normalizedSprintIds });
+    
+    // Insert deliverable (schema uses JSONB columns 'definition_of_done' and 'evidence')
     let result;
-    try {
-      result = await pool.query(`
-        INSERT INTO deliverables (
-          title, description, definition_of_done, priority, status, 
-          due_date, created_by, assigned_to, sprint_id, evidence_links
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        RETURNING *
-      `, [
-        title, description, dodValue, priority, status,
-        due_date, userId, assigned_to, sprint_id, evidenceValue
-      ]);
-    } catch (columnError) {
-      // If evidence_links column doesn't exist, try without it
-      if (columnError.code === '42703' || columnError.message.includes('evidence_links')) {
-        console.log('⚠️  evidence_links column not found, inserting without it');
-        result = await pool.query(`
-          INSERT INTO deliverables (
-            title, description, definition_of_done, priority, status, 
-            due_date, created_by, assigned_to, sprint_id
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-          RETURNING *
-        `, [
-          title, description, dodValue, priority, status,
-          due_date, userId, assigned_to, sprint_id
-        ]);
-      } else {
-        throw columnError;
-      }
+    result = await pool.query(`
+      INSERT INTO deliverables (
+        title, description, definition_of_done, priority, status, 
+        due_date, created_by, assigned_to, evidence
+      )
+      VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9::jsonb)
+      RETURNING *
+    `, [
+      title, description || null, JSON.stringify(dodValue || []), priority, status,
+      due_date || null, userId, assigned_to || null, JSON.stringify(evidenceValue || [])
+    ]);
+    
+    const createdDeliverable = result.rows[0];
+    
+    // Link contributing sprints in junction table
+    if (normalizedSprintIds.length > 0 && createdDeliverable && createdDeliverable.id) {
+      const inserts = normalizedSprintIds.map(sid => {
+        return pool.query(`
+          INSERT INTO sprint_deliverables (sprint_id, deliverable_id)
+          VALUES ($1::uuid, $2::uuid)
+          ON CONFLICT (sprint_id, deliverable_id) DO NOTHING
+        `, [sid, createdDeliverable.id]);
+      });
+      await Promise.all(inserts);
     }
     
     // Create notification for assigned user
@@ -2206,7 +2198,7 @@ app.post('/api/v1/deliverables', authenticateToken, async (req, res) => {
     
     res.status(201).json({
       success: true,
-      data: result.rows[0]
+      data: createdDeliverable
     });
   } catch (error) {
     console.error('❌ Error creating deliverable:', error);

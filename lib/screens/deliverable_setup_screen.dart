@@ -202,7 +202,12 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
         priority: _priority,
         status: _status,
         dueDate: _dueDate,
-        sprintId: _selectedSprints.isNotEmpty ? _selectedSprints.first : null,
+        sprintIds: _selectedSprints,
+        evidenceLinks: _evidenceLinksController.text
+            .split(RegExp(r'[,\n]'))
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .toList(),
       );
 
       if (mounted) {

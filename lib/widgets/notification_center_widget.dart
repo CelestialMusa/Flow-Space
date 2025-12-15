@@ -26,6 +26,7 @@ class _NotificationCenterWidgetState extends State<NotificationCenterWidget> {
     _realtime = RealtimeService();
     _realtime.initialize(authToken: _authService.accessToken);
     _realtime.on('notification_received', (_) => _loadUnreadCount());
+    _realtime.on('notifications_updated', (_) => _loadUnreadCount());
     _loadUnreadCount();
   }
 
@@ -55,6 +56,7 @@ class _NotificationCenterWidgetState extends State<NotificationCenterWidget> {
   @override
   void dispose() {
     _realtime.offAll('notification_received');
+    _realtime.offAll('notifications_updated');
     super.dispose();
   }
 

@@ -714,6 +714,23 @@ class _ReportRepositoryScreenState extends ConsumerState<ReportRepositoryScreen>
         foregroundColor: FlownetColors.pureWhite,
         centerTitle: false,
         elevation: 0,
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ReportEditorScreen(),
+                ),
+              ).then((_) => _loadReports());
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('Create Report'),
+            style: TextButton.styleFrom(
+              foregroundColor: FlownetColors.electricBlue,
+            ),
+          ),
+        ],
       ),
       body: Column(
         children: [

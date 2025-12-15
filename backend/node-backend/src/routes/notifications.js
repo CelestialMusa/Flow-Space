@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Notification, User } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
+const socketService = require('../services/socketService');
 
 /**
  * @route POST /api/notifications
@@ -120,7 +121,8 @@ router.put('/:id/read', authenticateToken, async (req, res) => {
     }
     
     await notification.update({ is_read: true });
-    
+    socketService.sendToUser(req.user.id, 'notifications_updated', { id });
+
     res.json(notification);
   } catch (error) {
     console.error('Error marking notification as read:', error);
@@ -135,10 +137,11 @@ router.put('/read-all', authenticateToken, async (req, res) => {
       return res.json({ success: true, data: { markedCount: 0 } });
     }
 
-    const [affectedCount] = await Notification.update(
+  const [affectedCount] = await Notification.update(
       { is_read: true },
       { where: { recipient_id: uid, is_read: false } }
     );
+    socketService.sendToUser(uid, 'notifications_updated', { all: true, markedCount: affectedCount });
     res.json({ success: true, data: { markedCount: affectedCount } });
   } catch (error) {
     console.error('Error marking all notifications as read:', error);

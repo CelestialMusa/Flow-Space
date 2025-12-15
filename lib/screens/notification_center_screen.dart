@@ -26,6 +26,7 @@ class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScr
     _realtime = RealtimeService();
     _realtime.initialize(authToken: AuthService().accessToken);
     _realtime.on('notification_received', (_) => _loadNotifications());
+    _realtime.on('notifications_updated', (_) => _loadNotifications());
     _loadNotifications();
   }
 
@@ -74,6 +75,7 @@ class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScr
   @override
   void dispose() {
     _realtime.offAll('notification_received');
+    _realtime.offAll('notifications_updated');
     super.dispose();
   }
 
@@ -118,6 +120,9 @@ class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScr
     setState(() {
       notification.isRead = true;
     });
+    try {
+      _realtime.emitLocal('notifications_updated', {'id': notification.id});
+    } catch (_) {}
   }
 
   Future<void> _markAllAsRead() async {
@@ -130,6 +135,9 @@ class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScr
         notification.isRead = true;
       }
     });
+    try {
+      _realtime.emitLocal('notifications_updated', {'all': true});
+    } catch (_) {}
   }
 
   void _handleNotificationTap(NotificationItem notification) {
