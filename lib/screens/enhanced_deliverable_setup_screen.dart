@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/release_readiness.dart';
+import '../services/backend_api_service.dart';
 import '../providers/client_approval_provider.dart';
 import '../providers/service_providers.dart';
 import '../theme/flownet_theme.dart';
@@ -24,6 +25,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   final List<String> _definitionOfDone = [];
   final List<String> _evidenceLinks = [];
   final List<ReadinessItem> _readinessItems = [];
+  List<Map<String, dynamic>> _availableSprints = [];
   
   bool _isSubmitting = false;
 
@@ -31,6 +33,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   void initState() {
     super.initState();
     _initializeReadinessItems();
+    _loadSprints();
   }
 
   void _initializeReadinessItems() {
@@ -71,6 +74,36 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
         isCompleted: false,
       ),
     ]);
+  }
+
+  Future<void> _loadSprints() async {
+    try {
+      final response = await BackendApiService().getSprints();
+      if (response.isSuccess && response.data != null) {
+        List<dynamic> sprintsList = [];
+        if (response.data is List) {
+          sprintsList = response.data as List;
+        } else if (response.data is Map) {
+          final data = Map<String, dynamic>.from(response.data as Map);
+          sprintsList = data['data'] as List? ?? data['sprints'] as List? ?? [];
+        }
+        setState(() {
+          _availableSprints = sprintsList
+              .where((s) => s != null)
+              .map((s) => s is Map<String, dynamic> ? s : Map<String, dynamic>.from(s as Map))
+              .where((m) => m.isNotEmpty)
+              .toList();
+        });
+      } else {
+        setState(() {
+          _availableSprints = [];
+        });
+      }
+    } catch (_) {
+      setState(() {
+        _availableSprints = [];
+      });
+    }
   }
 
   Future<void> _selectDueDate() async {
@@ -388,6 +421,39 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: FlownetColors.pureWhite,
                   fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Contributing Sprints
+              _buildSectionHeader('Contributing Sprints'),
+              const SizedBox(height: 16),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: _availableSprints.map((sprint) {
+                    final idStr = (sprint['id'] ?? '').toString();
+                    final isSelected = _selectedSprints.contains(idStr);
+                    return CheckboxListTile(
+                      title: Text(sprint['name']?.toString() ?? ''),
+                      subtitle: Text('${sprint['start_date']} - ${sprint['end_date']}'),
+                      value: isSelected,
+                      onChanged: (value) {
+                        setState(() {
+                          if (value == true) {
+                            if (!_selectedSprints.contains(idStr)) {
+                              _selectedSprints.add(idStr);
+                            }
+                          } else {
+                            _selectedSprints.remove(idStr);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
                 ),
               ),
               const SizedBox(height: 24),

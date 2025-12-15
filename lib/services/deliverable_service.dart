@@ -159,13 +159,10 @@ class DeliverableService {
     DateTime? dueDate,
     String? assignedTo,
     String? sprintId,
+    List<String>? sprintIds,
+    List<String>? evidenceLinks,
   }) async {
     try {
-      final token = _authService.accessToken;
-      if (token == null) {
-        return ApiResponse.error('No access token available');
-      }
-
       final body = {
         'title': title,
         'description': description,
@@ -176,6 +173,8 @@ class DeliverableService {
         'created_by': _authService.currentUser?.id,
         'assigned_to': assignedTo,
         'sprint_id': sprintId,
+        if (sprintIds != null) 'sprintIds': sprintIds,
+        if (evidenceLinks != null) 'evidence_links': evidenceLinks,
       };
 
       final response = await _apiClient.post('/deliverables', body: body);
