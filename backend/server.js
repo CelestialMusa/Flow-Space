@@ -655,6 +655,135 @@ app.get('/api/v1/auth/me', authenticateToken, async (req, res) => {
   }
 });
 
+// Dashboard endpoint
+app.get('/api/v1/dashboard', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // Deliverables
+    let deliverables = [];
+    try {
+      let deliverablesQuery = 'SELECT * FROM deliverables';
+      const deliverablesParams = [];
+
+      if (userRole === 'teamMember') {
+        deliverablesQuery += ' WHERE assigned_to = $1 OR created_by = $1';
+        deliverablesParams.push(userId);
+      }
+
+      deliverablesQuery += ' ORDER BY created_at DESC LIMIT 50';
+      const deliverablesResult = await pool.query(deliverablesQuery, deliverablesParams);
+      deliverables = deliverablesResult.rows || [];
+    } catch (error) {
+      if (!(error && error.code === '42P01')) {
+        console.error('Dashboard deliverables query error:', error);
+      }
+    }
+
+    // Recent activity
+    let recentActivity = [];
+    try {
+      const activityResult = await pool.query(
+        `SELECT 
+           a.id,
+           a.user_id,
+           a.activity_type,
+           a.activity_title,
+           a.activity_description,
+           a.deliverable_id,
+           a.sprint_id,
+           a.action_url,
+           a.created_at,
+           u.name as user_name
+         FROM activity_logs a
+         LEFT JOIN users u ON a.user_id = u.id
+         ORDER BY a.created_at DESC
+         LIMIT 20`
+      );
+      recentActivity = activityResult.rows || [];
+    } catch (error) {
+      if (!(error && error.code === '42P01')) {
+        console.error('Dashboard activity query error:', error);
+      }
+    }
+
+    // Statistics
+    const statistics = {
+      total_deliverables: 0,
+      completed: 0,
+      in_progress: 0,
+      pending: 0,
+      avg_progress: 0,
+      avg_signoff_days: 0,
+      total_reports: 0,
+      draft_reports: 0,
+      submitted_reports: 0,
+      approved_reports: 0,
+      change_requested_reports: 0,
+    };
+
+    try {
+      const deliverableStats = await pool.query(
+        `SELECT
+          COUNT(*)::int AS total_deliverables,
+          COUNT(*) FILTER (WHERE status ILIKE 'done' OR status ILIKE 'completed')::int AS completed,
+          COUNT(*) FILTER (WHERE status ILIKE 'in progress' OR status ILIKE 'in_progress')::int AS in_progress,
+          COUNT(*) FILTER (WHERE status ILIKE 'to do' OR status ILIKE 'todo' OR status ILIKE 'pending')::int AS pending
+        FROM deliverables`
+      );
+
+      if (deliverableStats.rows && deliverableStats.rows[0]) {
+        statistics.total_deliverables = deliverableStats.rows[0].total_deliverables || 0;
+        statistics.completed = deliverableStats.rows[0].completed || 0;
+        statistics.in_progress = deliverableStats.rows[0].in_progress || 0;
+        statistics.pending = deliverableStats.rows[0].pending || 0;
+
+        statistics.avg_progress = statistics.total_deliverables > 0
+          ? Math.round((statistics.completed / statistics.total_deliverables) * 100)
+          : 0;
+      }
+    } catch (error) {
+      if (!(error && error.code === '42P01')) {
+        console.error('Dashboard deliverable stats error:', error);
+      }
+    }
+
+    try {
+      const reportStats = await pool.query(
+        `SELECT
+          COUNT(*)::int AS total_reports,
+          COUNT(*) FILTER (WHERE status ILIKE 'draft')::int AS draft_reports,
+          COUNT(*) FILTER (WHERE status ILIKE 'submitted')::int AS submitted_reports,
+          COUNT(*) FILTER (WHERE status ILIKE 'approved')::int AS approved_reports,
+          COUNT(*) FILTER (WHERE status ILIKE 'change requested' OR status ILIKE 'change_requested')::int AS change_requested_reports
+        FROM sign_off_reports`
+      );
+
+      if (reportStats.rows && reportStats.rows[0]) {
+        statistics.total_reports = reportStats.rows[0].total_reports || 0;
+        statistics.draft_reports = reportStats.rows[0].draft_reports || 0;
+        statistics.submitted_reports = reportStats.rows[0].submitted_reports || 0;
+        statistics.approved_reports = reportStats.rows[0].approved_reports || 0;
+        statistics.change_requested_reports = reportStats.rows[0].change_requested_reports || 0;
+      }
+    } catch (error) {
+      if (!(error && error.code === '42P01')) {
+        console.error('Dashboard report stats error:', error);
+      }
+    }
+
+    res.json({
+      deliverables: deliverables,
+      recentActivity: recentActivity,
+      statistics: statistics,
+    });
+  } catch (error) {
+    console.error('Dashboard error:', error);
+    res.status(500).json({ error: 'Failed to load dashboard' });
+  }
+});
+
 // ==================== PROFILE ENDPOINTS ====================
 
 // Get user profile by ID
