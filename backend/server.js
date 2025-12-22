@@ -169,6 +169,109 @@ pool.on('connect', () => {
 // Initialize or update database schema
 async function initializeDatabase() {
   try {
+    await pool.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+
+    // Ensure core tables exist (some environments may be missing tables)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        role VARCHAR(50) NOT NULL DEFAULT 'teamMember',
+        avatar_url TEXT,
+        is_active BOOLEAN DEFAULT true,
+        email_verified BOOLEAN DEFAULT false,
+        email_verified_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_login_at TIMESTAMP,
+        preferences JSONB DEFAULT '{}'::jsonb,
+        project_ids UUID[] DEFAULT '{}'::uuid[]
+      );
+
+      CREATE TABLE IF NOT EXISTS projects (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        owner_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        status VARCHAR(50) DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS project_members (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        role VARCHAR(50) NOT NULL,
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(project_id, user_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS sprints (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(255) NOT NULL,
+        project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+        start_date TIMESTAMP,
+        end_date TIMESTAMP,
+        status VARCHAR(50) DEFAULT 'planning',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS deliverables (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        status VARCHAR(50) DEFAULT 'draft',
+        project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+        created_by UUID REFERENCES users(id) ON DELETE CASCADE,
+        assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
+        due_date TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS sign_off_reports (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        deliverable_id UUID REFERENCES deliverables(id) ON DELETE CASCADE,
+        created_by UUID REFERENCES users(id) ON DELETE CASCADE,
+        status VARCHAR(50) DEFAULT 'draft',
+        content JSONB DEFAULT '{}'::jsonb,
+        evidence JSONB DEFAULT '[]'::jsonb,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS notifications (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        title VARCHAR(255) NOT NULL,
+        message TEXT,
+        type VARCHAR(50) DEFAULT 'info',
+        is_read BOOLEAN DEFAULT false,
+        action_url TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS activity_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        entity_type VARCHAR(50) NOT NULL,
+        entity_id UUID,
+        action VARCHAR(100) NOT NULL,
+        description TEXT,
+        old_values JSONB,
+        new_values JSONB,
+        ip_address INET,
+        user_agent TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Ensure required columns exist across versions
     await pool.query(`
       ALTER TABLE users
         ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT false,
@@ -176,12 +279,70 @@ async function initializeDatabase() {
         ADD COLUMN IF NOT EXISTS email_verification_code TEXT,
         ADD COLUMN IF NOT EXISTS email_verification_expires_at TIMESTAMP;
     `);
+
+    await pool.query(`
+      ALTER TABLE projects
+        ADD COLUMN IF NOT EXISTS description TEXT,
+        ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id),
+        ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active',
+        ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+    `);
+
+    await pool.query(`
+      ALTER TABLE sprints
+        ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+        ADD COLUMN IF NOT EXISTS start_date TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS end_date TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'planning',
+        ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+    `);
+
+    await pool.query(`
+      ALTER TABLE deliverables
+        ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+        ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id) ON DELETE CASCADE,
+        ADD COLUMN IF NOT EXISTS assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
+        ADD COLUMN IF NOT EXISTS due_date TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS progress INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS definition_of_done JSONB DEFAULT '[]'::jsonb,
+        ADD COLUMN IF NOT EXISTS evidence JSONB DEFAULT '[]'::jsonb,
+        ADD COLUMN IF NOT EXISTS readiness_gates JSONB DEFAULT '[]'::jsonb;
+    `);
+
+    await pool.query(`
+      ALTER TABLE sign_off_reports
+        ADD COLUMN IF NOT EXISTS report_title TEXT,
+        ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS last_reminder_at TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS escalated_at TIMESTAMP;
+    `);
+
+    await pool.query(`
+      ALTER TABLE activity_logs
+        ADD COLUMN IF NOT EXISTS entity_type VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS entity_id UUID,
+        ADD COLUMN IF NOT EXISTS action VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS description TEXT,
+        ADD COLUMN IF NOT EXISTS old_values JSONB,
+        ADD COLUMN IF NOT EXISTS new_values JSONB,
+        ADD COLUMN IF NOT EXISTS ip_address INET,
+        ADD COLUMN IF NOT EXISTS user_agent TEXT,
+        ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+    `);
+
     await pool.query(`
       ALTER TABLE sprints
         ADD COLUMN IF NOT EXISTS start_date TIMESTAMP,
         ADD COLUMN IF NOT EXISTS end_date TIMESTAMP;
     `);
     console.log('✅ Verified sprints table has start_date and end_date columns');
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS sprint_metrics (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -688,12 +849,12 @@ app.get('/api/v1/dashboard', authenticateToken, async (req, res) => {
         `SELECT 
            a.id,
            a.user_id,
-           a.activity_type,
-           a.activity_title,
-           a.activity_description,
-           a.deliverable_id,
-           a.sprint_id,
-           a.action_url,
+           a.action AS activity_type,
+           a.entity_type AS activity_title,
+           a.description AS activity_description,
+           CASE WHEN a.entity_type ILIKE 'deliverable' THEN a.entity_id ELSE NULL END AS deliverable_id,
+           CASE WHEN a.entity_type ILIKE 'sprint' THEN a.entity_id ELSE NULL END AS sprint_id,
+           NULL::text AS action_url,
            a.created_at,
            u.name as user_name
          FROM activity_logs a
@@ -784,7 +945,114 @@ app.get('/api/v1/dashboard', authenticateToken, async (req, res) => {
   }
 });
 
-// ==================== PROFILE ENDPOINTS ====================
+// Projects endpoints
+app.get('/api/v1/projects', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    let query = `SELECT p.* FROM projects p`;
+    const params = [];
+
+    if (userRole === 'teamMember') {
+      query += `
+        LEFT JOIN project_members pm ON pm.project_id = p.id
+        WHERE p.owner_id = $1 OR p.created_by = $1 OR pm.user_id = $1
+      `;
+      params.push(userId);
+    }
+
+    query += ' ORDER BY p.created_at DESC';
+    const result = await pool.query(query, params);
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching projects:', error);
+    if (error && error.code === '42P01') {
+      return res.json({ success: true, data: [] });
+    }
+    res.status(500).json({ success: false, error: 'Failed to fetch projects' });
+  }
+});
+
+app.post('/api/v1/projects', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { name, description, status } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ success: false, error: 'Project name is required' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO projects (name, description, owner_id, created_by, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $3, $4, NOW(), NOW())
+       RETURNING *`,
+      [name, description || null, userId, status || 'active']
+    );
+
+    // Ensure creator is also in project_members
+    try {
+      await pool.query(
+        `INSERT INTO project_members (project_id, user_id, role)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (project_id, user_id) DO NOTHING`,
+        [result.rows[0].id, userId, 'owner']
+      );
+    } catch (memberError) {
+      if (!(memberError && memberError.code === '42P01')) {
+        console.error('Error ensuring project member:', memberError);
+      }
+    }
+
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error creating project:', error);
+    res.status(500).json({ success: false, error: 'Failed to create project' });
+  }
+});
+
+// Sprints endpoints
+app.get('/api/v1/sprints', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const { project_id } = req.query;
+
+    let query = `SELECT s.* FROM sprints s`;
+    const params = [];
+    let where = [];
+
+    if (project_id) {
+      params.push(project_id);
+      where.push(`s.project_id = $${params.length}`);
+    }
+
+    if (userRole === 'teamMember') {
+      query += ` LEFT JOIN project_members pm ON pm.project_id = s.project_id`;
+      params.push(userId);
+      where.push(`pm.user_id = $${params.length}`);
+    }
+
+    if (where.length > 0) {
+      query += ` WHERE ${where.join(' AND ')}`;
+    }
+
+    query += ' ORDER BY s.start_date DESC NULLS LAST, s.created_at DESC';
+    const result = await pool.query(query, params);
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching sprints:', error);
+    if (error && error.code === '42P01') {
+      return res.json({ success: true, data: [] });
+    }
+    res.status(500).json({ success: false, error: 'Failed to fetch sprints' });
+  }
+});
 
 // Get user profile by ID
 app.get('/api/v1/profile/:userId', authenticateToken, async (req, res) => {
