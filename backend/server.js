@@ -170,6 +170,13 @@ pool.on('connect', () => {
 async function initializeDatabase() {
   try {
     await pool.query(`
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT false,
+        ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS email_verification_code TEXT,
+        ADD COLUMN IF NOT EXISTS email_verification_expires_at TIMESTAMP;
+    `);
+    await pool.query(`
       ALTER TABLE sprints
         ADD COLUMN IF NOT EXISTS start_date TIMESTAMP,
         ADD COLUMN IF NOT EXISTS end_date TIMESTAMP;
@@ -277,6 +284,18 @@ app.post('/api/v1/auth/register', async (req, res) => {
     
     // Generate and display verification code
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    await pool.query(
+      `UPDATE users
+       SET email_verified = false,
+           email_verified_at = NULL,
+           email_verification_code = $1,
+           email_verification_expires_at = $2,
+           updated_at = NOW()
+       WHERE id = $3`,
+      [verificationCode, verificationExpiresAt.toISOString(), user.id]
+    );
     
     console.log('\n🎉 ===========================================');
     console.log(`📧 VERIFICATION CODE FOR: ${email}`);
@@ -323,6 +342,86 @@ app.post('/api/v1/auth/register', async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 
+    });
+  }
+});
+
+app.post('/api/v1/auth/verify-email', async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and code are required'
+      });
+    }
+
+    const result = await pool.query(
+      `SELECT id, email_verified, email_verification_code, email_verification_expires_at
+       FROM users
+       WHERE email = $1`,
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const user = result.rows[0];
+
+    if (user.email_verified) {
+      return res.json({
+        success: true,
+        message: 'Email already verified'
+      });
+    }
+
+    if (!user.email_verification_code || !user.email_verification_expires_at) {
+      return res.status(400).json({
+        success: false,
+        error: 'No verification code found. Please request a new code.'
+      });
+    }
+
+    const expiresAt = new Date(user.email_verification_expires_at);
+    if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() < Date.now()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Verification code expired. Please request a new code.'
+      });
+    }
+
+    if (String(code).trim() !== String(user.email_verification_code).trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid verification code'
+      });
+    }
+
+    await pool.query(
+      `UPDATE users
+       SET email_verified = true,
+           email_verified_at = NOW(),
+           email_verification_code = NULL,
+           email_verification_expires_at = NULL,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [user.id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Email verified successfully'
+    });
+  } catch (error) {
+    console.error('Verify email error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
     });
   }
 });
