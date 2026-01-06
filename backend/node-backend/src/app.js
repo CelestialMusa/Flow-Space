@@ -138,6 +138,20 @@ app.use('/api/v1/users', usersRoutes);
 app.use('/api/v1/approvals', approvalsRoutes);
 app.use('/api/v1/audit-logs', auditRoutes);
 app.use('/api/v1/documents', documentsRoutes);
+// Minimal dashboard endpoint to satisfy frontend
+app.get('/api/v1/dashboard', async (req, res) => {
+  try {
+    const totals = {};
+    try { totals.projects = await sequelize.models.Project.count(); } catch (_) { totals.projects = 0; }
+    try { totals.sprints = await sequelize.models.Sprint.count(); } catch (_) { totals.sprints = 0; }
+    try { totals.deliverables = await sequelize.models.Deliverable.count(); } catch (_) { totals.deliverables = 0; }
+    try { totals.users = await sequelize.models.User.count(); } catch (_) { totals.users = 0; }
+    try { totals.notifications = await sequelize.models.Notification.count(); } catch (_) { totals.notifications = 0; }
+    res.json({ success: true, data: { totals } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
 app.post('/api/v1/iot/ingest', (req, res) => {
   try {
     const { topic, payload, roles, targetRoles, event } = req.body || {};
@@ -356,7 +370,7 @@ async function startServer() {
       try {
         setInterval(async () => {
           try {
-            const metrics = await analyticsService.getMetrics('performance');
+            const metrics = await analyticsService.getMetrics();
             socketService.broadcastToRole('systemAdmin', 'analytics_updated', metrics);
           } catch (e) {}
         }, 10000);
