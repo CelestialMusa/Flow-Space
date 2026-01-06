@@ -7,6 +7,7 @@ import '../services/sign_off_report_service.dart';
 import '../services/realtime_service.dart';
 import '../theme/flownet_theme.dart';
 import '../widgets/flownet_logo.dart';
+import '../utils/date_utils.dart' as du;
 import 'package:go_router/go_router.dart';
 import 'client_review_workflow_screen.dart';
 
@@ -33,9 +34,7 @@ class _ApprovalRequestsScreenState extends State<ApprovalRequestsScreen> {
   List<Map<String, dynamic>> _sprints = [];
 
   String _formatSaDate(DateTime date) {
-    final tz = date.toUtc().add(const Duration(hours: 2));
-    String two(int n) => n < 10 ? '0$n' : '$n';
-    return '${two(tz.day)}/${two(tz.month)}/${tz.year} ${two(tz.hour)}:${two(tz.minute)}';
+    return du.DateUtils.formatDateTime(date);
   }
 
   @override
@@ -351,6 +350,52 @@ class _ApprovalRequestsScreenState extends State<ApprovalRequestsScreen> {
       
       return matchesSearch && matchesStatus && matchesPriority && matchesCategory && matchesDeliverable && matchesSprint;
     }).toList();
+  }
+
+  String _getSprintName(core.ApprovalRequest request) {
+    if (request.deliverableId == null) return '';
+    try {
+      final deliverableId = request.deliverableId.toString();
+      final deliverable = _deliverables.firstWhere(
+        (d) {
+          if (d is Map<String, dynamic>) {
+            return (d['id']?.toString() ?? '') == deliverableId;
+          }
+          try {
+            return d.id?.toString() == deliverableId;
+          } catch (_) {
+            return false;
+          }
+        },
+        orElse: () => <String, dynamic>{},
+      );
+
+      if (deliverable.isEmpty) return '';
+
+      String? sprintId;
+      if (deliverable is Map<String, dynamic>) {
+        sprintId = (deliverable['sprint_id'] ?? deliverable['sprintId'])?.toString();
+      } else {
+        try {
+          sprintId = deliverable.sprintId?.toString();
+        } catch (_) {}
+      }
+
+      if (sprintId == null) return '';
+
+      final sprint = _sprints.firstWhere(
+        (s) {
+          final sid = (s['id'] ?? s['sprint_id'] ?? s['sprintId']).toString();
+          return sid == sprintId;
+        },
+        orElse: () => <String, dynamic>{},
+      );
+
+      if (sprint.isNotEmpty) {
+        return (sprint['name'] ?? sprint['title'] ?? '').toString();
+      }
+    } catch (_) {}
+    return '';
   }
 
   void _showErrorSnackBar(String message) {
@@ -764,6 +809,11 @@ class _ApprovalRequestsScreenState extends State<ApprovalRequestsScreen> {
                                     'Requested by: ${request.requestedByName}',
                                     style: const TextStyle(color: FlownetColors.coolGray),
                                   ),
+                                  if (_getSprintName(request).isNotEmpty)
+                                    Text(
+                                      'Sprint: ${_getSprintName(request)}',
+                                      style: const TextStyle(color: FlownetColors.electricBlue, fontWeight: FontWeight.bold),
+                                    ),
                                   Text(
                                     'Date: ${_formatSaDate(request.requestedAt)}',
                                     style: const TextStyle(color: FlownetColors.coolGray),

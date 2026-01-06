@@ -7,9 +7,9 @@ const { authenticateToken, requireRole } = require('../middleware/auth');
 /**
  * @route GET /api/users
  * @desc Get all users with pagination and search
- * @access Private (Admin only)
+ * @access Private (Authenticated users)
  */
-router.get('/', authenticateToken, requireRole(['systemAdmin', 'admin', 'deliveryLead']), async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const { page = 1, limit = 20, search } = req.query;
     const offset = (page - 1) * limit;

@@ -56,6 +56,21 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
     _loadData();
   }
 
+  void _normalizeSelectedDeliverable() {
+    if (_selectedDeliverableId == null) return;
+    final matches = _deliverables.where((d) {
+      try {
+        final id = d is Map ? d['id']?.toString() : d.id?.toString();
+        return id == _selectedDeliverableId;
+      } catch (_) {
+        return false;
+      }
+    }).length;
+    if (matches != 1) {
+      _selectedDeliverableId = null;
+    }
+  }
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     
@@ -103,6 +118,7 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
             _knownLimitationsController.text = content['knownLimitations']?.toString() ?? '';
             _nextStepsController.text = content['nextSteps']?.toString() ?? '';
             _selectedSprintIds = (content['sprintIds'] as List?)?.map((e) => e.toString()).toList() ?? [];
+            _normalizeSelectedDeliverable();
           });
           
           debugPrint('✅ Report loaded successfully');
@@ -118,7 +134,10 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
           }
         }
       } else if (widget.deliverableId != null) {
-        _selectedDeliverableId = widget.deliverableId;
+        setState(() {
+          _selectedDeliverableId = widget.deliverableId;
+          _normalizeSelectedDeliverable();
+        });
       }
     } catch (e) {
       debugPrint('❌ Error loading data: $e');
@@ -146,7 +165,7 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
       final altResponse = await _deliverableService.getDeliverables();
       if (altResponse.isSuccess && altResponse.data != null) {
         final deliverables = altResponse.data!['deliverables'] as List? ?? [];
-        _deliverables = deliverables.map((d) {
+        final mapped = deliverables.map((d) {
           if (d is Map) return d;
           // If it's a Deliverable object, convert to map
           try {
@@ -165,6 +184,14 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
             };
           }
         }).toList();
+        final byId = <String, Map<String, dynamic>>{};
+        for (final d in mapped) {
+          final id = d['id']?.toString() ?? '';
+          if (id.isEmpty) continue;
+          byId.putIfAbsent(id, () => Map<String, dynamic>.from(d));
+        }
+        _deliverables = byId.values.toList();
+        _normalizeSelectedDeliverable();
         debugPrint('✅ Loaded ${_deliverables.length} deliverables (DeliverableService)');
       } else {
         debugPrint('⚠️ DeliverableService failed, trying BackendApiService...');
@@ -187,7 +214,7 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
                                 [];
             }
             
-            _deliverables = deliverablesList.map((item) {
+            final mapped = deliverablesList.map((item) {
               if (item is Map) {
                 return item;
               }
@@ -198,6 +225,14 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
                 'status': item['status']?.toString() ?? 'Draft',
               };
             }).toList();
+            final byId = <String, Map<String, dynamic>>{};
+            for (final d in mapped) {
+              final id = d['id']?.toString() ?? '';
+              if (id.isEmpty) continue;
+              byId.putIfAbsent(id, () => Map<String, dynamic>.from(d));
+            }
+            _deliverables = byId.values.toList();
+            _normalizeSelectedDeliverable();
             
             debugPrint('✅ Loaded ${_deliverables.length} deliverables (BackendApiService)');
           } else {
@@ -408,22 +443,22 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
           
           if (submitResponse.isSuccess) {
             debugPrint('✅ Report submitted successfully!');
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Row(
-                    children: [
-                      Icon(Icons.check_circle, color: Colors.white),
-                      SizedBox(width: 8),
-                      Text('Report submitted successfully!'),
-                    ],
+            if (!mounted) return;
+            await showDialog<void>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Submission Successful'),
+                content: const Text('Your report was submitted successfully.'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('OK'),
                   ),
-                  backgroundColor: Colors.green,
-                  duration: Duration(seconds: 3),
-                ),
-              );
-              Navigator.pop(context, true);
-            }
+                ],
+              ),
+            );
+            if (!mounted) return;
+            context.go('/report-repository');
           } else {
             debugPrint('❌ Submit failed: ${submitResponse.error}');
             if (mounted) {
@@ -447,22 +482,22 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
         } else {
           // Just saving as draft
           debugPrint('✅ Report saved as draft successfully');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Row(
-                  children: [
-                    Icon(Icons.save, color: Colors.white),
-                    SizedBox(width: 8),
-                    Text('Report saved successfully!'),
-                  ],
+          if (!mounted) return;
+          await showDialog<void>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Draft Saved'),
+              content: const Text('Your report draft was saved successfully.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('OK'),
                 ),
-                backgroundColor: Colors.green,
-                duration: Duration(seconds: 2),
-              ),
-            );
-            Navigator.pop(context, true);
-          }
+              ],
+            ),
+          );
+          if (!mounted) return;
+          context.go('/report-repository');
         }
       } else {
         debugPrint('❌ Save failed: ${response.error}');

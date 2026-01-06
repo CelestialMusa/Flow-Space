@@ -20,6 +20,7 @@ class _SystemMetricsScreenState extends State<SystemMetricsScreen> {
   bool _hasError = false;
   Timer? _refreshTimer;
   RealtimeService? _realtime;
+  final Set<String> _activeUserIds = {};
   
 
   @override
@@ -70,7 +71,7 @@ class _SystemMetricsScreenState extends State<SystemMetricsScreen> {
       _realtime!.initialize();
       _realtime!.on('analytics_updated', (data) {
         try {
-          final m = _toSystemMetrics(data);
+          final m = _mergeMetrics(_metrics, data);
           if (mounted) {
             setState(() {
               _metrics = m;
@@ -80,6 +81,50 @@ class _SystemMetricsScreenState extends State<SystemMetricsScreen> {
           }
         } catch (_) {}
       });
+      _realtime!.on('user_online', (userId) {
+        if (userId is String) {
+          _activeUserIds.add(userId);
+          if (_metrics != null && mounted) {
+            setState(() {
+              _metrics = SystemMetrics(
+                systemHealth: _metrics!.systemHealth,
+                performance: _metrics!.performance,
+                database: _metrics!.database,
+                userActivity: UserActivityMetrics(
+                  activeUsers: _activeUserIds.length,
+                  totalSessions: _metrics!.userActivity.totalSessions,
+                  newRegistrations: _metrics!.userActivity.newRegistrations,
+                  failedLogins: _metrics!.userActivity.failedLogins,
+                  avgSessionDuration: _metrics!.userActivity.avgSessionDuration,
+                ),
+                lastUpdated: DateTime.now(),
+              );
+            });
+          }
+        }
+      });
+      _realtime!.on('user_offline', (userId) {
+        if (userId is String) {
+          _activeUserIds.remove(userId);
+          if (_metrics != null && mounted) {
+            setState(() {
+              _metrics = SystemMetrics(
+                systemHealth: _metrics!.systemHealth,
+                performance: _metrics!.performance,
+                database: _metrics!.database,
+                userActivity: UserActivityMetrics(
+                  activeUsers: _activeUserIds.length,
+                  totalSessions: _metrics!.userActivity.totalSessions,
+                  newRegistrations: _metrics!.userActivity.newRegistrations,
+                  failedLogins: _metrics!.userActivity.failedLogins,
+                  avgSessionDuration: _metrics!.userActivity.avgSessionDuration,
+                ),
+                lastUpdated: DateTime.now(),
+              );
+            });
+          }
+        }
+      });
     } catch (_) {}
   }
 
@@ -87,6 +132,9 @@ class _SystemMetricsScreenState extends State<SystemMetricsScreen> {
     final Map<String, dynamic> d = data is Map<String, dynamic>
         ? data
         : (data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{});
+    final Map<String, dynamic> perfRaw = (d['performance'] is Map)
+        ? Map<String, dynamic>.from(d['performance'])
+        : {};
     double parseDoubleLocal(dynamic v) {
       if (v is double) return v;
       if (v is int) return v.toDouble();
@@ -100,11 +148,11 @@ class _SystemMetricsScreenState extends State<SystemMetricsScreen> {
       return 0;
     }
     final perf = PerformanceMetrics(
-      cpuUsage: parseDoubleLocal(d['cpuUsage'] ?? d['cpu_usage']),
-      memoryUsage: parseDoubleLocal(d['memoryUsage'] ?? d['memory_usage']),
-      diskUsage: parseDoubleLocal(d['diskUsage'] ?? d['disk_usage']),
-      responseTime: parseIntLocal(d['responseTime'] ?? d['response_time']),
-      uptime: parseDoubleLocal(d['uptime']),
+      cpuUsage: parseDoubleLocal(d['cpuUsage'] ?? d['cpu_usage'] ?? perfRaw['cpu_percent']),
+      memoryUsage: parseDoubleLocal(d['memoryUsage'] ?? d['memory_usage'] ?? perfRaw['memory_used_mb']),
+      diskUsage: parseDoubleLocal(d['diskUsage'] ?? d['disk_usage'] ?? perfRaw['memory_percent']),
+      responseTime: parseIntLocal(d['responseTime'] ?? d['response_time'] ?? perfRaw['avg_response_time_ms']),
+      uptime: parseDoubleLocal(d['uptime'] ?? perfRaw['uptime_seconds']),
     );
     final db = DatabaseMetrics(
       totalRecords: parseIntLocal(d['totalEntities'] ?? d['total_records']),
@@ -114,7 +162,7 @@ class _SystemMetricsScreenState extends State<SystemMetricsScreen> {
       slowQueries: parseIntLocal(d['slowQueries'] ?? d['slow_queries']),
     );
     final ua = UserActivityMetrics(
-      activeUsers: parseIntLocal(d['activeUsers'] ?? d['active_users']),
+      activeUsers: parseIntLocal(d['activeUsers'] ?? d['active_users'] ?? d['active_users_24h'] ?? (d['user_activity'] is Map ? (d['user_activity']['active_users_24h'] ?? 0) : 0)),
       totalSessions: parseIntLocal(d['totalSessions'] ?? d['total_sessions']),
       newRegistrations: parseIntLocal(d['newRegistrations'] ?? d['new_users']),
       failedLogins: parseIntLocal(d['failedLogins'] ?? d['failed_logins']),
@@ -125,6 +173,30 @@ class _SystemMetricsScreenState extends State<SystemMetricsScreen> {
       performance: perf,
       database: db,
       userActivity: ua,
+      lastUpdated: DateTime.now(),
+    );
+  }
+
+  SystemMetrics _mergeMetrics(SystemMetrics? current, dynamic data) {
+    final incoming = _toSystemMetrics(data);
+    if (current == null) return incoming;
+    return SystemMetrics(
+      systemHealth: incoming.systemHealth,
+      performance: PerformanceMetrics(
+        cpuUsage: incoming.performance.cpuUsage != 0.0 ? incoming.performance.cpuUsage : current.performance.cpuUsage,
+        memoryUsage: incoming.performance.memoryUsage != 0.0 ? incoming.performance.memoryUsage : current.performance.memoryUsage,
+        diskUsage: incoming.performance.diskUsage != 0.0 ? incoming.performance.diskUsage : current.performance.diskUsage,
+        responseTime: incoming.performance.responseTime != 0 ? incoming.performance.responseTime : current.performance.responseTime,
+        uptime: incoming.performance.uptime != 0.0 ? incoming.performance.uptime : current.performance.uptime,
+      ),
+      database: current.database,
+      userActivity: UserActivityMetrics(
+        activeUsers: (_activeUserIds.isNotEmpty ? _activeUserIds.length : (incoming.userActivity.activeUsers != 0 ? incoming.userActivity.activeUsers : current.userActivity.activeUsers)),
+        totalSessions: incoming.userActivity.totalSessions != 0 ? incoming.userActivity.totalSessions : current.userActivity.totalSessions,
+        newRegistrations: incoming.userActivity.newRegistrations != 0 ? incoming.userActivity.newRegistrations : current.userActivity.newRegistrations,
+        failedLogins: incoming.userActivity.failedLogins != 0 ? incoming.userActivity.failedLogins : current.userActivity.failedLogins,
+        avgSessionDuration: incoming.userActivity.avgSessionDuration != 0.0 ? incoming.userActivity.avgSessionDuration : current.userActivity.avgSessionDuration,
+      ),
       lastUpdated: DateTime.now(),
     );
   }

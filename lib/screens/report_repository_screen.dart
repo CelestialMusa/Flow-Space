@@ -107,21 +107,8 @@ class _ReportRepositoryScreenState extends ConsumerState<ReportRepositoryScreen>
   Future<void> _loadReports() async {
     try {
       setState(() => _isLoading = true);
-      String? statusParam;
-      if (_selectedFilter != 'all') {
-        switch (_selectedFilter) {
-          case 'underReview':
-            statusParam = 'under_review';
-            break;
-          case 'changeRequested':
-            statusParam = 'change_requested';
-            break;
-          default:
-            statusParam = _selectedFilter;
-        }
-      }
+      // Always fetch all reports to ensure we can resolve document names
       final response = await _reportService.getSignOffReports(
-        status: statusParam,
         search: _searchQuery.isNotEmpty ? _searchQuery : null,
       );
 
@@ -174,7 +161,6 @@ class _ReportRepositoryScreenState extends ConsumerState<ReportRepositoryScreen>
         });
       } else {
         final alt = await BackendApiService().getSignOffReports(
-          status: statusParam,
           search: _searchQuery.isNotEmpty ? _searchQuery : null,
         );
         if (alt.isSuccess && alt.data != null) {
@@ -853,6 +839,34 @@ class _ReportRepositoryScreenState extends ConsumerState<ReportRepositoryScreen>
     );
   }
 
+  String _getDisplayName(RepositoryFile document) {
+    // Check if the name matches a report ID pattern (e.g. "report_123.pdf" or "123.pdf")
+    final name = document.name;
+    String? reportId;
+    
+    // Try to extract ID from various patterns
+    // 1. Exact match: ID.pdf
+    var match = RegExp(r'^([a-zA-Z0-9-]+)\.pdf$').firstMatch(name);
+    
+    // 2. Prefix match: report_ID.pdf or Title_ID.pdf
+    match ??= RegExp(r'[._-]([a-zA-Z0-9-]+)\.pdf$').firstMatch(name);
+
+    if (match != null) {
+      reportId = match.group(1);
+    }
+    
+    if (reportId != null) {
+      try {
+        final report = _reports.firstWhere((r) => r.id == reportId);
+        return '${report.reportTitle}.pdf';
+      } catch (_) {
+        // Report not found
+      }
+    }
+    
+    return name;
+  }
+
   Widget _buildDocumentCard(RepositoryFile document) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -869,7 +883,7 @@ class _ReportRepositoryScreenState extends ConsumerState<ReportRepositoryScreen>
           ),
         ),
         title: Text(
-          document.name,
+          _getDisplayName(document),
           style: const TextStyle(
             color: FlownetColors.pureWhite,
             fontWeight: FontWeight.bold,

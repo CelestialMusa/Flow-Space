@@ -40,6 +40,7 @@ import 'widgets/sidebar_scaffold.dart';
 import 'widgets/role_guard.dart';
 import 'theme/flownet_theme.dart';
 import 'screens/deadlines_screen.dart';
+import 'screens/deliverables_list_screen.dart';
 import 'screens/skill_assessment_screen.dart';
 
 void main() async {
@@ -318,6 +319,15 @@ final GoRouter _router = GoRouter(
     ),
   ),
     GoRoute(
+      path: '/deliverables',
+      builder: (context, state) => const RouteGuard(
+        route: '/deliverables',
+        child: SidebarScaffold(
+          child: DeliverablesListScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
       path: '/repository',
       builder: (context, state) => const RouteGuard(
         route: '/repository',
@@ -361,10 +371,10 @@ final GoRouter _router = GoRouter(
     
     GoRoute(
       path: '/profile',
-      builder: (context, state) => const RouteGuard(
+      builder: (context, state) => RouteGuard(
         route: '/profile',
         child: SidebarScaffold(
-          child: ProfileScreen(),
+          child: ProfileScreen(mode: state.uri.queryParameters['mode']),
         ),
       ),
     ),

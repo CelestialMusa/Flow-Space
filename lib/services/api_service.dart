@@ -818,12 +818,12 @@ class ApiService {
         final systemMetrics = SystemMetrics(
           systemHealth: SystemHealthStatus.healthy,
           performance: PerformanceMetrics(
-            cpuUsage: _parseDouble(data['system']?['cpuUsage']) ?? 0.0,
-            memoryUsage: _parseDouble(data['system']?['memoryUsage']) ?? 0.0,
-            diskUsage: _parseDouble(data['system']?['diskUsage']) ?? 0.0,
-            responseTime: _parseInt(data['system']?['responseTime']) ?? 0,
-            uptime: _parseDouble(data['system']?['uptime']) ?? 0.0,
-          ),
+                  cpuUsage: _parseDouble(data['system']?['system_usage']?['cpuUsage']) ?? 0.0,
+                  memoryUsage: _parseDouble(data['system']?['system_usage']?['memoryUsage']) ?? 0.0,
+                  diskUsage: _parseDouble(data['system']?['system_usage']?['diskUsage']) ?? 0.0,
+                  responseTime: _parseInt(data['system']?['system_usage']?['responseTime']) ?? 0,
+                  uptime: _parseDouble(data['system']?['system_usage']?['uptime']) ?? 0.0,
+                ),
           database: DatabaseMetrics(
             totalRecords: _parseInt(data['statistics']?['totalEntities']) ?? 0,
             activeConnections: _parseInt(data['system']?['activeConnections']) ?? 0,

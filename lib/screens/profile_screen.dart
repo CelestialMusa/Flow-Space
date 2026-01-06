@@ -14,7 +14,9 @@ import '../widgets/app_scaffold.dart';
 import 'package:go_router/go_router.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
-  const ProfileScreen({super.key});
+  final String? mode;
+
+  const ProfileScreen({super.key, this.mode});
 
   @override
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
@@ -35,10 +37,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String? _profileImageUrl;
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isEditMode = false;
 
   @override
   void initState() {
     super.initState();
+    _isEditMode = (widget.mode ?? 'view') == 'edit';
     _loadProfileData();
   }
 
@@ -161,6 +165,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         const SnackBar(content: Text('Profile saved successfully')),
       );
       try { await AuthService().refreshCurrentUser(); } catch (_) {}
+      setState(() { _isEditMode = false; });
+      await _loadProfileData();
+      if (!context.mounted) return;
       context.go('/profile?mode=view');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -205,12 +212,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white),
-            onPressed: () {
-              // Navigate to settings
-            },
-          ),
+          if (!_isEditMode)
+            IconButton(
+              icon: const Icon(Icons.edit, color: Colors.white),
+              onPressed: () {
+                context.go('/profile?mode=edit');
+                setState(() {
+                  _isEditMode = true;
+                });
+              },
+            ),
         ],
       ),
       body: SingleChildScrollView(
@@ -256,7 +267,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             : null,
                       );
                     }),
-                    Positioned(
+                    if (_isEditMode)
+                      Positioned(
                       bottom: 0,
                       right: 0,
                       child: Container(
@@ -311,6 +323,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     Expanded(
                       child: TextFormField(
                         controller: _firstNameController,
+                        readOnly: !_isEditMode,
                         decoration: const InputDecoration(
                           labelText: 'First Name',
                           border: OutlineInputBorder(),
@@ -327,6 +340,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     Expanded(
                       child: TextFormField(
                         controller: _lastNameController,
+                        readOnly: !_isEditMode,
                         decoration: const InputDecoration(
                           labelText: 'Last Name',
                           border: OutlineInputBorder(),
@@ -345,6 +359,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                 TextFormField(
                   controller: _emailController,
+                  readOnly: !_isEditMode,
                   decoration: const InputDecoration(
                     labelText: 'Email',
                     border: OutlineInputBorder(),
@@ -364,6 +379,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                 TextFormField(
                   controller: _phoneController,
+                  readOnly: !_isEditMode,
                   decoration: const InputDecoration(
                     labelText: 'Phone Number',
                     border: OutlineInputBorder(),
@@ -381,6 +397,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                 TextFormField(
                   controller: _titleController,
+                  readOnly: !_isEditMode,
                   decoration: const InputDecoration(
                     labelText: 'Job Title',
                     border: OutlineInputBorder(),
@@ -390,6 +407,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                 TextFormField(
                   controller: _departmentController,
+                  readOnly: !_isEditMode,
                   decoration: const InputDecoration(
                     labelText: 'Department',
                     border: OutlineInputBorder(),
@@ -399,6 +417,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                 TextFormField(
                   controller: _bioController,
+                  readOnly: !_isEditMode,
                   decoration: const InputDecoration(
                     labelText: 'Bio',
                     border: OutlineInputBorder(),
@@ -410,19 +429,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(height: 32),
 
                 // Save Button
-                ElevatedButton(
-                  onPressed: _isSaving ? null : _saveProfile,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50),
+                if (_isEditMode)
+                  ElevatedButton(
+                    onPressed: _isSaving ? null : _saveProfile,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Save Profile'),
                   ),
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Save Profile'),
-                ),
               ],
             ),
           ),

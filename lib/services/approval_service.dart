@@ -1,15 +1,68 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import '../models/approval_request.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../config/environment.dart';
+import 'realtime_service.dart';
 
 class ApprovalService {
   final AuthService _authService;
   final String _baseUrl = Environment.apiBaseUrl;
+  RealtimeService? _realtime;
+  StreamController<List<ApprovalRequest>>? _requestsController;
 
   ApprovalService(this._authService);
+
+  Stream<List<ApprovalRequest>> get approvalRequestsStream {
+    _requestsController ??= StreamController<List<ApprovalRequest>>.broadcast();
+    return _requestsController!.stream;
+  }
+
+  Future<void> initRealtime() async {
+    try {
+      await _authService.initialize();
+      final token = _authService.accessToken;
+      if (token == null || token.isEmpty) {
+        return;
+      }
+      _realtime = RealtimeService();
+      await _realtime!.initialize(authToken: token);
+      _realtime!.on('approval_created', (_) => _refreshStream());
+      _realtime!.on('approval_updated', (_) => _refreshStream());
+      _realtime!.on('report_submitted', (_) => _refreshStream());
+      _realtime!.on('report_approved', (_) => _refreshStream());
+      _realtime!.on('report_change_requested', (_) => _refreshStream());
+      await _refreshStream();
+    } catch (_) {}
+  }
+
+  void disposeRealtime() {
+    try {
+      _realtime?.offAll('approval_created');
+      _realtime?.offAll('approval_updated');
+      _realtime?.offAll('report_submitted');
+      _realtime?.offAll('report_approved');
+      _realtime?.offAll('report_change_requested');
+    } catch (_) {}
+    try {
+      _requestsController?.close();
+    } catch (_) {}
+    _requestsController = null;
+    _realtime = null;
+  }
+
+  Future<void> _refreshStream() async {
+    try {
+      final resp = await getApprovalRequests();
+      if (resp.isSuccess) {
+        final list = (resp.data?['requests'] as List?)?.cast<ApprovalRequest>() ?? <ApprovalRequest>[];
+        _requestsController ??= StreamController<List<ApprovalRequest>>.broadcast();
+        _requestsController!.add(list);
+      }
+    } catch (_) {}
+  }
 
   // Get all approval requests
   Future<ApiResponse> getApprovalRequests({
@@ -75,6 +128,69 @@ class ApprovalService {
       }
     } catch (e) {
       return ApiResponse.error('Error fetching approval requests: $e');
+    }
+  }
+
+  // Create a new approval request
+  Future<ApiResponse> createApprovalRequest({
+    required String deliverableId,
+    required String requestedBy,
+    String? comments,
+    String? category,
+    String priority = 'medium',
+  }) async {
+    try {
+      final token = _authService.accessToken;
+      if (token == null) {
+        return ApiResponse.error('No authentication token available');
+      }
+      final uri = Uri.parse('$_baseUrl/approvals');
+      final response = await http.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'deliverable_id': deliverableId,
+          'requested_by': requestedBy,
+          if (comments != null) 'comments': comments,
+          if (category != null) 'category': category,
+          'priority': priority,
+        }),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        final e = data['data'] ?? data;
+        final deliverable = e['deliverable'] as Map<String, dynamic>? ?? {};
+        final requester = e['requester'] as Map<String, dynamic>? ?? {};
+        final approver = e['approver'] as Map<String, dynamic>? ?? {};
+        final request = ApprovalRequest(
+          id: e['id']?.toString() ?? '',
+          title: deliverable['title']?.toString() ?? 'Approval Request',
+          description: e['comments']?.toString() ?? '',
+          requestedBy: e['requested_by']?.toString() ?? requester['id']?.toString() ?? requestedBy,
+          requestedByName: [requester['first_name'], requester['last_name']].whereType<String>().where((s) => s.isNotEmpty).join(' ').trim().isNotEmpty
+              ? [requester['first_name'], requester['last_name']].whereType<String>().join(' ').trim()
+              : (requester['email']?.toString() ?? requestedBy),
+          requestedAt: _parseDateTime(e['requested_at']) ?? DateTime.now(),
+          status: _parseStatus(e['status']?.toString() ?? 'pending'),
+          reviewedBy: e['approved_by']?.toString() ?? e['rejected_by']?.toString() ?? approver['id']?.toString(),
+          reviewedByName: [approver['first_name'], approver['last_name']].whereType<String>().where((s) => s.isNotEmpty).join(' ').trim().isNotEmpty
+              ? [approver['first_name'], approver['last_name']].whereType<String>().join(' ').trim()
+              : (approver['email']?.toString()),
+          reviewedAt: _parseDateTime(e['approved_at'] ?? e['rejected_at']),
+          reviewReason: e['comments']?.toString(),
+          priority: e['priority']?.toString() ?? priority,
+          category: e['category']?.toString() ?? (category ?? ''),
+          deliverableId: deliverable['id']?.toString() ?? e['deliverable_id']?.toString() ?? deliverableId,
+        );
+        return ApiResponse.success({'request': request}, response.statusCode);
+      } else {
+        return ApiResponse.error('Failed to create approval request: ${response.statusCode}');
+      }
+    } catch (e) {
+      return ApiResponse.error('Error creating approval request: $e');
     }
   }
 

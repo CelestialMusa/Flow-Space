@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
+import '../utils/date_utils.dart' as du;
 
 // Provider for audit trail state
 final auditTrailProvider = StateNotifierProvider<AuditTrailNotifier, AuditTrailState>((ref) {
@@ -265,15 +266,17 @@ class _AuditTrailScreenState extends ConsumerState<AuditTrailScreen> {
   }
 
   String _formatTimestamp(dynamic timestamp) {
+    DateTime? dateTime;
     if (timestamp is String) {
       try {
-        final dateTime = DateTime.parse(timestamp);
-        return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
-      } catch (e) {
-        return timestamp;
-      }
+        dateTime = DateTime.parse(timestamp);
+      } catch (_) {}
     } else if (timestamp is DateTime) {
-      return '${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}-${timestamp.day.toString().padLeft(2, '0')} ${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
+      dateTime = timestamp;
+    }
+
+    if (dateTime != null) {
+      return DateUtils.formatDateTime(dateTime);
     }
     return timestamp?.toString() ?? 'Unknown time';
   }

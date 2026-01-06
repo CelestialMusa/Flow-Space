@@ -34,6 +34,7 @@ class _SprintBoardScreenState extends ConsumerState<SprintBoardScreen> {
   // Data
   List<JiraIssue> _issues = [];
   Map<String, dynamic>? _sprintDetails;
+  List<Map<String, dynamic>> _users = [];
   
   // UI State
   bool _isLoading = false;
@@ -45,7 +46,28 @@ class _SprintBoardScreenState extends ConsumerState<SprintBoardScreen> {
   void initState() {
     super.initState();
     _loadSprintData();
+    _loadUsers();
     _setupRealtime();
+  }
+
+  Future<void> _loadUsers() async {
+    try {
+      final backend = BackendApiService();
+      final response = await backend.getUsers(limit: 100);
+      if (mounted && response.isSuccess && response.data != null) {
+        final raw = response.data;
+        List<dynamic> list = [];
+        if (raw is List) {
+          list = raw;
+        } else if (raw is Map) {
+          list = (raw['users'] ?? raw['data'] ?? []) as List<dynamic>;
+        }
+        
+        setState(() {
+          _users = list.map((u) => u is Map<String, dynamic> ? u : Map<String, dynamic>.from(u as Map)).toList();
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadSprintData() async {
@@ -348,11 +370,12 @@ class _SprintBoardScreenState extends ConsumerState<SprintBoardScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: assigneeController,
+              DropdownButtonFormField<String>(
+                // ignore: deprecated_member_use
+                value: assigneeController.text.isNotEmpty && _users.any((u) => u['email'] == assigneeController.text) ? assigneeController.text : null,
                 style: const TextStyle(color: FlownetColors.pureWhite),
                 decoration: const InputDecoration(
-                  labelText: 'Assignee Email',
+                  labelText: 'Assignee',
                   labelStyle: TextStyle(color: FlownetColors.electricBlue),
                   border: OutlineInputBorder(
                     borderSide: BorderSide(color: FlownetColors.electricBlue),
@@ -361,6 +384,25 @@ class _SprintBoardScreenState extends ConsumerState<SprintBoardScreen> {
                     borderSide: BorderSide(color: FlownetColors.electricBlue, width: 2),
                   ),
                 ),
+                dropdownColor: FlownetColors.charcoalBlack,
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('Unassigned', style: TextStyle(color: FlownetColors.pureWhite)),
+                  ),
+                  ..._users.map((u) {
+                    final email = u['email']?.toString() ?? '';
+                    final name = '${u['first_name'] ?? ''} ${u['last_name'] ?? ''}'.trim();
+                    final display = name.isNotEmpty ? '$name ($email)' : email;
+                    return DropdownMenuItem<String>(
+                      value: email,
+                      child: Text(display, style: const TextStyle(color: FlownetColors.pureWhite)),
+                    );
+                  }),
+                ],
+                onChanged: (val) {
+                  assigneeController.text = val ?? '';
+                },
               ),
               const SizedBox(height: 16),
               Row(

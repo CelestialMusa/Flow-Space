@@ -86,7 +86,17 @@ class _ClientReviewWorkflowScreenState extends ConsumerState<ClientReviewWorkflo
             final decoded = jsonDecode(contentRaw);
             content = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
           } catch (_) {
-            content = <String, dynamic>{};
+            content = {
+              'reportTitle': (data['report_title'] ?? data['deliverable_title'] ?? data['reportTitle'] ?? 'Sign-Off Report').toString(),
+              'reportContent': (data['report_content'] ?? data['reportContent'] ?? contentRaw).toString(),
+              'knownLimitations': (data['known_limitations'] ?? data['knownLimitations'])?.toString(),
+              'nextSteps': (data['next_steps'] ?? data['nextSteps'])?.toString(),
+              'sprintIds': (() {
+                final v = data['sprint_ids'] ?? data['sprintIds'];
+                if (v is List) return v.map((e) => e.toString()).toList();
+                return <String>[];
+              })(),
+            };
           }
         } else if (contentRaw is Map) {
           content = Map<String, dynamic>.from(contentRaw);
@@ -99,14 +109,24 @@ class _ClientReviewWorkflowScreenState extends ConsumerState<ClientReviewWorkflo
           _report = SignOffReport(
             id: (data['id'] ?? '').toString(),
             deliverableId: ((data['deliverableId'] ?? data['deliverable_id']) ?? '').toString(),
-            reportTitle: content['reportTitle'] as String? ?? 'Untitled Report',
-            reportContent: content['reportContent'] as String? ?? '',
-            sprintIds: (content['sprintIds'] as List?)?.cast<String>() ?? [],
-            knownLimitations: content['knownLimitations'] as String?,
-            nextSteps: content['nextSteps'] as String?,
+            reportTitle: (content['reportTitle'] ?? content['report_title'] ?? data['report_title'] ?? data['reportTitle'] ?? 'Untitled Report').toString(),
+            reportContent: (content['reportContent'] ?? content['report_content'] ?? data['report_content'] ?? data['reportContent'] ?? '').toString(),
+            sprintIds: (() {
+              final v = content['sprintIds'] ?? content['sprint_ids'];
+              if (v is List) return v.map((e) => e.toString()).toList();
+              return <String>[];
+            })(),
+            knownLimitations: (content['knownLimitations'] ?? content['known_limitations'])?.toString(),
+            nextSteps: (content['nextSteps'] ?? content['next_steps'])?.toString(),
             status: _parseStatus(data['status'] as String? ?? 'draft'),
-            createdAt: DateTime.parse(data['createdAt'] ?? data['created_at']).toLocal(),
-            createdBy: data['createdByName'] as String? ?? data['created_by_name'] as String? ?? 'Unknown',
+            createdAt: (() {
+              final v = data['createdAt'] ?? data['created_at'];
+              if (v is String && v.isNotEmpty) {
+                try { return DateTime.parse(v).toLocal(); } catch (_) {}
+              }
+              return DateTime.now();
+            })(),
+            createdBy: (data['createdByName'] ?? data['created_by_name'] ?? data['created_by'])?.toString() ?? 'Unknown',
             digitalSignature: content['digitalSignature'] as String?,
           );
           
@@ -639,7 +659,7 @@ class _ClientReviewWorkflowScreenState extends ConsumerState<ClientReviewWorkflo
                         : Colors.orange,
                   ),
                   title: Text(
-                    review['reviewerName'] as String? ?? 'Unknown Reviewer',
+                    (review['reviewerName'] ?? review['reviewer_name'] ?? review['reviewer'])?.toString() ?? 'Unknown Reviewer',
                     style: const TextStyle(color: FlownetColors.pureWhite),
                   ),
                   subtitle: Column(

@@ -948,6 +948,12 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   }
 
   Widget _buildDeliverablesOverview() {
+    // Filter out completed deliverables for the overview
+    final overviewDeliverables = _dashboardDeliverables.where((d) {
+      final status = (d['status'] ?? d['reviewStatus'] ?? '').toString().toLowerCase();
+      return status != 'completed';
+    }).toList();
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -956,9 +962,11 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildCardHeader(Icons.assignment_outlined, 'Deliverables Overview (${_dashboardDeliverables.length})', route: '/repository'),
+                  _buildCardHeader(Icons.assignment_outlined, 'Deliverables Overview (${overviewDeliverables.length})', route: '/deliverables'),
                   const SizedBox(height: 8),
-                  ..._dashboardDeliverables.take(6).map((d) {
+                  if (overviewDeliverables.isEmpty)
+                    const Text('No active deliverables'),
+                  ...overviewDeliverables.take(6).map((d) {
                     final title = d['title'] ?? d['name'] ?? d['deliverableName'] ?? 'Untitled Deliverable';
                     final status = (d['status'] ?? d['reviewStatus'] ?? '').toString();
                     final id = (d['id']?.toString() ?? d['uuid']?.toString() ?? '');
@@ -1000,7 +1008,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                               const Spacer(),
                               IconButton(
                                 onPressed: () {
-                                  final route = id.isNotEmpty ? '/report-editor/$id' : '/repository';
+                                  final route = id.isNotEmpty ? '/report-editor/$id' : '/deliverables';
                                   context.go(route);
                                 },
                                 icon: const Icon(Icons.open_in_new),

@@ -19,7 +19,9 @@ class DateUtils {
   }
 
   static String formatTime(DateTime dateTime) {
-    return DateFormat('h:mm a').format(dateTime);
+    // Convert to South African Standard Time (UTC+2)
+    final sast = dateTime.toUtc().add(const Duration(hours: 2));
+    return DateFormat('HH:mm').format(sast);
   }
 
   static String formatDate(DateTime dateTime) {
@@ -27,7 +29,9 @@ class DateUtils {
   }
 
   static String formatDateTime(DateTime dateTime) {
-    return DateFormat('MMM d, y • h:mm a').format(dateTime);
+    // Convert to South African Standard Time (UTC+2)
+    final sast = dateTime.toUtc().add(const Duration(hours: 2));
+    return DateFormat('MMM d, y • HH:mm').format(sast);
   }
 
   static bool isToday(DateTime dateTime) {

@@ -317,7 +317,7 @@ class ReportExportService {
         // Web platform - trigger browser download
         final blob = html.Blob([bytes], 'application/pdf');
         final url = html.Url.createObjectUrlFromBlob(blob);
-        final fileName = 'Report_${report.reportTitle.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final fileName = 'Report_${report.reportTitle.replaceAll(' ', '_')}_${report.id}.pdf';
         html.AnchorElement(href: url)
           ..setAttribute('download', fileName)
           ..click()
@@ -334,7 +334,8 @@ class ReportExportService {
           // Try to save to temp directory and share
           try {
             final tempDir = await getTemporaryDirectory();
-            final filePath = '${tempDir.path}/report_${report.id}.pdf';
+            final sanitizedTitle = report.reportTitle.replaceAll(RegExp(r'[^\w\s-]'), '').replaceAll(RegExp(r'\s+'), '_');
+            final filePath = '${tempDir.path}/${sanitizedTitle}_${report.id}.pdf';
             final file = _createFile(filePath);
             await file.writeAsBytes(bytes);
             

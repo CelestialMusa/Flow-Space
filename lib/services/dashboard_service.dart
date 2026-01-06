@@ -87,6 +87,18 @@ class DashboardStats {
     required this.completionRate,
   });
 
+  int get pendingDeliverables {
+    final p = totalDeliverables - completedDeliverables - inProgressDeliverables;
+    return p < 0 ? 0 : p;
+  }
+
+  String get avgSignoffDaysDisplay => 'N/A';
+
+  int get draftReports => 0;
+  int get submittedReports => 0;
+  int get approvedReports => completedDeliverables;
+  int get changeRequestedReports => 0;
+
   factory DashboardStats.fromJson(Map<String, dynamic> json) {
     final total = json['total_deliverables'] ?? 0;
     final completed = json['completed'] ?? 0;

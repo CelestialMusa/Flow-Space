@@ -84,11 +84,15 @@ class ClientApprovalNotifier extends Notifier<ClientApprovalState> {
     
     try {
       final backend = ref.read(backendApiServiceProvider);
+      final auth = ref.read(authServiceProvider);
+      final me = await auth.getCurrentUser();
+      final requesterId = me?.id ?? '';
       final requestData = {
         'deliverable_id': deliverableId,
         'deliverable_title': deliverableTitle,
         'client_id': clientId,
         'client_name': clientName,
+        'requested_by': requesterId,
         if (dueDate != null) 'due_date': dueDate.toIso8601String(),
       };
       final response = await backend.createApprovalRequest(requestData);

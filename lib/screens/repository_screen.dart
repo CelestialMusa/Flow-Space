@@ -9,6 +9,7 @@ import '../services/auth_service.dart';
 import '../services/sprint_database_service.dart';
 import '../services/realtime_service.dart';
 import '../services/deliverable_service.dart';
+import '../services/sign_off_report_service.dart';
 import '../theme/flownet_theme.dart';
 import '../widgets/flownet_logo.dart';
 import '../widgets/app_scaffold.dart';
@@ -27,12 +28,14 @@ class _RepositoryScreenState extends State<RepositoryScreen> {
   final DocumentService _documentService = DocumentService(AuthService());
   final SprintDatabaseService _sprintService = SprintDatabaseService();
   final DeliverableService _deliverableService = DeliverableService();
+  final SignOffReportService _reportService = SignOffReportService(AuthService());
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _tagsController = TextEditingController();
   
   List<RepositoryFile> _documents = [];
   List<RepositoryFile> _filteredDocuments = [];
+  Map<String, String> _reportTitles = {};
   bool _isLoading = false;
   String _selectedFileType = 'all';
   String _searchQuery = '';
@@ -86,8 +89,39 @@ class _RepositoryScreenState extends State<RepositoryScreen> {
       } catch (_) {}
       if (!mounted) return;
       await _loadFilters();
+      _loadReports();
       await _loadDocuments();
     });
+  }
+
+  Future<void> _loadReports() async {
+    try {
+      final response = await _reportService.getSignOffReports();
+      if (response.isSuccess && response.data != null) {
+        final reportsData = response.data is List 
+            ? response.data as List
+            : (response.data!['data'] as List? ?? []);
+        
+        final Map<String, String> titles = {};
+        for (final json in reportsData) {
+            final id = json['id']?.toString();
+            if (id == null) continue;
+            
+            final contentRaw = json['content'] as Map<String, dynamic>?;
+            final title = contentRaw?['reportTitle']?.toString() ?? 
+                          json['reportTitle']?.toString() ?? 
+                          json['report_title']?.toString() ?? 
+                          'Untitled Report';
+            titles[id] = title;
+        }
+        
+        if (mounted) {
+            setState(() {
+                _reportTitles = titles;
+            });
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadFilters() async {
@@ -708,29 +742,51 @@ class _RepositoryScreenState extends State<RepositoryScreen> {
     );
   }
 
+  String _getDisplayName(RepositoryFile document) {
+     final name = document.name;
+     String? reportId;
+     
+     // Try to extract ID from various patterns
+     // 1. Exact match: ID.pdf
+     var match = RegExp(r'^([a-zA-Z0-9-]+)\.pdf$').firstMatch(name);
+     
+     // 2. Prefix match: report_ID.pdf or Title_ID.pdf
+     match ??= RegExp(r'[._-]([a-zA-Z0-9-]+)\.pdf$').firstMatch(name);
+
+     if (match != null) {
+       reportId = match.group(1);
+     }
+     
+     if (reportId != null && _reportTitles.containsKey(reportId)) {
+         return '${_reportTitles[reportId]}.pdf';
+     }
+     
+     return name;
+  }
+
   Widget _buildDocumentCard(RepositoryFile document) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       color: FlownetColors.graphiteGray.withValues(alpha: 0.6),
       child: ListTile(
-                    leading: CircleAvatar(
+        leading: CircleAvatar(
           backgroundColor: _getFileTypeColor(document.fileType),
-                      child: Text(
+          child: Text(
             document.fileType.toUpperCase().substring(0, 1),
-                        style: const TextStyle(
-                          color: FlownetColors.pureWhite,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    title: Text(
-          document.name,
+            style: const TextStyle(
+              color: FlownetColors.pureWhite,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        title: Text(
+          _getDisplayName(document),
           style: const TextStyle(
             color: FlownetColors.pureWhite,
             fontWeight: FontWeight.bold,
           ),
-                    ),
-                    subtitle: Column(
+        ),
+        subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
             Text(
