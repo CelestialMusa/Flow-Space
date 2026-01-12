@@ -11,6 +11,7 @@ class ApiClient {
 
   static const String _baseUrl = 'https://flow-space.onrender.com/api'; // Render backend server
   static const String _apiVersion = '/v1';
+  static const String _version = '2026-01-12-v2'; // Force cache invalidation
   static const Duration _timeout = Duration(seconds: 30);
 
   String? _accessToken;
@@ -167,7 +168,7 @@ class ApiClient {
           response = await http.get(Uri.parse(url), headers: headers).timeout(_timeout);
           break;
         case 'POST':
-          debugPrint('🌐 API POST to: $url');
+          debugPrint('🌐 API POST to: $url (v$_version)');
           debugPrint('📤 POST body: ${body != null ? jsonEncode(body) : 'null'}');
           response = await http.post(
             Uri.parse(url),
