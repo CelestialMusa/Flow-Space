@@ -2,30 +2,17 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'notification_service.dart';
 import 'package:flutter/foundation.dart';
-import 'auth_service.dart';
+import 'api_client.dart';
+import 'backend_api_service.dart';
 
 class SprintDatabaseService {
   static const String _baseUrl = 'https://flow-space.onrender.com/api/v1';
   final NotificationService _notificationService = NotificationService();
-  final AuthService _authService = AuthService();
+  final ApiClient _apiClient = ApiClient();
+  final BackendApiService _backendApiService = BackendApiService();
   
-  // API Client for making HTTP requests
-  Future<http.Response> _post(String endpoint, Map<String, dynamic> data) async {
-    return await http.post(
-      Uri.parse('$_baseUrl$endpoint'),
-      headers: _headers,
-      body: jsonEncode(data),
-    );
-  }
-  
-
-  // Get authentication token from AuthService
-  String? get _token => _authService.accessToken;
-
-  Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    if (_token != null) 'Authorization': 'Bearer $_token',
-  };
+  // Get authentication token from ApiClient
+  String? get _token => _apiClient.accessToken;
 
   // ===== SPRINT MANAGEMENT =====
 
@@ -34,26 +21,17 @@ class SprintDatabaseService {
     try {
       debugPrint('🔍 Fetching sprints from: $_baseUrl/sprints');
       debugPrint('🔍 Auth token: ${_token != null ? "Present" : "Missing"}');
-      debugPrint('🔍 Headers: $_headers');
       
-      final response = await http.get(
-        Uri.parse('$_baseUrl/sprints'),
-        headers: _headers,
-      );
-
-      debugPrint('🔍 Response status: ${response.statusCode}');
-      debugPrint('🔍 Response body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          debugPrint('✅ Fetched ${data['data'].length} sprints from database');
-          return List<Map<String, dynamic>>.from(data['data']);
-        }
+      final response = await _backendApiService.getSprints();
+      
+      if (response.isSuccess && response.data != null) {
+        final data = response.data as List;
+        debugPrint('✅ Fetched ${data.length} sprints from database');
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        debugPrint('❌ Failed to fetch sprints: ${response.error ?? 'Unknown error'}');
+        return [];
       }
-      
-      debugPrint('❌ Failed to fetch sprints: ${response.statusCode}');
-      return [];
     } catch (e) {
       debugPrint('❌ Error fetching sprints: $e');
       return [];
@@ -80,44 +58,14 @@ class SprintDatabaseService {
       };
 
       debugPrint('🚀 Creating sprint with data: $body');
-      final response = await http.post(
-        Uri.parse('$_baseUrl/sprints'),
-        headers: _headers,
-        body: jsonEncode(body),
-      );
+      final response = await _backendApiService.createSprint(body);
 
-      debugPrint('📡 Sprint creation response: ${response.statusCode} - ${response.body}');
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          debugPrint('✅ Sprint "$name" created successfully');
-          
-          // Send notification for sprint creation
-          try {
-            final token = _authService.accessToken;
-            if (token != null) {
-              _notificationService.setAuthToken(token);
-              final user = _authService.currentUser;
-              final userName = user?.name ?? 'Unknown User';
-              
-              await _notificationService.notifySprintCreated(
-                sprintName: name,
-                projectName: projectId ?? 'Current Project',
-                createdBy: userName,
-              );
-            }
-          } catch (e) {
-            debugPrint('❌ Error sending sprint creation notification: $e');
-          }
-          
-          return data['data'];
-        } else {
-          throw Exception(data['error'] ?? 'Failed to create sprint');
-        }
+      if (response.isSuccess && response.data != null) {
+        debugPrint('✅ Sprint "$name" created successfully');
+        return response.data as Map<String, dynamic>;
       } else {
-        final errorData = jsonDecode(response.body);
-        throw Exception(errorData['error'] ?? 'Failed to create sprint');
+        debugPrint('❌ Failed to create sprint: ${response.error ?? 'Unknown error'}');
+        throw Exception(response.error ?? 'Failed to create sprint');
       }
     } catch (e) {
       debugPrint('❌ Error creating sprint: $e');
