@@ -1054,6 +1054,79 @@ app.get('/api/v1/sprints', authenticateToken, async (req, res) => {
   }
 });
 
+app.post('/api/v1/sprints', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const { name, description, start_date, end_date, planned_points, project_id } = req.body;
+
+    // Validate required fields
+    if (!name || !start_date || !end_date || !project_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name, start date, end date, and project ID are required'
+      });
+    }
+
+    // Check if user has permission to create sprints for this project
+    let hasPermission = false;
+    if (userRole === 'systemAdmin' || userRole === 'projectManager') {
+      hasPermission = true;
+    } else {
+      // Check if user is project owner or member
+      const projectCheck = await pool.query(
+        `SELECT owner_id FROM projects WHERE id = $1`,
+        [project_id]
+      );
+      
+      if (projectCheck.rows.length > 0) {
+        const project = projectCheck.rows[0];
+        if (project.owner_id === userId) {
+          hasPermission = true;
+        } else {
+          // Check if user is project member with appropriate role
+          const memberCheck = await pool.query(
+            `SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2`,
+            [project_id, userId]
+          );
+          if (memberCheck.rows.length > 0) {
+            hasPermission = true;
+          }
+        }
+      }
+    }
+
+    if (!hasPermission) {
+      return res.status(403).json({
+        success: false,
+        error: 'You do not have permission to create sprints for this project'
+      });
+    }
+
+    // Create sprint
+    const result = await pool.query(
+      `INSERT INTO sprints (name, description, start_date, end_date, committed_points, project_id)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [name, description || '', start_date, end_date, planned_points || 0, project_id]
+    );
+
+    const sprint = result.rows[0];
+
+    res.json({
+      success: true,
+      data: sprint
+    });
+
+  } catch (error) {
+    console.error('Create sprint error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create sprint'
+    });
+  }
+});
+
 // Get user profile by ID
 app.get('/api/v1/profile/:userId', authenticateToken, async (req, res) => {
   try {
