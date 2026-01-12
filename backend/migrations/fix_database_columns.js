@@ -74,6 +74,22 @@ async function addMissingColumns() {
     `);
     console.log('✅ Created repository_files table');
 
+    // Create epics table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS epics (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+        created_by UUID REFERENCES users(id) ON DELETE CASCADE,
+        status VARCHAR(50) DEFAULT 'active',
+        priority VARCHAR(50) DEFAULT 'medium',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✅ Created epics table');
+
     // Add missing indexes
     await pool.query('CREATE INDEX IF NOT EXISTS idx_deliverables_sprint ON deliverables(sprint_id)');
     console.log('✅ Added idx_deliverables_sprint index');
@@ -86,6 +102,15 @@ async function addMissingColumns() {
 
     await pool.query('CREATE INDEX IF NOT EXISTS idx_repository_files_type ON repository_files(file_type)');
     console.log('✅ Added idx_repository_files_type index');
+
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_epics_project ON epics(project_id)');
+    console.log('✅ Added idx_epics_project index');
+
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_epics_created_by ON epics(created_by)');
+    console.log('✅ Added idx_epics_created_by index');
+
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_epics_status ON epics(status)');
+    console.log('✅ Added idx_epics_status index');
 
     // Create updated_at trigger function if it doesn't exist
     await pool.query(`
@@ -114,6 +139,13 @@ async function addMissingColumns() {
       FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
     `);
     console.log('✅ Added update_repository_files_updated_at trigger');
+
+    await pool.query(`
+      CREATE TRIGGER update_epics_updated_at 
+      BEFORE UPDATE ON epics
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+    `);
+    console.log('✅ Added update_epics_updated_at trigger');
 
     console.log('🎉 Database column fixes completed successfully!');
     
