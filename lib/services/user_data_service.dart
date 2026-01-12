@@ -222,7 +222,7 @@ class UserDataService {
       final response = await _apiService.createUser(
         email: email,
         name: name,
-        role: role,
+        role: _parseUserRole(role).name,
         password: password,
       );
       
