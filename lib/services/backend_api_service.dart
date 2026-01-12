@@ -364,7 +364,7 @@ class BackendApiService {
   Future<ApiResponse> verifyEmail(String email, String verificationCode) async {
     return await _apiClient.post('/auth/verify-email', body: {
       'email': email,
-      'verificationCode': verificationCode,
+      'code': verificationCode,
     },);
   }
 
@@ -372,6 +372,24 @@ class BackendApiService {
     return await _apiClient.get('/auth/verification-status', queryParams: {
       'email': email,
     },);
+  }
+
+  // AI Chat endpoint
+  Future<ApiResponse> aiChat(
+    String message, {
+    double? temperature,
+    int? maxTokens,
+    List<Map<String, String>>? conversationHistory,
+  }) async {
+    final body = <String, dynamic>{
+      'message': message,
+      'conversationHistory': conversationHistory ?? [],
+    };
+    
+    if (temperature != null) body['temperature'] = temperature;
+    if (maxTokens != null) body['maxTokens'] = maxTokens;
+    
+    return await _apiClient.post('/ai/chat', body: body);
   }
 
   // Helper methods for data transformation

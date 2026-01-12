@@ -641,7 +641,7 @@ class ApiService {
   }
 
   // System metrics methods
-  static Future<SystemMetrics> getSystemMetrics() async {
+  static Future<Map<String, dynamic>> getSystemMetrics() async {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/system-metrics'),
@@ -650,16 +650,16 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return SystemMetrics.fromJson(data);
+        return data;
       } else {
         debugPrint('Failed to load system metrics: ${response.statusCode}');
         // Return mock data for development
-        return _getMockSystemMetrics();
+        return _getMockSystemMetrics().toJson();
       }
     } catch (e) {
       debugPrint('Error loading system metrics: $e');
       // Return mock data for development
-      return _getMockSystemMetrics();
+      return _getMockSystemMetrics().toJson();
     }
   }
 
