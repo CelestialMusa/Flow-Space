@@ -362,10 +362,13 @@ class BackendApiService {
   }
 
   Future<ApiResponse> verifyEmail(String email, String verificationCode) async {
-    return await _apiClient.post('/auth/verify-email', body: {
+    debugPrint('🔍 verifyEmail called with: email=$email, code=$verificationCode');
+    final response = await _apiClient.post('/auth/verify-email', body: {
       'email': email,
       'code': verificationCode,
     },);
+    debugPrint('📡 verifyEmail response: ${response.toString()}');
+    return response;
   }
 
   Future<ApiResponse> checkEmailVerificationStatus(String email) async {

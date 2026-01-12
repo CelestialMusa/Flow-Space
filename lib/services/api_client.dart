@@ -167,6 +167,8 @@ class ApiClient {
           response = await http.get(Uri.parse(url), headers: headers).timeout(_timeout);
           break;
         case 'POST':
+          debugPrint('🌐 API POST to: $url');
+          debugPrint('📤 POST body: ${body != null ? jsonEncode(body) : 'null'}');
           response = await http.post(
             Uri.parse(url),
             headers: headers,
