@@ -315,7 +315,6 @@ class _SprintBoardScreenState extends ConsumerState<SprintBoardScreen> {
         description: description,
         assignee: assignee.isNotEmpty ? assignee : null,
         priority: priority,
-        type: type,
       );
 
       if (response != null) {

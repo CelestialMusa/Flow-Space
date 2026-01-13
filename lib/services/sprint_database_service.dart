@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'notification_service.dart';
 import 'package:flutter/foundation.dart';
 import 'api_client.dart';
@@ -16,7 +14,7 @@ class SprintDatabaseService {
 
   // ===== SPRINT MANAGEMENT =====
 
-  /// Get all sprints for the current user
+  /// Get all sprints for current user
   Future<List<Map<String, dynamic>>> getSprints() async {
     try {
       debugPrint('🔍 Fetching sprints from: $_baseUrl/sprints');
@@ -38,10 +36,27 @@ class SprintDatabaseService {
     }
   }
 
+  /// Get sprint details
+  Future<Map<String, dynamic>?> getSprintDetails(String sprintId) async {
+    try {
+      final response = await _backendApiService.getSprint(sprintId);
+      
+      if (response.isSuccess && response.data != null) {
+        debugPrint('✅ Fetched sprint details for $sprintId');
+        return response.data as Map<String, dynamic>;
+      }
+      
+      debugPrint('❌ Failed to fetch sprint details: ${response.error ?? 'Unknown error'}');
+      return null;
+    } catch (e) {
+      debugPrint('❌ Error fetching sprint details: $e');
+      return null;
+    }
+  }
+
   /// Create a new sprint
   Future<Map<String, dynamic>> createSprint({
     required String name,
-    String description = '',
     required DateTime startDate,
     required DateTime endDate,
     String? projectId,
@@ -50,7 +65,6 @@ class SprintDatabaseService {
     try {
       final body = {
         'name': name,
-        'description': description,
         'start_date': startDate.toIso8601String(),
         'end_date': endDate.toIso8601String(),
         'planned_points': plannedPoints,
@@ -90,24 +104,158 @@ class SprintDatabaseService {
       if (startDate != null) body['startDate'] = startDate.toIso8601String();
       if (endDate != null) body['endDate'] = endDate.toIso8601String();
 
-      final response = await http.put(
-        Uri.parse('$_baseUrl/sprints/$sprintId'),
-        headers: _headers,
-        body: jsonEncode(body),
-      );
+      final response = await _backendApiService.updateSprint(sprintId.toString(), body);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          debugPrint('✅ Sprint $sprintId updated successfully');
-          return data['data'];
-        }
+      if (response.isSuccess && response.data != null) {
+        debugPrint('✅ Sprint $sprintId updated successfully');
+        return response.data as Map<String, dynamic>;
+      } else {
+        debugPrint('❌ Failed to update sprint: ${response.error ?? 'Unknown error'}');
+        return null;
       }
-      
-      debugPrint('❌ Failed to update sprint: ${response.statusCode}');
-      return null;
     } catch (e) {
       debugPrint('❌ Error updating sprint: $e');
+      return null;
+    }
+  }
+
+  /// Update sprint status
+  Future<bool> updateSprintStatus({
+    required String sprintId,
+    required String status,
+    String? oldStatus,
+    String? sprintName,
+  }) async {
+    try {
+      final body = {'status': status};
+
+      final response = await _backendApiService.updateSprintStatus(sprintId, body);
+
+      if (response.isSuccess) {
+        debugPrint('✅ Sprint $sprintId status updated to $status');
+        
+        // Send notification for sprint status change
+        if (oldStatus != null && sprintName != null) {
+          try {
+            final token = _apiClient.accessToken;
+            if (token != null) {
+              _notificationService.setAuthToken(token);
+              final user = _apiClient.currentUser;
+              final userName = user?.name ?? 'Unknown User';
+              
+              await _notificationService.notifySprintStatusChange(
+                sprintName: sprintName,
+                oldStatus: oldStatus,
+                newStatus: status,
+                changedBy: userName,
+              );
+            }
+          } catch (e) {
+            debugPrint('❌ Error sending sprint status notification: $e');
+          }
+        }
+        
+        return true;
+      }
+
+      debugPrint('❌ Failed to update sprint status: ${response.error ?? 'Unknown error'}');
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error updating sprint status: $e');
+      return false;
+    }
+  }
+
+  // ===== TICKET MANAGEMENT =====
+
+  /// Update ticket status (for drag and drop)
+  Future<bool> updateTicketStatus({
+    required String ticketId,
+    required String status,
+  }) async {
+    try {
+      final body = {'status': status};
+
+      final response = await _backendApiService.updateTicketStatus(ticketId, body);
+
+      if (response.isSuccess) {
+        debugPrint('✅ Ticket $ticketId status updated to $status');
+        return true;
+      }
+      
+      debugPrint('❌ Failed to update ticket status: ${response.error ?? 'Unknown error'}');
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error updating ticket status: $e');
+      return false;
+    }
+  }
+
+  /// Update ticket details
+  Future<Map<String, dynamic>?> updateTicket({
+    required String ticketId,
+    String? summary,
+    String? description,
+    String? assignee,
+    String? priority,
+    List<String>? labels,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (summary != null) body['summary'] = summary;
+      if (description != null) body['description'] = description;
+      if (assignee != null) body['assignee'] = assignee;
+      if (priority != null) body['priority'] = priority;
+      if (labels != null) body['labels'] = labels;
+
+      final response = await _backendApiService.updateTicket(ticketId, body);
+
+      if (response.isSuccess && response.data != null) {
+        debugPrint('✅ Ticket $ticketId updated successfully');
+        return response.data as Map<String, dynamic>;
+      }
+      
+      debugPrint('❌ Failed to update ticket: ${response.error ?? 'Unknown error'}');
+      return null;
+    } catch (e) {
+      debugPrint('❌ Error updating ticket: $e');
+      return null;
+    }
+  }
+
+  /// Create a new ticket
+  Future<Map<String, dynamic>?> createTicket({
+    required String title,
+    required String description,
+    required String sprintId,
+    String? assignee,
+    String priority = 'medium',
+    String status = 'todo',
+    List<String>? labels,
+  }) async {
+    try {
+      final body = {
+        'title': title,
+        'description': description,
+        'sprint_id': sprintId,
+        if (assignee != null) 'assignee': assignee,
+        'priority': priority,
+        'status': status,
+        if (labels != null) 'labels': labels,
+      };
+
+      debugPrint('🚀 Creating ticket with data: $body');
+      final response = await _apiClient.post('/tickets', body: body);
+
+      if (response.isSuccess && response.data != null) {
+        debugPrint('✅ Ticket "$title" created successfully');
+        return response.data as Map<String, dynamic>;
+      } else {
+        debugPrint('❌ Failed to create ticket: ${response.error ?? 'Unknown error'}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('❌ Error creating ticket: $e');
       return null;
     }
   }
@@ -135,21 +283,14 @@ class SprintDatabaseService {
         if (clientEmail != null) 'client_email': clientEmail,
       };
 
-      final response = await http.post(
-        Uri.parse('$_baseUrl/projects'),
-        headers: _headers,
-        body: jsonEncode(body),
-      );
+      final response = await _backendApiService.createProject(body);
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          debugPrint('✅ Project created successfully: ${data['data']['project_name']}');
-          return data['data'];
-        }
+      if (response.isSuccess && response.data != null) {
+        debugPrint('✅ Project created successfully');
+        return response.data as Map<String, dynamic>;
       }
       
-      debugPrint('❌ Failed to create project: ${response.statusCode}');
+      debugPrint('❌ Failed to create project: ${response.error ?? 'Unknown error'}');
       return null;
     } catch (e) {
       debugPrint('❌ Error creating project: $e');
@@ -162,25 +303,16 @@ class SprintDatabaseService {
     try {
       debugPrint('🔍 Fetching projects from: $_baseUrl/projects');
       debugPrint('🔍 Auth token: ${_token != null ? "Present" : "Missing"}');
-      debugPrint('🔍 Headers: $_headers');
       
-      final response = await http.get(
-        Uri.parse('$_baseUrl/projects'),
-        headers: _headers,
-      );
-
-      debugPrint('🔍 Response status: ${response.statusCode}');
-      debugPrint('🔍 Response body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          debugPrint('✅ Fetched ${data['data'].length} projects');
-          return List<Map<String, dynamic>>.from(data['data']);
-        }
+      final response = await _backendApiService.getProjects();
+      
+      if (response.isSuccess && response.data != null) {
+        final data = response.data as List;
+        debugPrint('✅ Fetched ${data.length} projects');
+        return data.cast<Map<String, dynamic>>();
       }
       
-      debugPrint('❌ Failed to fetch projects: ${response.statusCode}');
+      debugPrint('❌ Failed to fetch projects: ${response.error ?? 'Unknown error'}');
       return [];
     } catch (e) {
       debugPrint('❌ Error fetching projects: $e');
@@ -188,247 +320,22 @@ class SprintDatabaseService {
     }
   }
 
-  // ===== TICKET MANAGEMENT =====
-
   /// Get all tickets for a sprint
   Future<List<Map<String, dynamic>>> getSprintTickets(String sprintId) async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/sprints/$sprintId/tickets'),
-        headers: _headers,
-      );
+      final response = await _backendApiService.getSprintTickets(sprintId);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          debugPrint('✅ Fetched ${data['data'].length} tickets for sprint $sprintId');
-          return List<Map<String, dynamic>>.from(data['data']);
-        }
+      if (response.isSuccess && response.data != null) {
+        final data = response.data as List;
+        debugPrint('✅ Fetched ${data.length} tickets for sprint $sprintId');
+        return data.cast<Map<String, dynamic>>();
       }
       
-      debugPrint('❌ Failed to fetch tickets: ${response.statusCode}');
+      debugPrint('❌ Failed to fetch tickets: ${response.error ?? 'Unknown error'}');
       return [];
     } catch (e) {
       debugPrint('❌ Error fetching tickets: $e');
       return [];
-    }
-  }
-
-  /// Get sprint details by ID
-  Future<Map<String, dynamic>?> getSprintDetails(String sprintId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/sprints/$sprintId'),
-        headers: _headers,
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          debugPrint('✅ Fetched sprint details for sprint $sprintId');
-          return data['data'];
-        }
-      }
-      
-      debugPrint('❌ Failed to fetch sprint details: ${response.statusCode}');
-      return null;
-    } catch (e) {
-      debugPrint('❌ Error fetching sprint details: $e');
-      return null;
-    }
-  }
-
-  /// Create a new ticket
-  Future<Map<String, dynamic>?> createTicket({
-    required String sprintId,
-    required String title,
-    required String description,
-    String? assignee,
-    required String priority,
-    required String type,
-  }) async {
-    try {
-      debugPrint('🎫 Creating ticket: $title for sprint $sprintId');
-      
-      final body = {
-        'sprintId': sprintId,
-        'title': title,
-        'description': description,
-        'assignee': assignee,
-        'priority': priority,
-        'type': type,
-        'status': 'To Do',
-      };
-
-      final response = await _post('/tickets', body);
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          debugPrint('✅ Ticket "$title" created successfully');
-          return data['data'];
-        }
-      }
-      
-      debugPrint('❌ Failed to create ticket: ${response.statusCode}');
-      return null;
-    } catch (e) {
-      debugPrint('❌ Error creating ticket: $e');
-      return null;
-    }
-  }
-
-  /// Update ticket status (for drag and drop)
-  Future<bool> updateTicketStatus({
-    required String ticketId,
-    required String status,
-  }) async {
-    try {
-      final body = {'status': status};
-
-      final response = await http.put(
-        Uri.parse('$_baseUrl/tickets/$ticketId/status'),
-        headers: _headers,
-        body: jsonEncode(body),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          debugPrint('✅ Ticket $ticketId status updated to $status');
-          return true;
-        }
-      }
-      
-      debugPrint('❌ Failed to update ticket status: ${response.statusCode}');
-      return false;
-    } catch (e) {
-      debugPrint('❌ Error updating ticket status: $e');
-      return false;
-    }
-  }
-
-  /// Update ticket details
-  Future<Map<String, dynamic>?> updateTicket({
-    required String ticketId,
-    String? summary,
-    String? description,
-    String? assignee,
-    String? priority,
-    List<String>? labels,
-  }) async {
-    try {
-      final body = <String, dynamic>{};
-      if (summary != null) body['summary'] = summary;
-      if (description != null) body['description'] = description;
-      if (assignee != null) body['assignee'] = assignee;
-      if (priority != null) body['priority'] = priority;
-      if (labels != null) body['labels'] = labels;
-
-      final response = await http.put(
-        Uri.parse('$_baseUrl/tickets/$ticketId'),
-        headers: _headers,
-        body: jsonEncode(body),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          debugPrint('✅ Ticket $ticketId updated successfully');
-          return data['data'];
-        }
-      }
-      
-      debugPrint('❌ Failed to update ticket: ${response.statusCode}');
-      return null;
-    } catch (e) {
-      debugPrint('❌ Error updating ticket: $e');
-      return null;
-    }
-  }
-
-  // Send collaborator invitation email
-  Future<Map<String, dynamic>?> sendCollaboratorInvitation({
-    required String email,
-    required String role,
-    required String projectName,
-  }) async {
-    try {
-      debugPrint('📧 Sending invitation to $email as $role for project $projectName');
-      
-      final response = await _post('/collaborators/invite', {
-        'email': email,
-        'role': role,
-        'projectName': projectName,
-      });
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          debugPrint('✅ Invitation sent successfully');
-          return data;
-        }
-      }
-      
-      debugPrint('❌ Failed to send invitation: ${response.statusCode}');
-      return null;
-    } catch (e) {
-      debugPrint('❌ Error sending invitation: $e');
-      return null;
-    }
-  }
-
-  /// Update sprint status
-  Future<bool> updateSprintStatus({
-    required String sprintId,
-    required String status,
-    String? oldStatus,
-    String? sprintName,
-  }) async {
-    try {
-      final body = {'status': status};
-
-      final response = await http.put(
-        Uri.parse('$_baseUrl/sprints/$sprintId/status'),
-        headers: _headers,
-        body: jsonEncode(body),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          debugPrint('✅ Sprint $sprintId status updated to $status');
-          
-          // Send notification for sprint status change
-          if (oldStatus != null && sprintName != null) {
-            try {
-              final token = _authService.accessToken;
-              if (token != null) {
-                _notificationService.setAuthToken(token);
-                final user = _authService.currentUser;
-                final userName = user?.name ?? 'Unknown User';
-                
-                await _notificationService.notifySprintStatusChange(
-                  sprintName: sprintName,
-                  oldStatus: oldStatus,
-                  newStatus: status,
-                  changedBy: userName,
-                );
-              }
-            } catch (e) {
-              debugPrint('❌ Error sending sprint status notification: $e');
-            }
-          }
-          
-          return true;
-        }
-      }
-
-      debugPrint('❌ Failed to update sprint status: ${response.statusCode}');
-      return false;
-    } catch (e) {
-      debugPrint('❌ Error updating sprint status: $e');
-      return false;
     }
   }
 }

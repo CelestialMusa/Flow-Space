@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
+import '../models/user.dart';
 
 class ApiClient {
   static final ApiClient _instance = ApiClient._internal();
@@ -24,6 +25,16 @@ class ApiClient {
   
   // Get auth token for API calls
   String? getAuthToken() => _accessToken;
+  
+  // Get current user (cached)
+  User? _currentUser;
+  
+  User? get currentUser => _currentUser;
+  
+  // Set current user
+  void setCurrentUser(User user) {
+    _currentUser = user;
+  }
 
   // Initialize API client
   Future<void> initialize() async {

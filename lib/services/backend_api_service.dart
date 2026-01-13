@@ -177,6 +177,10 @@ class BackendApiService {
     return await _apiClient.delete('/sprints/$sprintId');
   }
 
+  Future<ApiResponse> updateSprintStatus(String sprintId, Map<String, dynamic> updates) async {
+    return await _apiClient.put('/sprints/$sprintId/status', body: updates);
+  }
+
   // Sprint metrics endpoints
   Future<ApiResponse> getSprintMetrics(String sprintId) async {
     return await _apiClient.get('/sprints/$sprintId/metrics');
@@ -348,6 +352,35 @@ class BackendApiService {
 
   Future<ApiResponse> optimizeDatabase() async {
     return await _apiClient.post('/system/optimize-database');
+  }
+
+  // Ticket endpoints
+  Future<ApiResponse> updateTicketStatus(String ticketId, Map<String, dynamic> updates) async {
+    return await _apiClient.put('/tickets/$ticketId/status', body: updates);
+  }
+
+  Future<ApiResponse> updateTicket(String ticketId, Map<String, dynamic> updates) async {
+    return await _apiClient.put('/tickets/$ticketId', body: updates);
+  }
+
+  Future<ApiResponse> getSprintTickets(String sprintId) async {
+    return await _apiClient.get('/sprints/$sprintId/tickets');
+  }
+
+  // Project endpoints
+  Future<ApiResponse> createProject(Map<String, dynamic> projectData) async {
+    return await _apiClient.post('/projects', body: projectData);
+  }
+
+  Future<ApiResponse> getProjects({int page = 1, int limit = 20, String? search}) async {
+    final queryParams = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+    if (search != null && search.isNotEmpty) {
+      queryParams['search'] = search;
+    }
+    return await _apiClient.get('/projects', queryParams: queryParams);
   }
 
   Future<ApiResponse> runDiagnostics() async {
