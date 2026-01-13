@@ -25,6 +25,7 @@ import 'screens/approval_requests_screen.dart';
 import 'screens/repository_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/smtp_config_screen.dart';
+import 'screens/send_reminder_screen.dart';
 import 'screens/role_dashboard_screen.dart';
 import 'screens/role_management_screen.dart';
 // import 'screens/user_management_screen.dart';
@@ -264,6 +265,15 @@ final GoRouter _router = GoRouter(
       ),
     ),
     
+    GoRoute(
+      path: '/send-reminder',
+      builder: (context, state) => const RouteGuard(
+        route: '/send-reminder',
+        child: SidebarScaffold(
+          child: SendReminderScreen(),
+        ),
+      ),
+    ),
     GoRoute(
       path: '/deadlines',
       builder: (context, state) => const RouteGuard(
