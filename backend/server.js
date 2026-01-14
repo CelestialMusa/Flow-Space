@@ -1084,7 +1084,7 @@ app.post('/api/v1/sprints', authenticateToken, async (req, res) => {
         if (project.owner_id === userId) {
           hasPermission = true;
         } else {
-          // Check if user is project member with appropriate role
+          // Check if user is project member
           const memberCheck = await pool.query(
             `SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2`,
             [project_id, userId]
@@ -1260,7 +1260,6 @@ app.put('/api/v1/sprints/:sprintId/status', authenticateToken, async (req, res) 
 
 // ==================== NOTIFICATION ENDPOINTS ====================
 
-// Get all notifications for the current user
 app.get('/api/v1/notifications', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -1273,7 +1272,6 @@ app.get('/api/v1/notifications', authenticateToken, async (req, res) => {
         n.type,
         n.is_read,
         n.created_at,
-        u.updated_at,
         u.name as user_name
       FROM notifications n
       LEFT JOIN users u ON n.user_id = u.id
