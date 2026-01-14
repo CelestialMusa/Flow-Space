@@ -27,7 +27,30 @@ class _SprintBoardWidgetState extends State<SprintBoardWidget> {
     final Map<String, List<JiraIssue>> grouped = {};
     
     for (final issue in widget.issues) {
-      final status = issue.status ?? 'Unknown';
+      // Map various status variations to standard columns
+      String status = issue.status ?? 'Unknown';
+      
+      // Map status variations to standard columns
+      switch (status.toLowerCase()) {
+        case 'todo':
+        case 'to-do':
+          status = 'To Do';
+          break;
+        case 'inprogress':
+        case 'in-progress':
+          status = 'In Progress';
+          break;
+        case 'inreview':
+        case 'in-review':
+          status = 'In Review';
+          break;
+        case 'done':
+        case 'complete':
+        case 'completed':
+          status = 'Done';
+          break;
+      }
+      
       grouped.putIfAbsent(status, () => []).add(issue);
     }
     
