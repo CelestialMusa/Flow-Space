@@ -1070,7 +1070,7 @@ app.post('/api/v1/sprints', authenticateToken, async (req, res) => {
 
     // Check if user has permission to create sprints for this project
     let hasPermission = false;
-    if (userRole === 'systemAdmin' || userRole === 'projectManager') {
+    if (userRole === 'systemAdmin' || userRole === 'projectManager' || userRole === 'deliveryLead') {
       hasPermission = true;
     } else {
       // Check if user is project owner or member
@@ -1105,10 +1105,10 @@ app.post('/api/v1/sprints', authenticateToken, async (req, res) => {
 
     // Create sprint
     const result = await pool.query(
-      `INSERT INTO sprints (name, description, start_date, end_date, committed_points, project_id)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO sprints (name, start_date, end_date, committed_points, project_id)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [name, description || '', start_date, end_date, planned_points || 0, project_id]
+      [name, start_date, end_date, planned_points || 0, project_id]
     );
 
     const sprint = result.rows[0];
@@ -1273,7 +1273,7 @@ app.get('/api/v1/notifications', authenticateToken, async (req, res) => {
         n.type,
         n.is_read,
         n.created_at,
-        n.updated_at,
+        u.updated_at,
         u.name as user_name
       FROM notifications n
       LEFT JOIN users u ON n.user_id = u.id
