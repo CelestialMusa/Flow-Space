@@ -1600,6 +1600,91 @@ app.get('/api/v1/deliverables', authenticateToken, async (req, res) => {
   }
 });
 
+// Create deliverable
+app.post('/api/v1/deliverables', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const {
+      title,
+      description,
+      definition_of_done,
+      priority = 'Medium',
+      status = 'Draft',
+      due_date,
+      assigned_to,
+      sprint_id,
+      sprint_ids = [],
+      project_id
+    } = req.body;
+
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        error: 'Title is required'
+      });
+    }
+
+    const query = `
+      INSERT INTO deliverables (
+        title, description, definition_of_done, priority, status, 
+        due_date, assigned_to, sprint_id, project_id, created_by, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+      RETURNING *
+    `;
+
+    const values = [
+      title,
+      description || null,
+      definition_of_done ? JSON.stringify(definition_of_done) : null,
+      priority,
+      status,
+      due_date ? new Date(due_date) : null,
+      assigned_to || null,
+      sprint_id || null,
+      project_id || null,
+      userId
+    ];
+
+    const result = await pool.query(query, values);
+
+    // If sprint_ids provided, create sprint-deliverable relationships
+    if (sprint_ids && sprint_ids.length > 0) {
+      for (const sprintId of sprint_ids) {
+        try {
+          await pool.query(
+            'INSERT INTO sprint_deliverables (sprint_id, deliverable_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [sprintId, result.rows[0].id]
+          );
+        } catch (relError) {
+          console.log('⚠️ Could not create sprint-deliverable relationship:', relError.message);
+        }
+      }
+    }
+
+    console.log('✅ Deliverable created:', result.rows[0].title);
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error creating deliverable:', error);
+    
+    if (error.code === '42P01') {
+      return res.status(404).json({
+        success: false,
+        error: 'Deliverables table not found'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create deliverable'
+    });
+  }
+});
+
 // Get all documents with search and filtering
 app.get('/api/v1/documents', authenticateToken, async (req, res) => {
   try {
@@ -4336,8 +4421,153 @@ app.post('/api/v1/sign-off-reports/process-overdue', authenticateToken, async (r
     return res.status(500).json({ success: false, error: 'Failed to process overdue reports' });
   }
 });
+
+// Epics API endpoints
+app.get('/api/v1/epics', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    
+    let query = `
+      SELECT e.*, 
+             u.name as created_by_name,
+             p.name as project_name
+      FROM epics e
+      LEFT JOIN users u ON e.created_by = u.id
+      LEFT JOIN projects p ON e.project_id = p.id
+    `;
+    
+    let params = [];
+    
+    // Role-based filtering
+    if (userRole === 'teamMember') {
+      query += ' WHERE e.created_by = $1';
+      params.push(userId);
+    }
+    
+    query += ' ORDER BY e.created_at DESC';
+    
+    const result = await pool.query(query, params);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching epics:', error);
+    
+    // If epics table doesn't exist, return empty array
+    if (error.code === '42P01') {
+      console.log('Epics table does not exist, returning empty array');
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch epics'
+    });
+  }
+});
+
+app.post('/api/v1/epics', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const {
+      title,
+      description,
+      project_id,
+      sprint_ids = [],
+      deliverable_ids = [],
+      start_date,
+      target_date,
+      status = 'draft'
+    } = req.body;
+
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        error: 'Title is required'
+      });
+    }
+
+    const query = `
+      INSERT INTO epics (
+        title, description, project_id, created_by, 
+        start_date, target_date, status, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+      RETURNING *
+    `;
+
+    const values = [
+      title,
+      description || null,
+      project_id || null,
+      userId,
+      start_date ? new Date(start_date) : null,
+      target_date ? new Date(target_date) : null,
+      status
+    ];
+
+    const result = await pool.query(query, values);
+
+    // Create sprint-epic relationships if provided
+    if (sprint_ids && sprint_ids.length > 0) {
+      for (const sprintId of sprint_ids) {
+        try {
+          await pool.query(
+            'INSERT INTO sprint_epics (sprint_id, epic_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [sprintId, result.rows[0].id]
+          );
+        } catch (relError) {
+          console.log('⚠️ Could not create sprint-epic relationship:', relError.message);
+        }
+      }
+    }
+
+    // Create deliverable-epic relationships if provided
+    if (deliverable_ids && deliverable_ids.length > 0) {
+      for (const deliverableId of deliverable_ids) {
+        try {
+          await pool.query(
+            'INSERT INTO deliverable_epics (deliverable_id, epic_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [deliverableId, result.rows[0].id]
+          );
+        } catch (relError) {
+          console.log('⚠️ Could not create deliverable-epic relationship:', relError.message);
+        }
+      }
+    }
+
+    console.log('✅ Epic created:', result.rows[0].title);
+
+    res.status(201).json({
+      success: true,
+      data: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error creating epic:', error);
+    
+    // If epics table doesn't exist
+    if (error.code === '42P01') {
+      return res.status(404).json({
+        success: false,
+        error: 'Epics feature is not available (database table missing)'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create epic'
+    });
+  }
+});
+
 httpServer.listen(PORT, () => {
   console.log(`Flow-Space API server running on port ${PORT}`);
 });
 
-// End of file here 
+// End of file here
