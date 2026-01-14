@@ -1258,6 +1258,64 @@ app.put('/api/v1/sprints/:sprintId/status', authenticateToken, async (req, res) 
   }
 });
 
+// Get single sprint details
+app.get('/api/v1/sprints/:sprintId', authenticateToken, async (req, res) => {
+  try {
+    const { sprintId } = req.params;
+    const result = await pool.query('SELECT * FROM sprints WHERE id = $1', [sprintId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Sprint not found' });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error fetching sprint:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch sprint' });
+  }
+});
+
+// Get sprint tickets
+app.get('/api/v1/sprints/:sprintId/tickets', authenticateToken, async (req, res) => {
+  try {
+    const { sprintId } = req.params;
+    const result = await pool.query('SELECT * FROM tickets WHERE sprint_id = $1 ORDER BY created_at DESC', [sprintId]);
+    
+    res.json({
+      success: true,
+      data: result.rows.map(row => ({
+        id: row.ticket_id,
+        ticketId: row.ticket_id,
+        ticketKey: row.ticket_key,
+        key: row.ticket_key,
+        summary: row.summary,
+        title: row.summary,
+        description: row.description,
+        status: row.status,
+        issueType: row.issue_type,
+        type: row.issue_type,
+        priority: row.priority,
+        assignee: row.assignee,
+        reporter: row.reporter,
+        sprintId: row.sprint_id,
+        projectId: row.project_id,
+        userId: row.user_id,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching sprint tickets:', error);
+    if (error && error.code === '42P01') {
+      return res.json({ success: true, data: [] });
+    }
+    res.status(500).json({ success: false, error: 'Failed to fetch sprint tickets' });
+  }
+});
+
 // ==================== NOTIFICATION ENDPOINTS ====================
 
 app.get('/api/v1/notifications', authenticateToken, async (req, res) => {
