@@ -30,11 +30,15 @@ class _SprintBoardWidgetState extends State<SprintBoardWidget> {
       // Map various status variations to standard columns
       String status = issue.status ?? 'Unknown';
       
+      // Debug logging for status mapping
+      debugPrint('🎫 Processing ticket: ${issue.summary} with status: "$status"');
+      
       // Map status variations to standard columns
       switch (status.toLowerCase()) {
         case 'todo':
         case 'to-do':
           status = 'To Do';
+          debugPrint('✅ Mapped "todo" to "To Do" for ticket: ${issue.summary}');
           break;
         case 'inprogress':
         case 'in-progress':
