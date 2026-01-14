@@ -22,7 +22,14 @@ try {
   // 4. New feature tables
   run('migrations/create_new_features_tables.js');
 
-  // 5. Seeds (optional)
+  // 5. Tickets table (critical for sprint management)
+  run('migrations/create_tickets_table.js');
+
+  // 5b. Complete all tables (alternative to individual migrations)
+  // Uncomment the line below to use the complete migration instead
+  // run('migrations/create_all_tables.js');
+
+  // 6. Seeds (optional)
   try {
     run('migrations/seed.js');
   } catch (e) {
