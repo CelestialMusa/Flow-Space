@@ -141,6 +141,24 @@ async function createAllTables() {
       )
     `);
     
+    // Sprint-Epics relationship table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sprint_epics (
+        sprint_id UUID REFERENCES sprints(id) ON DELETE CASCADE,
+        epic_id UUID REFERENCES epics(id) ON DELETE CASCADE,
+        PRIMARY KEY (sprint_id, epic_id)
+      )
+    `);
+    
+    // Deliverable-Epics relationship table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS deliverable_epics (
+        deliverable_id UUID REFERENCES deliverables(id) ON DELETE CASCADE,
+        epic_id UUID REFERENCES epics(id) ON DELETE CASCADE,
+        PRIMARY KEY (deliverable_id, epic_id)
+      )
+    `);
+    
     // ============================================================
     // SPRINT MANAGEMENT TABLES
     // ============================================================
