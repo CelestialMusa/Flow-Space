@@ -229,8 +229,8 @@ class SprintDatabaseService {
     required String description,
     required String sprintId,
     String? assignee,
-    String priority = 'medium',
-    String status = 'todo',
+    String priority = 'Medium',
+    String status = 'To Do',
     List<String>? labels,
   }) async {
     try {
