@@ -14,6 +14,7 @@ import '../services/notification_service.dart';
 import '../models/notification_item.dart';
 import '../widgets/sprint_performance_chart.dart';
 import '../widgets/background_image.dart';
+import '../widgets/notification_center_widget.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 
@@ -61,7 +62,6 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   final String _sortField = 'created_at';
   final bool _sortAscending = false;
   
-
   @override
   void initState() {
     super.initState();
@@ -75,7 +75,6 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     _loadPendingReports();
     _loadClientReviewMetrics();
     _computeTeamMetrics();
-    _setupRealtimeListeners();
   }
 
   @override
@@ -95,7 +94,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     realtimeService.offAll('approval_updated');
     realtimeService.offAll('project_created');
     realtimeService.offAll('project_updated');
-    realtimeService.offAll('notification_received');
+    // Do not call offAll for notification_received as it affects other widgets
     super.dispose();
   }
 
@@ -186,6 +185,12 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
         
         // Load audit logs after user is loaded
         _loadAuditLogs();
+        
+        // Initialize realtime service with valid token
+        if (_authService.accessToken != null) {
+          realtimeService.initialize(authToken: _authService.accessToken);
+          _setupRealtimeListeners();
+        }
       } else {
         if (!_authService.isAuthenticated) {
           debugPrint('❌ Inactive or no user found, redirecting to login');
@@ -394,10 +399,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
       backgroundColor: _currentUser!.roleColor,
       foregroundColor: Colors.white,
       actions: [
-        IconButton(
-          icon: const Icon(Icons.notifications_outlined),
-          onPressed: () => context.go('/notification-center'),
-        ),
+        const NotificationCenterWidget(showLabel: false, showBackground: false),
         IconButton(
           icon: const Icon(Icons.settings_outlined),
           onPressed: () => _showSettingsDialog(),
@@ -1984,6 +1986,21 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   }
 
   void _setupRealtimeListeners() {
+    // Clear existing listeners to prevent duplicates
+    realtimeService.offAll('user_role_changed');
+    realtimeService.offAll('sprint_created');
+    realtimeService.offAll('sprint_updated');
+    realtimeService.offAll('deliverable_created');
+    realtimeService.offAll('deliverable_updated');
+    realtimeService.offAll('approval_created');
+    realtimeService.offAll('approval_updated');
+    realtimeService.offAll('report_submitted');
+    realtimeService.offAll('report_approved');
+    realtimeService.offAll('report_change_requested');
+    realtimeService.offAll('project_created');
+    realtimeService.offAll('project_updated');
+    // Note: notifications listeners are handled by NotificationCenterWidget, do not offAll here
+
     realtimeService.on('user_role_changed', _handleRoleChanged);
     realtimeService.on('sprint_created', (_) => _loadDashboardSprints());
     realtimeService.on('sprint_updated', (_) => _loadDashboardSprints());

@@ -63,6 +63,8 @@ class _RepositoryScreenState extends State<RepositoryScreen> {
             try {
               final doc = RepositoryFile.fromJson(Map<String, dynamic>.from(data));
               setState(() {
+                // Remove existing document with same ID to prevent duplicates
+                _documents.removeWhere((d) => d.id == doc.id);
                 _documents = [doc, ..._documents];
               });
               _filterDocuments();
@@ -169,7 +171,7 @@ class _RepositoryScreenState extends State<RepositoryScreen> {
       
       if (response.isSuccess) {
         setState(() {
-          _documents = (response.data!['documents'] as List).cast<RepositoryFile>();
+          _documents = (response.data!['documents'] as List).cast<RepositoryFile>().toList();
           _filteredDocuments = _documents;
         });
         _filterDocuments();
@@ -192,6 +194,13 @@ class _RepositoryScreenState extends State<RepositoryScreen> {
 
       if (result != null && result.files.isNotEmpty) {
         final pickedFile = result.files.first;
+
+        // Check for JSON file
+        final fileName = pickedFile.name.toLowerCase();
+        if (fileName.endsWith('.json')) {
+          _showErrorSnackBar('JSON files cannot be uploaded.');
+          return;
+        }
         
         // For web platform, we need to handle the file differently
         if (kIsWeb) {

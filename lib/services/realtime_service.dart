@@ -118,9 +118,8 @@ class RealtimeService {
 
   /// Join user-specific rooms
   void _joinUserRooms() {
-    // User ID and role should be provided by the consumer of this service
-    // For now, we'll just join a default room
-    _socket?.emit('join_role_room', {'role': 'teamMember'});
+    // User ID and role are handled automatically by the backend upon connection
+    // based on the JWT token. No manual join needed here.
   }
 
   /// Set up data event handlers for real-time updates

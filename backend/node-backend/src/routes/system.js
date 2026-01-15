@@ -45,7 +45,7 @@ router.get('/settings', authenticateToken, requireRole(['system_admin']), async 
 // Simulate pending approval reminder for reports (admin, delivery lead, or client reviewer)
 router.post('/simulate-report-reminder', authenticateToken, requireRole(['system_admin', 'delivery_lead', 'client_reviewer']), async (req, res) => {
   try {
-    const { reportId, force, recipientRole } = req.body || {};
+    const { reportId, force, recipientRole, recipientId } = req.body || {};
 
     // Find target reports
     let reports = [];
@@ -99,22 +99,34 @@ router.post('/simulate-report-reminder', authenticateToken, requireRole(['system
     }
 
     let recipients = [];
-    const roleKey = String(recipientRole || '').toLowerCase();
-    if (roleKey === 'client_reviewer') {
-      recipients = await User.findAll({ where: { role: { [Op.in]: ['clientReviewer', 'ClientReviewer', 'clientreviewer'] }, is_active: true } });
-    } else if (roleKey === 'system_admin') {
-      recipients = await User.findAll({ where: { role: { [Op.in]: ['systemAdmin', 'SystemAdmin', 'systemadmin'] }, is_active: true } });
-    } else if (roleKey === 'delivery_lead') {
-      recipients = await User.findAll({ where: { role: { [Op.in]: ['deliveryLead', 'DeliveryLead', 'deliverylead'] }, is_active: true } });
+    
+    if (recipientId) {
+      // If a specific user ID is provided, target only that user
+      // We check if the user exists and is active
+      const user = await User.findOne({ where: { id: recipientId, is_active: true } });
+      if (user) {
+        recipients = [user];
+      }
     } else {
-      const clientReviewers = await User.findAll({ where: { role: { [Op.in]: ['clientReviewer', 'ClientReviewer', 'clientreviewer'] }, is_active: true } });
-      recipients = clientReviewers;
-      if (!recipients || recipients.length === 0) {
-        const deliveryLeads = await User.findAll({ where: { role: { [Op.in]: ['deliveryLead', 'DeliveryLead', 'deliverylead'] }, is_active: true } });
-        const admins = await User.findAll({ where: { role: { [Op.in]: ['systemAdmin', 'SystemAdmin', 'systemadmin'] }, is_active: true } });
-        recipients = [...deliveryLeads, ...admins];
+      // Fallback to role-based logic if no specific user is targeted
+      const roleKey = String(recipientRole || '').toLowerCase();
+      if (roleKey === 'client_reviewer') {
+        recipients = await User.findAll({ where: { role: { [Op.in]: ['clientReviewer', 'ClientReviewer', 'clientreviewer'] }, is_active: true } });
+      } else if (roleKey === 'system_admin') {
+        recipients = await User.findAll({ where: { role: { [Op.in]: ['systemAdmin', 'SystemAdmin', 'systemadmin'] }, is_active: true } });
+      } else if (roleKey === 'delivery_lead') {
+        recipients = await User.findAll({ where: { role: { [Op.in]: ['deliveryLead', 'DeliveryLead', 'deliverylead'] }, is_active: true } });
+      } else {
+        const clientReviewers = await User.findAll({ where: { role: { [Op.in]: ['clientReviewer', 'ClientReviewer', 'clientreviewer'] }, is_active: true } });
+        recipients = clientReviewers;
+        if (!recipients || recipients.length === 0) {
+          const deliveryLeads = await User.findAll({ where: { role: { [Op.in]: ['deliveryLead', 'DeliveryLead', 'deliverylead'] }, is_active: true } });
+          const admins = await User.findAll({ where: { role: { [Op.in]: ['systemAdmin', 'SystemAdmin', 'systemadmin'] }, is_active: true } });
+          recipients = [...deliveryLeads, ...admins];
+        }
       }
     }
+
     if (!recipients || recipients.length === 0) {
       return res.status(400).json({ success: false, error: 'No active recipients found' });
     }
@@ -144,6 +156,14 @@ router.post('/simulate-report-reminder', authenticateToken, requireRole(['system
       }));
 
       await Notification.bulkCreate(notifications);
+      
+      // Send real-time notifications
+      for (const notification of notifications) {
+        if (socketService && typeof socketService.sendToUser === 'function') {
+          socketService.sendToUser(notification.recipient_id, 'notification_received', notification);
+        }
+      }
+
       createdCount += notifications.length;
     }
 

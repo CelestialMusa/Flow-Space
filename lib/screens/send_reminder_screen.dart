@@ -178,6 +178,7 @@ class _SendReminderScreenState extends State<SendReminderScreen> {
       final response = await _backendService.sendReminderForReport(
         _selectedReportId!,
         role,
+        recipientId: _selectedUser!.id,
       );
 
       if (mounted) {
