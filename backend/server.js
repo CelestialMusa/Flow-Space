@@ -2001,6 +2001,25 @@ app.post('/api/v1/tickets', authenticateToken, async (req, res) => {
     const row = result.rows[0];
     console.log(` Ticket created: ${ticketKey} - ${ticketTitle}`);
 
+    // Emit real-time update for ticket creation
+    io.emit('ticket_created', {
+      ticket_id: row.ticket_id,
+      ticket_key: row.ticket_key,
+      title: ticketTitle,
+      summary: row.summary,
+      description: row.description,
+      status: row.status,
+      issue_type: row.issue_type,
+      priority: row.priority,
+      assignee: row.assignee,
+      reporter: row.reporter,
+      sprint_id: row.sprint_id,
+      project_id: row.project_id,
+      user_id: row.user_id,
+      created_at: row.created_at,
+      updated_at: row.updated_at
+    });
+
     res.status(201).json({
       success: true,
       data: {
@@ -2030,6 +2049,81 @@ app.post('/api/v1/tickets', authenticateToken, async (req, res) => {
       return res.status(503).json({ success: false, error: 'Tickets feature is not available (database table missing)' });
     }
     res.status(500).json({ success: false, error: 'Failed to create ticket' });
+  }
+});
+
+// Update ticket status
+app.put('/api/v1/tickets/:id/status', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ success: false, error: 'Status is required' });
+    }
+
+    const result = await pool.query(`
+      UPDATE tickets 
+      SET status = $1, updated_at = NOW()
+      WHERE ticket_id = $2
+      RETURNING *
+    `, [status, id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Ticket not found' });
+    }
+
+    const row = result.rows[0];
+    console.log(` Ticket ${id} status updated to: ${status}`);
+
+    // Emit real-time update for ticket status change
+    io.emit('ticket_updated', {
+      ticket_id: row.ticket_id,
+      ticket_key: row.ticket_key,
+      title: row.summary,
+      summary: row.summary,
+      description: row.description,
+      status: row.status,
+      issue_type: row.issue_type,
+      priority: row.priority,
+      assignee: row.assignee,
+      reporter: row.reporter,
+      sprint_id: row.sprint_id,
+      project_id: row.project_id,
+      user_id: row.user_id,
+      created_at: row.created_at,
+      updated_at: row.updated_at
+    });
+
+    res.json({
+      success: true,
+      data: {
+        id: row.ticket_id,
+        ticketId: row.ticket_id,
+        ticketKey: row.ticket_key,
+        key: row.ticket_key,
+        summary: row.summary,
+        title: row.summary,
+        description: row.description,
+        status: row.status,
+        issueType: row.issue_type,
+        type: row.issue_type,
+        priority: row.priority,
+        assignee: row.assignee,
+        reporter: row.reporter,
+        sprintId: row.sprint_id,
+        projectId: row.project_id,
+        userId: row.user_id,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      }
+    });
+  } catch (error) {
+    console.error('Error updating ticket status:', error);
+    if (error && error.code === '42P01') {
+      return res.status(503).json({ success: false, error: 'Tickets feature is not available (database table missing)' });
+    }
+    res.status(500).json({ success: false, error: 'Failed to update ticket status' });
   }
 });
 
