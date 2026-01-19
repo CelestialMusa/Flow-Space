@@ -5101,6 +5101,10 @@ app.get('/api/v1/epics', authenticateToken, async (req, res) => {
 });
 
 app.post('/api/v1/epics', authenticateToken, async (req, res) => {
+  console.log('🎯 Epics endpoint called - POST /api/v1/epics');
+  console.log('👤 User ID:', req.user?.id);
+  console.log('📤 Request body:', JSON.stringify(req.body, null, 2));
+  
   try {
     const userId = req.user.id;
     const {
