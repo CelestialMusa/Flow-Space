@@ -63,15 +63,23 @@ httpServer.listen(PORT, () => {
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
-// Email Configuration - use SMTP Email Service
+// Email Configuration - Use SendGrid with SMTP fallback
+const SendGridEmailService = require('./sendgridEmailService');
 const EmailService = require('./emailService');
-const emailService = new EmailService();
+
+// Try SendGrid first, fallback to SMTP
+const emailService = process.env.SENDGRID_API_KEY 
+  ? new SendGridEmailService() 
+  : new EmailService();
+
 emailService
   .testConnection()
   .then((ok) => {
     if (!ok) {
       console.log('⚠️  Email configuration error: connection failed');
       console.log('💡 Email functionality will be limited until credentials are configured');
+    } else {
+      console.log('✅ Email service initialized successfully');
     }
   })
   .catch((err) => {
