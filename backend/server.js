@@ -37,7 +37,7 @@ try {
 }
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8000;
 const httpServer = http.createServer(app);
 const io = new Server(httpServer, {
   cors: {
@@ -48,18 +48,24 @@ const io = new Server(httpServer, {
 });
 
 io.on('connection', (socket) => {
-  console.log('Client connected to approvals real-time:', socket.id);
+  console.log('Socket.IO client connected:', socket.id);
+  
   socket.on('disconnect', () => {
-    console.log('Client disconnected from approvals real-time:', socket.id);
+    console.log('Socket.IO client disconnected:', socket.id);
   });
+});
+
+httpServer.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
 
 // JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
-// Email Configuration - use ProfessionalEmailService (SendGrid Web API with optional Gmail fallback)
-const emailService = new ProfessionalEmailService();
+// Email Configuration - use SMTP Email Service
+const EmailService = require('./emailService');
+const emailService = new EmailService();
 emailService
   .testConnection()
   .then((ok) => {
@@ -88,10 +94,8 @@ app.use(cors({
     // Allow specific origins
     const allowedOrigins = [
       'http://localhost:3000',
-      'http://localhost:3001', 
       'http://localhost:8080',
       'http://127.0.0.1:3000',
-      'http://127.0.0.1:3001',
       'http://127.0.0.1:8080'
     ];
     
@@ -150,6 +154,65 @@ const authenticateToken = (req, res, next) => {
     req.user = user;
     next();
   });
+};
+
+const defaultRolePermissions = {
+  teammember: new Set(['view_sprints', 'update_tickets', 'update_sprint_status']),
+  deliverylead: new Set(['view_sprints', 'update_tickets', 'update_sprint_status']),
+  clientreviewer: new Set(['view_sprints'])
+};
+
+const requirePermission = (permissionName) => async (req, res, next) => {
+  try {
+    const role = req.user && req.user.role ? String(req.user.role) : null;
+    if (!role) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const normalizedRole = role.toLowerCase();
+    // Explicitly forbid admin from update operations
+    const pn = String(permissionName).toLowerCase();
+    if ((pn.startsWith('update_')) && ['systemadmin', 'admin', 'system_admin'].includes(normalizedRole)) {
+      return res.status(403).json({ error: 'Forbidden: admin cannot update statuses' });
+    }
+    try {
+      const result = await pool.query(
+        `
+          SELECT 1
+          FROM user_roles ur
+          JOIN role_permissions rp ON rp.role_id = ur.id
+          JOIN permissions p ON p.id = rp.permission_id
+          WHERE LOWER(ur.name) = $1 AND LOWER(p.name) = $2
+          LIMIT 1
+        `,
+        [normalizedRole, String(permissionName).toLowerCase()]
+      );
+      if (result.rowCount > 0) {
+        // Additional guard: block admin from updates even if DB grants
+        if ((pn.startsWith('update_')) && ['systemadmin', 'admin', 'system_admin'].includes(normalizedRole)) {
+          return res.status(403).json({ error: 'Forbidden: admin cannot update statuses' });
+        }
+        return next();
+      }
+    } catch (dbErr) {
+      console.warn('Permission table lookup failed, using defaults:', dbErr.message);
+    }
+
+    const allowedByDefault = defaultRolePermissions[normalizedRole] && defaultRolePermissions[normalizedRole].has(String(permissionName).toLowerCase());
+    if (allowedByDefault) {
+      return next();
+    }
+
+    return res.status(403).json({ error: 'Forbidden: missing permission', permission: permissionName });
+  } catch (err) {
+    console.error('Permission check error:', err);
+    const normalizedRole = (req.user && req.user.role ? String(req.user.role).toLowerCase() : '');
+    const allowedByDefault = defaultRolePermissions[normalizedRole] && defaultRolePermissions[normalizedRole].has(String(permissionName).toLowerCase());
+    if (allowedByDefault) {
+      return next();
+    }
+    return res.status(403).json({ error: 'Forbidden: missing permission', permission: permissionName });
+  }
 };
 
 // PostgreSQL connection
@@ -380,12 +443,33 @@ async function initializeDatabase() {
         ADD COLUMN IF NOT EXISTS escalated_at TIMESTAMP;
     `);
     console.log('✅ Ensured sign_off_reports has reminder/escalation columns');
+
+    // Create approval_requests table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS approval_requests (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        requested_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        reviewed_at TIMESTAMP,
+        review_reason TEXT,
+        status VARCHAR(50) DEFAULT 'pending',
+        priority VARCHAR(50) DEFAULT 'medium',
+        category VARCHAR(50) DEFAULT 'general',
+        deliverable_id UUID REFERENCES deliverables(id) ON DELETE SET NULL,
+        evidence_links TEXT[] DEFAULT '{}',
+        definition_of_done TEXT[] DEFAULT '{}',
+        deliverable_title TEXT,
+        deliverable_description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Ensured approval_requests table exists');
   } catch (error) {
-    if (error.code === '42P01') {
-      console.warn('⚠️ Table does not exist yet; skipping column migration');
-    } else {
-      console.error('❌ Error initializing database schema:', error.message || error);
-    }
+    console.error('Database initialization error:', error);
   }
 }
 
@@ -777,6 +861,75 @@ app.post('/api/v1/auth/logout', authenticateToken, async (req, res) => {
   }
 });
 
+// Resend verification email endpoint
+app.post('/api/v1/auth/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required'
+      });
+    }
+
+    // Check if user exists
+    const userResult = await pool.query(
+      'SELECT id, email, email_verified FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    // If already verified, return success
+    if (user.email_verified) {
+      return res.json({
+        success: true,
+        message: 'Email already verified'
+      });
+    }
+
+    // Generate new verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Update user with new verification code
+    await pool.query(
+      'UPDATE users SET email_verification_code = $1, email_verified = false WHERE id = $2',
+      [verificationCode, user.id]
+    );
+
+    // Send verification email
+    try {
+      await emailService.sendVerificationEmail(email, verificationCode);
+      console.log(` Verification email resent to: ${email}`);
+      
+      res.json({
+        success: true,
+        message: 'Verification email sent'
+      });
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to send verification email'
+      });
+    }
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
 // Get current user endpoint
 app.get('/api/v1/auth/me', authenticateToken, async (req, res) => {
   try {
@@ -945,6 +1098,147 @@ app.get('/api/v1/dashboard', authenticateToken, async (req, res) => {
   }
 });
 
+// Audit logs endpoint
+app.get('/api/v1/audit-logs', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const { limit = 50, offset = 0 } = req.query;
+
+    let query = `
+      SELECT 
+        al.id,
+        al.user_id,
+        al.entity_type,
+        al.entity_id,
+        al.action,
+        al.description,
+        al.old_values,
+        al.new_values,
+        al.ip_address,
+        al.user_agent,
+        al.created_at,
+        u.name as user_name,
+        u.email as user_email
+      FROM activity_logs al
+      LEFT JOIN users u ON al.user_id = u.id
+      ORDER BY al.created_at DESC
+      LIMIT $1 OFFSET $2
+    `;
+
+    const params = [parseInt(limit), parseInt(offset)];
+    const result = await pool.query(query, params);
+
+    res.json({
+      success: true,
+      data: result.rows,
+      pagination: {
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        total: result.rows.length
+      }
+    });
+  } catch (error) {
+    console.error('Audit logs error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch audit logs'
+    });
+  }
+});
+
+// Count endpoint for dashboard statistics
+app.get('/api/v1/count', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const { type } = req.query;
+
+    let count = 0;
+    let query = '';
+    let params = [];
+
+    switch (type) {
+      case 'deliverables':
+        query = 'SELECT COUNT(*) FROM deliverables';
+        if (userRole === 'teamMember') {
+          query += ' WHERE assigned_to = $1 OR created_by = $1';
+          params.push(userId);
+        }
+        break;
+      case 'sprints':
+        query = 'SELECT COUNT(*) FROM sprints';
+        break;
+      case 'projects':
+        query = 'SELECT COUNT(*) FROM projects';
+        break;
+      case 'users':
+        query = 'SELECT COUNT(*) FROM users WHERE is_active = true';
+        break;
+      case 'notifications':
+        query = 'SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND is_read = false';
+        params.push(userId);
+        break;
+      case 'approval-requests':
+        query = 'SELECT COUNT(*) FROM approval_requests';
+        if (userRole === 'teamMember') {
+          query += ' WHERE requested_by = $1';
+          params.push(userId);
+        }
+        break;
+      default:
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid count type'
+        });
+    }
+
+    const result = await pool.query(query, params);
+    count = parseInt(result.rows[0].count) || 0;
+
+    res.json({
+      success: true,
+      data: {
+        type,
+        count
+      }
+    });
+  } catch (error) {
+    console.error('Count endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch count'
+    });
+  }
+});
+
+// Notifications count endpoint
+app.get('/api/v1/notifications/count', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const result = await pool.query(
+      'SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND is_read = false',
+      [userId]
+    );
+    
+    const count = parseInt(result.rows[0].count) || 0;
+    
+    res.json({
+      success: true,
+      data: {
+        count
+      }
+    });
+  } catch (error) {
+    console.error('Notifications count error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch notifications count'
+    });
+  }
+});
+
 // Projects endpoints
 app.get('/api/v1/projects', authenticateToken, async (req, res) => {
   try {
@@ -1105,17 +1399,20 @@ app.post('/api/v1/sprints', authenticateToken, async (req, res) => {
 
     // Create sprint
     const result = await pool.query(
-      `INSERT INTO sprints (name, start_date, end_date, committed_points, project_id)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO sprints (name, start_date, end_date, project_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, NOW(), NOW())
        RETURNING *`,
-      [name, start_date, end_date, planned_points || 0, project_id]
+      [name, start_date, end_date, project_id]
     );
 
     const sprint = result.rows[0];
 
     res.json({
       success: true,
-      data: sprint
+      data: {
+        success: true,
+        data: sprint
+      }
     });
 
   } catch (error) {
@@ -1204,8 +1501,196 @@ app.put('/api/v1/profile/:userId', authenticateToken, async (req, res) => {
   }
 });
 
+// Get user profile picture
+app.get('/api/v1/profile/:userId/picture', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Check if user exists
+    const userResult = await pool.query(
+      'SELECT id, name, avatar_url FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // If user has an uploaded avatar, serve the file
+    if (user.avatar_url && user.avatar_url.startsWith('/uploads/')) {
+      const filePath = path.join(__dirname, user.avatar_url);
+      
+      // Check if file exists
+      if (fs.existsSync(filePath)) {
+        const stat = fs.statSync(filePath);
+        
+        // Set appropriate headers
+        res.setHeader('Content-Type', 'image/jpeg');
+        res.setHeader('Content-Length', stat.size);
+        res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+        
+        // Stream the file
+        const fileStream = fs.createReadStream(filePath);
+        fileStream.pipe(res);
+        return;
+      }
+    }
+    
+    // If no uploaded avatar, fetch and serve default avatar
+    try {
+      const defaultAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=0D47A1&color=fff&size=200`;
+      const response = await fetch(defaultAvatarUrl);
+      
+      if (response.ok) {
+        const buffer = await response.arrayBuffer();
+        const imageBuffer = Buffer.from(buffer);
+        
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Content-Length', imageBuffer.length);
+        res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+        res.send(imageBuffer);
+        return;
+      }
+    } catch (fetchError) {
+      console.log('Failed to fetch default avatar:', fetchError.message);
+    }
+    
+    // If all else fails, return a simple 1x1 transparent PNG
+    const transparentPixel = Buffer.from([
+      0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+      0x00, 0x00, 0x00, 0x0D, // IHDR chunk length
+      0x49, 0x48, 0x44, 0x52, // IHDR
+      0x00, 0x00, 0x00, 0x01, // Width: 1
+      0x00, 0x00, 0x00, 0x01, // Height: 1
+      0x08, 0x06, 0x00, 0x00, 0x00, // Bit depth, color type, compression, filter, interlace
+      0x1F, 0x15, 0xC4, 0x89, // CRC
+      0x00, 0x00, 0x00, 0x0A, // IDAT chunk length
+      0x49, 0x44, 0x41, 0x54, // IDAT
+      0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00, 0x05, 0x00, 0x01, // Compressed data
+      0x0D, 0x0A, 0x2D, 0xB4, // CRC
+      0x00, 0x00, 0x00, 0x00, // IEND chunk length
+      0x49, 0x45, 0x4E, 0x44, // IEND
+      0xAE, 0x42, 0x60, 0x82  // CRC
+    ]);
+    
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Length', transparentPixel.length);
+    res.send(transparentPixel);
+    
+  } catch (error) {
+    console.error('Get profile picture error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Upload profile picture
+app.post('/api/v1/profile/:userId/upload-picture', authenticateToken, upload.single('picture'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Check if user exists and has permission
+    if (req.user.id !== userId && req.user.role !== 'systemAdmin') {
+      return res.status(403).json({
+        success: false,
+        error: 'You can only upload your own profile picture'
+      });
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded'
+      });
+    }
+    
+    // Update user's avatar_url in database
+    const result = await pool.query(
+      'UPDATE users SET avatar_url = $1, updated_at = NOW() WHERE id = $2 RETURNING id, name, avatar_url',
+      [`/uploads/${req.file.filename}`, userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profile picture uploaded successfully',
+      data: {
+        userId: result.rows[0].id,
+        avatarUrl: result.rows[0].avatar_url
+      }
+    });
+  } catch (error) {
+    console.error('Upload profile picture error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to upload profile picture'
+    });
+  }
+});
+
+// Backfill legacy sprints to associate with projects
+app.post('/api/v1/sprints/backfill-projects', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    
+    // Only allow admins or delivery leads to perform backfill
+    if (!['systemAdmin', 'deliveryLead'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Insufficient permissions for backfill operation'
+      });
+    }
+    
+    // Find sprints without project_id and associate them with existing projects
+    const result = await pool.query(`
+      UPDATE sprints 
+      SET project_id = (
+        SELECT id 
+        FROM projects 
+        WHERE created_by = sprints.created_by 
+        LIMIT 1
+      ),
+      updated_at = NOW()
+      WHERE project_id IS NULL 
+        AND created_by IS NOT NULL
+      RETURNING id, name, project_id, updated_at
+    `);
+    
+    console.log(`✅ Backfilled ${result.rows.length} sprints with project associations`);
+    
+    res.json({
+      success: true,
+      message: `Successfully backfilled ${result.rows.length} sprints`,
+      data: {
+        updatedSprints: result.rows,
+        count: result.rows.length
+      }
+    });
+  } catch (error) {
+    console.error('Backfill sprint projects error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to backfill sprint projects'
+    });
+  }
+});
+
 // Update sprint status
-app.put('/api/v1/sprints/:sprintId/status', authenticateToken, async (req, res) => {
+app.put('/api/v1/sprints/:sprintId/status', authenticateToken, requirePermission('update_sprint_status'), async (req, res) => {
   try {
     const { sprintId } = req.params;
     let { status } = req.body;
@@ -1317,6 +1802,38 @@ app.get('/api/v1/sprints/:sprintId/tickets', authenticateToken, async (req, res)
 });
 
 // ==================== NOTIFICATION ENDPOINTS ====================
+
+app.get('/api/v1/notifications/me', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const result = await pool.query(`
+      SELECT 
+        n.id,
+        n.title,
+        n.message,
+        n.type,
+        n.is_read,
+        n.created_at,
+        u.name as user_name
+      FROM notifications n
+      LEFT JOIN users u ON n.user_id = u.id
+      WHERE n.user_id = $1
+      ORDER BY n.created_at DESC
+    `, [userId]);
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    if (error && error.code === '42P01') {
+      return res.json({ success: true, data: [] });
+    }
+    res.status(500).json({ success: false, error: 'Failed to fetch notifications' });
+  }
+});
 
 app.get('/api/v1/notifications', authenticateToken, async (req, res) => {
   try {
@@ -2417,7 +2934,10 @@ app.get('/api/v1/approval-requests', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Get approval requests error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    if (error && error.code === '42P01') {
+      return res.json({ success: true, data: [] });
+    }
+    res.status(500).json({ success: false, error: 'Failed to fetch approval requests' });
   }
 });
 
@@ -2493,14 +3013,17 @@ app.post('/api/v1/approval-requests', authenticateToken, async (req, res) => {
       id: createdRequest.id,
       status: createdRequest.status,
     });
-    
+
     res.json({
       success: true,
       data: createdRequest
     });
   } catch (error) {
     console.error('Create approval request error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    if (error && error.code === '42P01') {
+      return res.status(503).json({ success: false, error: 'Approval requests feature is not available (database table missing)' });
+    }
+    res.status(500).json({ success: false, error: 'Failed to create approval request' });
   }
 });
 
@@ -2594,7 +3117,10 @@ app.put('/api/v1/approval-requests/:id', authenticateToken, async (req, res) => 
     });
   } catch (error) {
     console.error('Update approval request error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    if (error && error.code === '42P01') {
+      return res.status(503).json({ success: false, error: 'Approval requests feature is not available (database table missing)' });
+    }
+    res.status(500).json({ success: false, error: 'Failed to update approval request' });
   }
 });
 
@@ -4566,8 +5092,64 @@ app.post('/api/v1/epics', authenticateToken, async (req, res) => {
   }
 });
 
-httpServer.listen(PORT, () => {
-  console.log(`Flow-Space API server running on port ${PORT}`);
-});
+// Server already started with httpServer.listen(PORT) at line 58
+const checkReportApprovalReminders = async () => {
+  try {
+    const dueReports = await pool.query(`
+      SELECT r.id, r.report_title, r.content, r.updated_at, r.created_by
+      FROM sign_off_reports r
+      WHERE r.status = 'submitted'
+        AND r.updated_at <= NOW() - INTERVAL '1 day'
+        AND NOT EXISTS (
+          SELECT 1 FROM audit_logs a
+          WHERE a.resource_type = 'sign_off_report'
+            AND a.resource_id::uuid = r.id
+            AND a.action = 'report_reminder_sent'
+        )
+    `);
+
+    if (!dueReports.rows || dueReports.rows.length === 0) {
+      return;
+    }
+
+    const reviewersRes = await pool.query(`
+      SELECT id, email, name FROM users WHERE role = 'clientReviewer' AND is_active = true
+    `);
+
+    for (const report of dueReports.rows) {
+      const title = report.report_title || (report.content && report.content.reportTitle) || 'Sign-Off Report';
+      for (const reviewer of reviewersRes.rows) {
+        const notificationId = uuidv4();
+        await pool.query(`
+          INSERT INTO notifications (
+            id, title, message, type, user_id, action_url, is_read, created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, false, NOW())
+        `, [
+          notificationId,
+          '⏰ Pending Approval Reminder',
+          `Reminder: Please review and approve or request changes for "${title}".`,
+          'approval',
+          reviewer.id,
+          `/enhanced-client-review/${report.id}`,
+        ]);
+      }
+
+      await pool.query(`
+        INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
+        VALUES ($1::uuid, 'report_reminder_sent', 'sign_off_report', $2, $3::jsonb, NOW())
+      `, [
+        report.created_by,
+        report.id,
+        JSON.stringify({ reminderType: 'pending_approval', threshold: '1_day' }),
+      ]);
+    }
+  } catch (err) {
+    console.error('Error processing report approval reminders:', err);
+  }
+};
+
+checkReportApprovalReminders();
+setInterval(checkReportApprovalReminders, 30 * 60 * 1000);
 
 // End of file here

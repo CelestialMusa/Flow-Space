@@ -36,10 +36,10 @@
     "nodemailer": "^6.10.1",
     "openai": "^6.9.1",
     "pg": "^8.16.3",
-    "socket.io": "^4.8.1",
+    "resend": "^3.0.0",
+    "socket.io": "^4.8.3",
     "sqlite3": "^5.1.7",
-    "uuid": "^9.0.1",
-    "resend": "^3.0.0"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

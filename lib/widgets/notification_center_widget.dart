@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../services/notification_service.dart';
+import '../services/realtime_service.dart';
 import '../services/auth_service.dart';
 import '../theme/flownet_theme.dart';
 
@@ -14,23 +15,42 @@ class NotificationCenterWidget extends StatefulWidget {
 class _NotificationCenterWidgetState extends State<NotificationCenterWidget> {
   final NotificationService _notificationService = NotificationService();
   final AuthService _authService = AuthService();
+  late RealtimeService _realtime;
   
   int _unreadCount = 0;
   bool _isLoading = true;
+  bool _disposed = false;
 
   @override
   void initState() {
     super.initState();
+    _realtime = RealtimeService();
+    _initializeRealtimeConnection();
     _loadUnreadCount();
   }
 
+  Future<void> _initializeRealtimeConnection() async {
+    try {
+      final token = _authService.accessToken;
+      if (token != null && !_disposed) {
+        await _realtime.initialize(authToken: token);
+        _realtime.on('notification_received', (_) => _loadUnreadCount());
+        _realtime.on('notifications_updated', (_) => _loadUnreadCount());
+      }
+    } catch (e) {
+      debugPrint('Error initializing realtime connection: $e');
+    }
+  }
+
   Future<void> _loadUnreadCount() async {
+    if (_disposed) return;
+    
     try {
       final token = _authService.accessToken;
       if (token != null) {
         _notificationService.setAuthToken(token);
         final count = await _notificationService.getUnreadCount();
-        if (mounted) {
+        if (mounted && !_disposed) {
           setState(() {
             _unreadCount = count;
             _isLoading = false;
@@ -39,12 +59,24 @@ class _NotificationCenterWidgetState extends State<NotificationCenterWidget> {
       }
     } catch (e) {
       debugPrint('Error loading notification count: $e');
-      if (mounted) {
+      if (mounted && !_disposed) {
         setState(() {
           _isLoading = false;
         });
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    try {
+      _realtime.offAll('notification_received');
+      _realtime.offAll('notifications_updated');
+    } catch (e) {
+      debugPrint('Error removing realtime listeners: $e');
+    }
+    super.dispose();
   }
 
   @override

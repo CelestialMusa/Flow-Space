@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class FlownetColors {
   // Primary Colors
@@ -76,7 +75,7 @@ class FlownetTheme {
         surfaceContainerHighest: FlownetColors.surfaceLight,
         onSurfaceVariant: FlownetColors.textSecondary,
         outline: FlownetColors.textTertiary,
-        outlineVariant: FlownetColors.surfaceLight,
+        
         surfaceTint: FlownetColors.primary,
       ),
       // Translucent AppBar
@@ -87,8 +86,9 @@ class FlownetTheme {
         iconTheme: IconThemeData(color: FlownetColors.pureWhite),
         titleTextStyle: TextStyle(
           color: FlownetColors.pureWhite,
+          fontWeight: FontWeight.w600,
           fontSize: 20,
-          fontWeight: FontWeight.bold,
+          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
         ),
       ),
       // Translucent cards
@@ -205,7 +205,7 @@ class FlownetTheme {
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: FlownetColors.textPrimary,
-          fontFamily: 'Poppins',
+          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
         ),
         titleSmall: TextStyle(
           fontSize: 16,
@@ -288,19 +288,97 @@ class FlownetTheme {
         error: FlownetColors.error,
         onError: FlownetColors.onSurface,
         outline: Color(0xFFE0E0E0),
-        outlineVariant: FlownetColors.surfaceLight,
+        outlineVariant: FlownetColors.coolGray,
+      ),
+
+      // Typography
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+          color: FlownetColors.charcoalBlack,
+          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+        ),
+        displayMedium: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: FlownetColors.charcoalBlack,
+          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+        ),
+        displaySmall: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: FlownetColors.charcoalBlack,
+          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+        ),
+        headlineLarge: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+          color: FlownetColors.charcoalBlack,
+          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: FlownetColors.charcoalBlack,
+          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+        ),
+        headlineSmall: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: FlownetColors.charcoalBlack,
+          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+        ),
+        bodyLarge: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.normal,
+          color: FlownetColors.charcoalBlack,
+          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.normal,
+          color: FlownetColors.charcoalBlack,
+          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+        ),
+        bodySmall: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.normal,
+          color: FlownetColors.graphiteGray,
+          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+        ),
+        labelLarge: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: FlownetColors.charcoalBlack,
+          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+        ),
+        labelMedium: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: FlownetColors.charcoalBlack,
+          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+        ),
+        labelSmall: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: FlownetColors.graphiteGray,
+          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+        ),
+        
       ),
 
       // AppBar Theme
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         backgroundColor: FlownetColors.pureWhite,
         foregroundColor: FlownetColors.charcoalBlack,
         elevation: 1,
         centerTitle: true,
-        titleTextStyle: GoogleFonts.poppins(
+        titleTextStyle: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
           color: FlownetColors.charcoalBlack,
+          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
         ),
       ),
 
@@ -313,9 +391,10 @@ class FlownetTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: GoogleFonts.poppins(
+          textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
+            fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
           ),
         ).copyWith(
           overlayColor: WidgetStateProperty.resolveWith<Color?>(
@@ -336,9 +415,10 @@ class FlownetTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: GoogleFonts.poppins(
+          textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
+            fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
           ),
         ).copyWith(
           overlayColor: WidgetStateProperty.resolveWith<Color?>(
@@ -355,9 +435,10 @@ class FlownetTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: FlownetColors.crimsonRed,
-          textStyle: GoogleFonts.poppins(
+          textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
+            fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
           ),
         ),
       ),
@@ -385,11 +466,11 @@ class FlownetTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: FlownetColors.error),
         ),
-        hintStyle: GoogleFonts.poppins(
+        hintStyle: const TextStyle(
           color: FlownetColors.graphiteGray,
           fontSize: 16,
         ),
-        labelStyle: GoogleFonts.poppins(
+        labelStyle: const TextStyle(
           color: FlownetColors.graphiteGray,
           fontSize: 16,
         ),
@@ -432,21 +513,21 @@ class FlownetTheme {
       ),
 
       // Navigation Rail Theme
-      navigationRailTheme: NavigationRailThemeData(
+      navigationRailTheme: const NavigationRailThemeData(
         backgroundColor: FlownetColors.pureWhite,
-        selectedIconTheme: const IconThemeData(
+        selectedIconTheme: IconThemeData(
           color: FlownetColors.crimsonRed,
           size: 24,
         ),
-        unselectedIconTheme: const IconThemeData(
+        unselectedIconTheme: IconThemeData(
           color: FlownetColors.graphiteGray,
           size: 24,
         ),
-        selectedLabelTextStyle: GoogleFonts.poppins(
+        selectedLabelTextStyle: TextStyle(
           color: FlownetColors.crimsonRed,
           fontWeight: FontWeight.w600,
         ),
-        unselectedLabelTextStyle: GoogleFonts.poppins(
+        unselectedLabelTextStyle: TextStyle(
           color: FlownetColors.graphiteGray,
           fontWeight: FontWeight.normal,
         ),
@@ -469,11 +550,11 @@ class FlownetTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        titleTextStyle: GoogleFonts.poppins(
+        titleTextStyle: const TextStyle(
           color: FlownetColors.charcoalBlack,
           fontWeight: FontWeight.w500,
         ),
-        subtitleTextStyle: GoogleFonts.poppins(
+        subtitleTextStyle: const TextStyle(
           color: FlownetColors.graphiteGray,
           fontSize: 14,
         ),
