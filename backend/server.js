@@ -5050,6 +5050,16 @@ app.post('/api/v1/sign-off-reports/process-overdue', authenticateToken, async (r
   }
 });
 
+// Health check endpoint
+app.get('/api/v1/health', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'Flow-Space API is running',
+    timestamp: new Date().toISOString(),
+    version: '2026-01-12-v2'
+  });
+});
+
 // Epics API endpoints
 app.get('/api/v1/epics', authenticateToken, async (req, res) => {
   try {
