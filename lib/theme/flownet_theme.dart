@@ -88,7 +88,7 @@ class FlownetTheme {
           color: FlownetColors.pureWhite,
           fontWeight: FontWeight.w600,
           fontSize: 20,
-          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+          fontFamily: 'Poppins',
         ),
       ),
       // Translucent cards
@@ -205,7 +205,7 @@ class FlownetTheme {
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: FlownetColors.textPrimary,
-          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+          fontFamily: 'Poppins',
         ),
         titleSmall: TextStyle(
           fontSize: 16,
@@ -297,73 +297,91 @@ class FlownetTheme {
           fontSize: 32,
           fontWeight: FontWeight.bold,
           color: FlownetColors.charcoalBlack,
-          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+          fontFamily: 'Poppins',
         ),
         displayMedium: TextStyle(
           fontSize: 28,
           fontWeight: FontWeight.bold,
           color: FlownetColors.charcoalBlack,
-          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+          fontFamily: 'Poppins',
         ),
         displaySmall: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.bold,
           color: FlownetColors.charcoalBlack,
-          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+          fontFamily: 'Poppins',
         ),
         headlineLarge: TextStyle(
           fontSize: 22,
           fontWeight: FontWeight.bold,
           color: FlownetColors.charcoalBlack,
-          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+          fontFamily: 'Poppins',
         ),
         headlineMedium: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
           color: FlownetColors.charcoalBlack,
-          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+          fontFamily: 'Poppins',
         ),
         headlineSmall: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.bold,
           color: FlownetColors.charcoalBlack,
-          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+          fontFamily: 'Poppins',
+        ),
+        titleLarge: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: FlownetColors.charcoalBlack,
+          fontFamily: 'Poppins',
+        ),
+        titleMedium: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: FlownetColors.charcoalBlack,
+          fontFamily: 'Poppins',
+        ),
+        titleSmall: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: FlownetColors.charcoalBlack,
+          fontFamily: 'Poppins',
         ),
         bodyLarge: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.normal,
           color: FlownetColors.charcoalBlack,
-          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+          fontFamily: 'Poppins',
         ),
         bodyMedium: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.normal,
           color: FlownetColors.charcoalBlack,
-          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+          fontFamily: 'Poppins',
         ),
         bodySmall: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.normal,
           color: FlownetColors.graphiteGray,
-          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+          fontFamily: 'Poppins',
         ),
         labelLarge: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
           color: FlownetColors.charcoalBlack,
-          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+          fontFamily: 'Poppins',
         ),
         labelMedium: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
           color: FlownetColors.charcoalBlack,
-          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+          fontFamily: 'Poppins',
         ),
         labelSmall: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
           color: FlownetColors.graphiteGray,
-          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+          fontFamily: 'Poppins',
         ),
         
       ),
@@ -378,7 +396,7 @@ class FlownetTheme {
           fontSize: 20,
           fontWeight: FontWeight.bold,
           color: FlownetColors.charcoalBlack,
-          fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+          fontFamily: 'Poppins',
         ),
       ),
 
@@ -394,7 +412,7 @@ class FlownetTheme {
           textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+            fontFamily: 'Poppins',
           ),
         ).copyWith(
           overlayColor: WidgetStateProperty.resolveWith<Color?>(
@@ -418,7 +436,7 @@ class FlownetTheme {
           textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+            fontFamily: 'Poppins',
           ),
         ).copyWith(
           overlayColor: WidgetStateProperty.resolveWith<Color?>(
@@ -438,7 +456,7 @@ class FlownetTheme {
           textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            fontFamilyFallback: ['Segoe UI', 'Arial', 'sans-serif'],
+            fontFamily: 'Poppins',
           ),
         ),
       ),
