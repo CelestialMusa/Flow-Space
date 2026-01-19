@@ -5,6 +5,9 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       autoIncrement: true
     },
+    project_id: {
+      type: DataTypes.UUID
+    },
     name: {
       type: DataTypes.STRING(255),
       allowNull: false
@@ -109,10 +112,19 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   Sprint.associate = function(models) {
+    Sprint.belongsTo(models.Project, {
+      foreignKey: 'project_id',
+      as: 'project'
+    });
     Sprint.belongsToMany(models.Deliverable, {
       through: models.DeliverableSprint,
       foreignKey: 'sprint_id',
       as: 'deliverables'
+    });
+    Sprint.belongsToMany(models.EpicFeature, {
+      through: models.EpicFeatureSprint,
+      foreignKey: 'sprint_id',
+      as: 'epic_features'
     });
 
     Sprint.hasMany(models.Signoff, {
@@ -133,6 +145,58 @@ module.exports = (sequelize, DataTypes) => {
       as: 'audit_logs'
     });
   };
+
+  // Real-time event hooks
+  Sprint.afterCreate(async (sprint, options) => {
+    try {
+      // Use global event emitter to avoid circular dependencies
+      if (global.realtimeEvents) {
+        global.realtimeEvents.emit('sprint_created', {
+          id: sprint.id,
+          name: sprint.name,
+          status: sprint.status,
+          created_by: sprint.created_by,
+          timestamp: new Date()
+        });
+      }
+    } catch (error) {
+      console.error('Error in sprint afterCreate hook:', error);
+    }
+  });
+
+  Sprint.afterUpdate(async (sprint, options) => {
+    try {
+      // Use global event emitter to avoid circular dependencies
+      if (global.realtimeEvents) {
+        global.realtimeEvents.emit('sprint_updated', {
+          id: sprint.id,
+          name: sprint.name,
+          status: sprint.status,
+          updated_by: options.updatedBy || sprint.updated_by,
+          changes: sprint.changed(),
+          timestamp: new Date()
+        });
+      }
+    } catch (error) {
+      console.error('Error in sprint afterUpdate hook:', error);
+    }
+  });
+
+  Sprint.afterDestroy(async (sprint, options) => {
+    try {
+      // Use global event emitter to avoid circular dependencies
+      if (global.realtimeEvents) {
+        global.realtimeEvents.emit('sprint_deleted', {
+          id: sprint.id,
+          name: sprint.name,
+          deleted_by: options.deletedBy,
+          timestamp: new Date()
+        });
+      }
+    } catch (error) {
+      console.error('Error in sprint afterDestroy hook:', error);
+    }
+  });
 
   return Sprint;
 };

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../services/deliverable_service.dart';
 import '../services/backend_api_service.dart';
 
@@ -24,6 +25,7 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
   final List<String> _selectedSprints = [];
   List<Map<String, dynamic>> _availableSprints = [];
   bool _isSaving = false;
+  bool _isGenerating = false;
 
   @override
   void initState() {
@@ -86,6 +88,90 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
     }
   }
 
+  Future<void> _generateTitleSuggestion() async {
+    if (_isGenerating) return;
+    setState(() => _isGenerating = true);
+    try {
+      final messages = [
+        {
+          'role': 'system',
+          'content': 'Write a concise professional deliverable title. Max 12 words.'
+        },
+        {
+          'role': 'user',
+          'content': 'Description: ${_descriptionController.text}\nPriority: $_priority\nDue: ${_dueDate?.toIso8601String() ?? ''}\nSprints: ${_selectedSprints.join(', ')}'
+        }
+      ];
+      final resp = await BackendApiService().aiChat(messages, temperature: 0.6, maxTokens: 40);
+      if (resp.isSuccess && resp.data != null) {
+        final data = resp.data is Map ? Map<String, dynamic>.from(resp.data as Map) : {};
+        final content = (data['content'] ?? (data['data']?['content']))?.toString() ?? '';
+        if (content.isNotEmpty) {
+          _titleController.text = content.trim();
+        }
+      }
+    } catch (_) {}
+    finally {
+      if (mounted) setState(() => _isGenerating = false);
+    }
+  }
+
+  Future<void> _generateDescriptionSuggestion() async {
+    if (_isGenerating) return;
+    setState(() => _isGenerating = true);
+    try {
+      final messages = [
+        {
+          'role': 'system',
+          'content': 'Write a clear deliverable description summarizing scope, outcomes, and constraints.'
+        },
+        {
+          'role': 'user',
+          'content': 'Title: ${_titleController.text}\nPriority: $_priority\nDue: ${_dueDate?.toIso8601String() ?? ''}\nSprints: ${_selectedSprints.join(', ')}\nDefinition of Done: ${_dodController.text}'
+        }
+      ];
+      final resp = await BackendApiService().aiChat(messages, temperature: 0.7, maxTokens: 160);
+      if (resp.isSuccess && resp.data != null) {
+        final data = resp.data is Map ? Map<String, dynamic>.from(resp.data as Map) : {};
+        final content = (data['content'] ?? (data['data']?['content']))?.toString() ?? '';
+        if (content.isNotEmpty) {
+          _descriptionController.text = content.trim();
+        }
+      }
+    } catch (_) {}
+    finally {
+      if (mounted) setState(() => _isGenerating = false);
+    }
+  }
+
+  Future<void> _generateDodSuggestion() async {
+    if (_isGenerating) return;
+    setState(() => _isGenerating = true);
+    try {
+      final messages = [
+        {
+          'role': 'system',
+          'content': 'Propose 5-8 acceptance criteria as a checklist, one per line.'
+        },
+        {
+          'role': 'user',
+          'content': 'Title: ${_titleController.text}\nDescription: ${_descriptionController.text}'
+        }
+      ];
+      final resp = await BackendApiService().aiChat(messages, temperature: 0.7, maxTokens: 200);
+      if (resp.isSuccess && resp.data != null) {
+        final data = resp.data is Map ? Map<String, dynamic>.from(resp.data as Map) : {};
+        final content = (data['content'] ?? (data['data']?['content']))?.toString() ?? '';
+        if (content.isNotEmpty) {
+          _dodController.text = content.trim();
+        }
+      }
+    } catch (_) {}
+    finally {
+      if (mounted) setState(() => _isGenerating = false);
+    }
+  }
+
   Future<void> _selectDueDate() async {
     final date = await showDatePicker(
       context: context,
@@ -116,31 +202,71 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
         priority: _priority,
         status: _status,
         dueDate: _dueDate,
-        sprintId: _selectedSprints.isNotEmpty ? _selectedSprints.first : null,
-        sprintIds: _selectedSprints,
+sprintIds: _selectedSprints,
+        evidenceLinks: _evidenceLinksController.text
+            .split(RegExp(r'[,\n]'))
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .toList(),
       );
 
       if (mounted) {
         setState(() => _isSaving = false);
         
         if (response.isSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('✅ Deliverable "${_titleController.text}" created successfully!'),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-          
-          // Clear form
-          _titleController.clear();
-          _descriptionController.clear();
-          _dodController.clear();
-          _evidenceLinksController.clear();
-          setState(() {
-            _dueDate = null;
-            _selectedSprints.clear();
-          });
+          try {
+            Deliverable? created;
+            if (response.data is Map<String, dynamic>) {
+              final m = response.data as Map<String, dynamic>;
+              if (m['deliverable'] is Deliverable) {
+                created = m['deliverable'] as Deliverable;
+              } else if (m['deliverable'] is Map) {
+                created = Deliverable.fromJson(Map<String, dynamic>.from(m['deliverable'] as Map));
+              } else if (m['id'] != null) {
+                created = Deliverable(
+                  id: m['id'].toString(),
+                  title: _titleController.text,
+                  description: _descriptionController.text,
+                  definitionOfDone: _dodController.text,
+                  priority: _priority,
+                  status: _status,
+                  dueDate: _dueDate,
+                  createdBy: '',
+                  assignedTo: null,
+                  sprintId: _selectedSprints.isNotEmpty ? _selectedSprints.first : null,
+                  createdByName: null,
+                  assignedToName: null,
+                  sprintName: null,
+                  createdAt: DateTime.now(),
+                  updatedAt: DateTime.now(),
+                );
+              }
+
+              if (created != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('✅ Deliverable "${created.title}" created'),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+                try {
+                  GoRouter.of(context).go('/report-editor/${created.id}');
+                } catch (_) {
+                  Navigator.of(context).pushNamed('/report-editor/${created.id}');
+                }
+              }
+            }
+
+            _titleController.clear();
+            _descriptionController.clear();
+            _dodController.clear();
+            _evidenceLinksController.clear();
+            setState(() {
+              _dueDate = null;
+              _selectedSprints.clear();
+            });
+          } catch (_) {}
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -198,6 +324,14 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
                   return null;
                 },
               ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: _isGenerating ? null : _generateTitleSuggestion,
+                  icon: const Icon(Icons.auto_awesome),
+                  label: const Text('Suggest with AI'),
+                ),
+              ),
               const SizedBox(height: 16),
 
               // Description
@@ -215,6 +349,14 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
                   }
                   return null;
                 },
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: _isGenerating ? null : _generateDescriptionSuggestion,
+                  icon: const Icon(Icons.auto_awesome),
+                  label: const Text('Suggest with AI'),
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -234,6 +376,14 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
                   }
                   return null;
                 },
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: _isGenerating ? null : _generateDodSuggestion,
+                  icon: const Icon(Icons.auto_awesome),
+                  label: const Text('Suggest with AI'),
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -331,17 +481,20 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
                 ),
                 child: Column(
                   children: _availableSprints.map((sprint) {
-                    final isSelected = _selectedSprints.contains(sprint['id']);
+                    final idStr = (sprint['id'] ?? '').toString();
+                    final isSelected = _selectedSprints.contains(idStr);
                     return CheckboxListTile(
-                      title: Text(sprint['name']),
+                      title: Text(sprint['name']?.toString() ?? ''),
                       subtitle: Text('${sprint['start_date']} - ${sprint['end_date']}'),
                       value: isSelected,
                       onChanged: (value) {
                         setState(() {
                           if (value == true) {
-                            _selectedSprints.add(sprint['id']);
+                            if (!_selectedSprints.contains(idStr)) {
+                              _selectedSprints.add(idStr);
+                            }
                           } else {
-                            _selectedSprints.remove(sprint['id']);
+                            _selectedSprints.remove(idStr);
                           }
                         });
                       },
@@ -391,4 +544,6 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
     _evidenceLinksController.dispose();
     super.dispose();
   }
+
 }
+

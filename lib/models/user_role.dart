@@ -125,6 +125,11 @@ class PermissionManager {
       description: 'Create new deliverables',
       allowedRoles: [UserRole.teamMember, UserRole.deliveryLead, UserRole.systemAdmin, UserRole.developer, UserRole.projectManager, UserRole.scrumMaster, UserRole.qaEngineer],
     ),
+    'create_sprint': Permission(
+      name: 'Create Sprint',
+      description: 'Create new sprints',
+      allowedRoles: [UserRole.teamMember, UserRole.deliveryLead, UserRole.systemAdmin],
+    ),
     'edit_deliverable': Permission(
       name: 'Edit Deliverable',
       description: 'Edit existing deliverables',
@@ -140,6 +145,11 @@ class PermissionManager {
       description: 'Approve or reject deliverables',
       allowedRoles: [UserRole.clientReviewer, UserRole.systemAdmin, UserRole.stakeholder],
     ),
+    'view_approvals': Permission(
+      name: 'View Approvals',
+      description: 'View approval requests and reminder status',
+      allowedRoles: [UserRole.deliveryLead, UserRole.clientReviewer, UserRole.systemAdmin],
+    ),
     'view_team_dashboard': Permission(
       name: 'View Team Dashboard',
       description: 'View team performance dashboard',
@@ -148,12 +158,12 @@ class PermissionManager {
     'manage_sprints': Permission(
       name: 'Manage Sprints',
       description: 'Create and manage sprints, projects, and tickets',
-      allowedRoles: [UserRole.deliveryLead, UserRole.systemAdmin, UserRole.teamMember, UserRole.clientReviewer, UserRole.developer, UserRole.projectManager, UserRole.scrumMaster, UserRole.qaEngineer, UserRole.stakeholder],
+      allowedRoles: [UserRole.deliveryLead, UserRole.systemAdmin, UserRole.clientReviewer, UserRole.developer, UserRole.projectManager, UserRole.scrumMaster, UserRole.qaEngineer, UserRole.stakeholder],
     ),
     'view_client_review': Permission(
       name: 'View Client Review',
       description: 'Access client review interface',
-      allowedRoles: [UserRole.clientReviewer, UserRole.systemAdmin, UserRole.stakeholder],
+      allowedRoles: [UserRole.deliveryLead, UserRole.clientReviewer, UserRole.systemAdmin, UserRole.stakeholder],
     ),
     'manage_users': Permission(
       name: 'Manage Users',
@@ -173,7 +183,22 @@ class PermissionManager {
     'view_all_deliverables': Permission(
       name: 'View All Deliverables',
       description: 'View all team deliverables',
-      allowedRoles: [UserRole.deliveryLead, UserRole.systemAdmin, UserRole.teamMember, UserRole.clientReviewer, UserRole.developer, UserRole.projectManager, UserRole.scrumMaster, UserRole.qaEngineer, UserRole.stakeholder],
+      allowedRoles: [UserRole.deliveryLead, UserRole.systemAdmin, UserRole.clientReviewer, UserRole.developer, UserRole.projectManager, UserRole.scrumMaster, UserRole.qaEngineer, UserRole.stakeholder],
+    ),
+    'view_sprints': Permission(
+      name: 'View Sprints',
+      description: 'View sprint lists and boards',
+      allowedRoles: [UserRole.teamMember, UserRole.deliveryLead, UserRole.systemAdmin],
+    ),
+    'update_tickets': Permission(
+      name: 'Update Tickets',
+      description: 'Move ticket progress status',
+      allowedRoles: [UserRole.teamMember, UserRole.deliveryLead],
+    ),
+    'update_sprint_status': Permission(
+      name: 'Update Sprint Status',
+      description: 'Change sprint progress status',
+      allowedRoles: [UserRole.teamMember, UserRole.deliveryLead],
     ),
   };
 

@@ -117,6 +117,13 @@ class DashboardStats {
     required this.changeRequestedReports,
   });
 
+  int get calculatedPendingDeliverables {
+    final p = totalDeliverables - completedDeliverables - inProgressDeliverables;
+    return p < 0 ? 0 : p;
+  }
+
+  String get avgSignoffDaysDisplay => 'N/A';
+
   factory DashboardStats.fromJson(Map<String, dynamic> json) {
     // Safely parse integers from potential string values
     int parseIntSafe(dynamic value) {

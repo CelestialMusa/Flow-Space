@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Notification, User } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
+const socketService = require('../services/socketService');
 
 /**
  * @route POST /api/notifications
@@ -44,10 +45,20 @@ router.post('/', authenticateToken, async (req, res) => {
  */
 router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const { skip = 0, limit = 100 } = req.query;
-    
+    const { skip = 0, limit = 100, unread_only } = req.query;
+
+    const uid = req.user && req.user.id;
+    if (!uid || !/^[0-9a-fA-F-]{36}$/.test(String(uid))) {
+      return res.json([]);
+    }
+
+    const where = { recipient_id: uid };
+    if (String(unread_only || '').toLowerCase() === 'true') {
+      where.is_read = false;
+    }
+
     const notifications = await Notification.findAll({
-      where: { recipient_id: req.user.id },
+      where,
       offset: parseInt(skip),
       limit: parseInt(limit),
       order: [['created_at', 'DESC']]
@@ -109,11 +120,48 @@ router.put('/:id/read', authenticateToken, async (req, res) => {
       });
     }
     
-    await notification.update({ is_read: true, read_at: new Date() });
-    
+    await notification.update({ is_read: true });
+    socketService.sendToUser(req.user.id, 'notifications_updated', { id });
+
     res.json(notification);
   } catch (error) {
     console.error('Error marking notification as read:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/read-all', authenticateToken, async (req, res) => {
+  try {
+    const uid = req.user && req.user.id;
+    if (!uid || !/^[0-9a-fA-F-]{36}$/.test(String(uid))) {
+      return res.json({ success: true, data: { markedCount: 0 } });
+    }
+
+  const [affectedCount] = await Notification.update(
+      { is_read: true },
+      { where: { recipient_id: uid, is_read: false } }
+    );
+    socketService.sendToUser(uid, 'notifications_updated', { all: true, markedCount: affectedCount });
+    res.json({ success: true, data: { markedCount: affectedCount } });
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/count', authenticateToken, async (req, res) => {
+  try {
+    const uid = req.user && req.user.id;
+    if (!uid || !/^[0-9a-fA-F-]{36}$/.test(String(uid))) {
+      return res.json({ success: true, data: { unreadCount: 0 } });
+    }
+
+    const unreadCount = await Notification.count({
+      where: { recipient_id: uid, is_read: false }
+    });
+    res.json({ success: true, data: { unreadCount } });
+  } catch (error) {
+    console.error('Error fetching unread notification count:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

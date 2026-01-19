@@ -6,7 +6,7 @@ import '../theme/flownet_theme.dart';
 import '../widgets/flownet_logo.dart';
 import '../widgets/ai_readiness_gate_widget.dart';
 import '../services/deliverable_service.dart';
-import '../services/sprint_database_service.dart';
+import '../services/backend_api_service.dart';
 
 class EnhancedDeliverableSetupScreen extends ConsumerStatefulWidget {
   const EnhancedDeliverableSetupScreen({super.key});
@@ -27,33 +27,19 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   final List<String> _evidenceLinks = [];
   final List<ReadinessItem> _readinessItems = [];
   final DeliverableService _deliverableService = DeliverableService();
-  final SprintDatabaseService _sprintService = SprintDatabaseService();
+  // final SprintDatabaseService _sprintService = SprintDatabaseService(); // Commented out - class not found
   ReadinessStatus _currentReadinessStatus = ReadinessStatus.red;
   bool _hasInternalApproval = false;
+  List<Map<String, dynamic>> _availableSprints = [];
   
   bool _isSubmitting = false;
-  List<Map<String, dynamic>> _availableSprints = [];
-  bool _isLoadingSprints = true;
 
   @override
   void initState() {
     super.initState();
     _initializeReadinessItems();
     _loadSprints();
-  }
 
-  Future<void> _loadSprints() async {
-    setState(() => _isLoadingSprints = true);
-    try {
-      final sprints = await _sprintService.getSprints();
-      setState(() {
-        _availableSprints = sprints;
-        _isLoadingSprints = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading sprints: $e');
-      setState(() => _isLoadingSprints = false);
-    }
   }
 
   void _initializeReadinessItems() {
@@ -94,6 +80,36 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
         isCompleted: false,
       ),
     ]);
+  }
+
+  Future<void> _loadSprints() async {
+    try {
+      final response = await BackendApiService().getSprints();
+      if (response.isSuccess && response.data != null) {
+        List<dynamic> sprintsList = [];
+        if (response.data is List) {
+          sprintsList = response.data as List;
+        } else if (response.data is Map) {
+          final data = Map<String, dynamic>.from(response.data as Map);
+          sprintsList = data['data'] as List? ?? data['sprints'] as List? ?? [];
+        }
+        setState(() {
+          _availableSprints = sprintsList
+              .where((s) => s != null)
+              .map((s) => s is Map<String, dynamic> ? s : Map<String, dynamic>.from(s as Map))
+              .where((m) => m.isNotEmpty)
+              .toList();
+        });
+      } else {
+        setState(() {
+          _availableSprints = [];
+        });
+      }
+    } catch (_) {
+      setState(() {
+        _availableSprints = [];
+      });
+    }
   }
 
   Future<void> _selectDueDate() async {
@@ -180,6 +196,66 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
         );
       },
     );
+  }
+
+  List<Widget> get dodCards {
+    if (_definitionOfDone.isEmpty) {
+      return [
+        const Card(
+          color: FlownetColors.graphiteGray,
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('No Definition of Done items added'),
+          ),
+        ),
+      ];
+    }
+    return _definitionOfDone.map((item) {
+      return Card(
+        color: FlownetColors.graphiteGray,
+        child: ListTile(
+          title: Text(item),
+          trailing: IconButton(
+            icon: const Icon(Icons.delete, color: Colors.redAccent),
+            onPressed: () {
+              setState(() {
+                _definitionOfDone.remove(item);
+              });
+            },
+          ),
+        ),
+      );
+    }).toList();
+  }
+
+  List<Widget> get evidenceCards {
+    if (_evidenceLinks.isEmpty) {
+      return [
+        const Card(
+          color: FlownetColors.graphiteGray,
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('No evidence links added'),
+          ),
+        ),
+      ];
+    }
+    return _evidenceLinks.map((url) {
+      return Card(
+        color: FlownetColors.graphiteGray,
+        child: ListTile(
+          title: Text(url),
+          trailing: IconButton(
+            icon: const Icon(Icons.delete, color: Colors.redAccent),
+            onPressed: () {
+              setState(() {
+                _evidenceLinks.remove(url);
+              });
+            },
+          ),
+        ),
+      );
+    }).toList();
   }
 
 
@@ -326,8 +402,8 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
         priority: 'Medium',
         status: 'Draft',
         dueDate: _dueDate,
-        sprintId: _selectedSprints.isNotEmpty ? _selectedSprints.first : null,
-        sprintIds: _selectedSprints,
+sprintIds: _selectedSprints,
+        evidenceLinks: _evidenceLinks,
       );
       
       if (mounted) {
@@ -427,7 +503,6 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Text(
                 'Create Deliverable',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -437,10 +512,42 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
               ),
               const SizedBox(height: 24),
 
-              // Basic Information
+              // Contributing Sprints
+              _buildSectionHeader('Contributing Sprints'),
+              const SizedBox(height: 16),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: _availableSprints.map((sprint) {
+                    final idStr = (sprint['id'] ?? '').toString();
+                    final isSelected = _selectedSprints.contains(idStr);
+                    return CheckboxListTile(
+                      title: Text(sprint['name']?.toString() ?? ''),
+                      subtitle: Text('${sprint['start_date']} - ${sprint['end_date']}'),
+                      value: isSelected,
+                      onChanged: (value) {
+                        setState(() {
+                          if (value == true) {
+                            if (!_selectedSprints.contains(idStr)) {
+                              _selectedSprints.add(idStr);
+                            }
+                          } else {
+                            _selectedSprints.remove(idStr);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 24),
+
               _buildSectionHeader('Basic Information'),
               const SizedBox(height: 16),
-              
+
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(
@@ -491,7 +598,6 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
               ),
               const SizedBox(height: 16),
 
-              // Due Date
               InkWell(
                 onTap: _selectDueDate,
                 child: InputDecorator(
@@ -509,90 +615,10 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
               ),
               const SizedBox(height: 24),
 
-              // Sprint Selection
-              _buildSectionHeader('Contributing Sprints'),
-              const SizedBox(height: 8),
-              Text(
-                'Select the sprint(s) that contributed to this deliverable',
-                style: TextStyle(color: FlownetColors.pureWhite.withValues(alpha: 0.7)),
-              ),
-              const SizedBox(height: 16),
-              
-              if (_isLoadingSprints)
-                const Center(child: CircularProgressIndicator())
-              else if (_availableSprints.isEmpty)
-                Card(
-                  color: FlownetColors.graphiteGray,
-                  child: const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('No sprints available. Create a sprint first.'),
-                  ),
-                )
-              else
-                Card(
-                  color: FlownetColors.graphiteGray,
-                  child: Column(
-                    children: _availableSprints.map((sprint) {
-                      final sprintId = sprint['id']?.toString() ?? '';
-                      final sprintName = sprint['name']?.toString() ?? 'Unnamed Sprint';
-                      final status = sprint['status']?.toString() ?? '';
-                      final isSelected = _selectedSprints.contains(sprintId);
-                      
-                      return CheckboxListTile(
-                        value: isSelected,
-                        onChanged: (bool? value) {
-                          setState(() {
-                            if (value == true) {
-                              _selectedSprints.add(sprintId);
-                            } else {
-                              _selectedSprints.remove(sprintId);
-                            }
-                          });
-                        },
-                        title: Text(sprintName),
-                        subtitle: Text('Status: $status'),
-                        secondary: Icon(
-                          Icons.speed,
-                          color: isSelected ? FlownetColors.electricBlue : Colors.grey,
-                        ),
-                        activeColor: FlownetColors.electricBlue,
-                      );
-                    }).toList(),
-                  ),
-                ),
-              
-              if (_selectedSprints.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  '${_selectedSprints.length} sprint(s) selected',
-                  style: TextStyle(
-                    color: FlownetColors.electricBlue,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 24),
 
-              // Definition of Done
               _buildSectionHeader('Definition of Done'),
               const SizedBox(height: 16),
-              
-              ..._definitionOfDone.map((item) => Card(
-                color: FlownetColors.graphiteGray,
-                child: ListTile(
-                  leading: const Icon(Icons.check_circle, color: Colors.green),
-                  title: Text(item),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      setState(() {
-                        _definitionOfDone.remove(item);
-                      });
-                    },
-                  ),
-                ),
-              ),),
-              
+              ...dodCards,
               ElevatedButton.icon(
                 onPressed: _addDoDItem,
                 icon: const Icon(Icons.add),
@@ -603,26 +629,9 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
               ),
               const SizedBox(height: 24),
 
-              // Evidence Links
               _buildSectionHeader('Evidence & Artifacts'),
               const SizedBox(height: 16),
-              
-              ..._evidenceLinks.map((link) => Card(
-                color: FlownetColors.graphiteGray,
-                child: ListTile(
-                  leading: const Icon(Icons.link, color: Colors.blue),
-                  title: Text(link),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      setState(() {
-                        _evidenceLinks.remove(link);
-                      });
-                    },
-                  ),
-                ),
-              ),),
-              
+              ...evidenceCards,
               ElevatedButton.icon(
                 onPressed: _addEvidenceLink,
                 icon: const Icon(Icons.add),

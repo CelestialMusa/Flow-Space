@@ -1,57 +1,76 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
+import '../models/deliverable.dart';
+import '../models/sprint.dart';
+import '../services/api_service.dart';
 
-// Dashboard state model
 class DashboardState {
+  final List<Deliverable> deliverables;
+  final List<Sprint> sprints;
   final bool isLoading;
   final String? error;
-  final Map<String, dynamic> data;
 
-  const DashboardState({
+  DashboardState({
+    required this.deliverables,
+    required this.sprints,
     this.isLoading = false,
     this.error,
-    this.data = const {},
   });
 
   DashboardState copyWith({
+    List<Deliverable>? deliverables,
+    List<Sprint>? sprints,
     bool? isLoading,
     String? error,
-    Map<String, dynamic>? data,
   }) {
     return DashboardState(
+      deliverables: deliverables ?? this.deliverables,
+      sprints: sprints ?? this.sprints,
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
-      data: data ?? this.data,
     );
   }
 }
 
-// Dashboard notifier with Notifier
 class DashboardNotifier extends Notifier<DashboardState> {
   @override
-  DashboardState build() => const DashboardState();
-  
+  DashboardState build() {
+    return DashboardState(
+      deliverables: [],
+      sprints: [],
+      isLoading: false,
+      error: null,
+    );
+  }
+
   Future<void> loadDashboardData() async {
-    state = const DashboardState(isLoading: true, error: null);
-    
     try {
-      await Future.delayed(const Duration(seconds: 1));
+      state = state.copyWith(isLoading: true, error: null);
       
-      state = const DashboardState(
+      // Fetch dashboard data concurrently
+      final deliverablesFuture = ApiService.getDeliverables();
+      final sprintsFuture = ApiService.getSprints();
+      
+      final results = await Future.wait([
+        deliverablesFuture,
+        sprintsFuture,
+      ]);
+      
+      final List<Deliverable> deliverables = (results[0] as List).map((json) => Deliverable.fromJson(json)).toList();
+      final List<Sprint> sprints = (results[1] as List).map((json) => Sprint.fromJson(json)).toList();
+      
+      state = state.copyWith(
+        deliverables: deliverables,
+        sprints: sprints,
         isLoading: false,
-        data: {
-          'totalProjects': 12,
-          'activeProjects': 8,
-          'completedProjects': 4,
-          'totalDeliverables': 45,
-          'completedDeliverables': 32,
-          'pendingDeliverables': 13,
-        },
       );
+      
     } catch (e) {
-      state = DashboardState(
+      state = state.copyWith(
         isLoading: false,
         error: 'Failed to load dashboard data: $e',
       );
+      debugPrint('Error loading dashboard data: $e');
     }
   }
 
@@ -60,7 +79,6 @@ class DashboardNotifier extends Notifier<DashboardState> {
   }
 }
 
-// Riverpod provider setup
-final dashboardStateProvider = NotifierProvider<DashboardNotifier, DashboardState>(() {
+final dashboardNotifierProvider = NotifierProvider<DashboardNotifier, DashboardState>(() {
   return DashboardNotifier();
 });

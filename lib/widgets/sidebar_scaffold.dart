@@ -2,7 +2,11 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/flownet_theme.dart';
+import 'notification_center_widget.dart';
 import '../services/auth_service.dart';
+import '../services/api_service.dart';
+import 'package:http/http.dart' as http;
+import 'dart:typed_data';
 import 'background_image.dart';
 
 class SidebarScaffold extends StatefulWidget {
@@ -32,7 +36,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         label: 'Sprints', 
         icon: Icons.timer_outlined, 
         route: '/sprint-console',
-        requiredPermission: 'manage_sprints',
+        requiredPermission: 'view_sprints',
       ),
       const _NavItem(
         label: 'Epics', 
@@ -47,10 +51,10 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         requiredPermission: null, // All users can access notifications
       ),
       const _NavItem(
-        label: 'Approvals',
-        icon: Icons.check_box_outlined,
-        route: '/approvals',
-        requiredPermission: 'approve_deliverable',
+        label: 'Approval Requests',
+        icon: Icons.assignment_outlined,
+        route: '/approval-requests',
+        requiredPermission: 'view_approvals',
       ),
       const _NavItem(
         label: 'Repository', 
@@ -62,7 +66,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         label: 'Reports', 
         icon: Icons.assessment_outlined, 
         route: '/report-repository',
-        requiredPermission: null, // Allow all authenticated users (especially client reviewers)
+        requiredPermission: 'view_all_deliverables',
       ),
       const _NavItem(
         label: 'Role Management',
@@ -344,6 +348,9 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                 onPressed: () => Navigator.of(context).pop(),
                 tooltip: 'Back',
               ),
+            const NotificationCenterWidget(),
+            const SizedBox(width: 8),
+            const _UserAvatarButton(),
           ],
         ),
         drawer: Drawer(
@@ -529,8 +536,8 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
 
   String _getPageTitle(String route) {
     switch (route) {
-      case '/approvals':
-        return 'Approvals';
+      case '/approval-requests':
+        return 'Approval Requests';
       case '/notifications':
         return 'Notifications';
       case '/repository':
@@ -543,6 +550,68 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         return 'Profile';
       default:
         return 'Flownet Workspaces';
+    }
+  }
+}
+
+class _UserAvatarButton extends StatelessWidget {
+  const _UserAvatarButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = AuthService();
+    final user = auth.currentUser;
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: () => context.go('/profile?mode=view'),
+        borderRadius: BorderRadius.circular(20),
+        child: FutureBuilder<Uint8List?>(
+          future: _loadAvatarBytes(user?.id),
+          builder: (context, snapshot) {
+            final hasImage = snapshot.hasData && (snapshot.data?.isNotEmpty ?? false);
+            return CircleAvatar(
+              radius: 16,
+              backgroundImage: hasImage ? MemoryImage(snapshot.data!) : null,
+              child: hasImage ? null : const Icon(Icons.person, size: 18),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<Uint8List?> _loadAvatarBytes(String? userId) async {
+    try {
+      if (userId == null || userId.isEmpty) return null;
+      final base = Uri.parse(ApiService.baseUrl);
+      final url = '${base.scheme}://${base.host}:${base.port.toString()}/api/v1/profile/$userId/picture?t=${DateTime.now().millisecondsSinceEpoch}';
+      final headers = await ApiService.getAuthHeaders();
+      final resp = await http.get(Uri.parse(url), headers: headers);
+      
+      if (resp.statusCode == 200) {
+        final bodyBytes = resp.bodyBytes;
+        
+        // Check if response is actually image data (not JSON)
+        if (bodyBytes.isNotEmpty) {
+          // Check file header to detect if it's an image
+          final header = bodyBytes.take(4).toList();
+          // Common image file signatures: PNG (0x89 0x50 0x4E 0x47), JPEG (0xFF 0xD8 0xFF 0xE0)
+          final isImage = (header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47) ||
+                          (header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF && header[3] == 0xE0);
+          
+          if (isImage) {
+            return bodyBytes;
+          } else {
+            // Response is likely JSON, not an image
+            debugPrint('⚠️ Avatar endpoint returned non-image data for user $userId');
+            return null;
+          }
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 }

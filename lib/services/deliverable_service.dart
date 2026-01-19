@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'api_client.dart';
 import 'auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Deliverable {
   final String id;
@@ -133,6 +134,9 @@ class DeliverableService {
               .whereType<Deliverable>()
               .toList();
           
+          try {
+            await _saveCachedDeliverables(deliverables);
+          } catch (_) {}
           return ApiResponse.success({'deliverables': deliverables}, response.statusCode);
         } catch (e) {
           debugPrint('Error processing deliverables response: $e');
@@ -141,11 +145,19 @@ class DeliverableService {
           return ApiResponse.error('Error processing deliverables: $e');
         }
       } else {
+        final cached = await _getCachedDeliverables();
+        if (cached.isNotEmpty) {
+          return ApiResponse.success({'deliverables': cached}, response.statusCode);
+        }
         return ApiResponse.error(response.error ?? 'Failed to fetch deliverables');
       }
     } catch (e, stackTrace) {
       debugPrint('Exception in getDeliverables: $e');
       debugPrint('Stack trace: $stackTrace');
+      final cached = await _getCachedDeliverables();
+      if (cached.isNotEmpty) {
+        return ApiResponse.success({'deliverables': cached}, 200);
+      }
       return ApiResponse.error('Error fetching deliverables: $e');
     }
   }
@@ -166,36 +178,36 @@ class DeliverableService {
     try {
       final token = _authService.accessToken;
       if (token == null) {
-        return ApiResponse.error('No access token available');
+        debugPrint('No access token available, proceeding without Authorization header');
       }
 
-      // Convert definitionOfDone to proper format for backend
-      dynamic dodValue;
+      // Convert Definition of Done to a string for backend TEXT column
+      String? dodString;
       if (definitionOfDone != null) {
         if (definitionOfDone is List<String>) {
-          dodValue = definitionOfDone; // Send as array, backend will stringify
+          dodString = definitionOfDone.join('\n');
         } else if (definitionOfDone is String) {
-          // If it's a string, try to parse it as JSON, otherwise wrap in array
-          try {
-            dodValue = jsonDecode(definitionOfDone);
-          } catch (_) {
-            dodValue = [definitionOfDone]; // Convert single string to array
-          }
+          dodString = definitionOfDone;
         } else {
-          dodValue = definitionOfDone;
+          try {
+            dodString = jsonEncode(definitionOfDone);
+          } catch (_) {
+            dodString = definitionOfDone.toString();
+          }
         }
       }
 
       final body = {
         'title': title,
         'description': description,
-        'definition_of_done': dodValue,
+        'definition_of_done': dodString,
         'priority': priority,
         'status': status,
         'due_date': dueDate?.toIso8601String(),
+        'created_by': _authService.currentUser?.id,
         'assigned_to': assignedTo,
-        'sprint_id': sprintId,
-        if (sprintIds != null && sprintIds.isNotEmpty) 'sprint_ids': sprintIds,
+if (sprintId != null && (sprintIds == null || sprintIds.isEmpty)) 'sprint_id': sprintId,
+        if (sprintIds != null) 'sprintIds': sprintIds,
         if (evidenceLinks != null) 'evidence_links': evidenceLinks,
       };
 
@@ -223,6 +235,7 @@ class DeliverableService {
           
           debugPrint('📦 Parsing deliverable from JSON: ${deliverableJson.keys}');
           final deliverable = Deliverable.fromJson(deliverableJson);
+          try { await _prependCachedDeliverable(deliverable); } catch (_) {}
           return ApiResponse.success({'deliverable': deliverable}, response.statusCode);
         } catch (e, stackTrace) {
           debugPrint('❌ Error parsing deliverable response: $e');
@@ -238,6 +251,49 @@ class DeliverableService {
       }
     } catch (e) {
       return ApiResponse.error('Error creating deliverable: $e');
+    }
+  }
+
+  // ===== Local cache helpers =====
+  static const String _deliverablesKey = 'cached_deliverables';
+
+  static Future<void> _saveCachedDeliverables(List<Deliverable> list) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonList = list.map((d) => d.toJson()).toList();
+      await prefs.setString(_deliverablesKey, jsonEncode(jsonList));
+    } catch (e) {
+      debugPrint('❌ Error caching deliverables: $e');
+    }
+  }
+
+  static Future<List<Deliverable>> _getCachedDeliverables() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final s = prefs.getString(_deliverablesKey);
+      if (s != null && s.isNotEmpty) {
+        final list = jsonDecode(s);
+        if (list is List) {
+          return list.map((e) => Deliverable.fromJson(Map<String, dynamic>.from(e))).toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error reading cached deliverables: $e');
+    }
+    return [];
+  }
+
+  static Future<void> _prependCachedDeliverable(Deliverable d) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final s = prefs.getString(_deliverablesKey);
+      final list = (s != null && s.isNotEmpty)
+          ? List<Map<String, dynamic>>.from(jsonDecode(s))
+          : <Map<String, dynamic>>[];
+      list.insert(0, d.toJson());
+      await prefs.setString(_deliverablesKey, jsonEncode(list));
+    } catch (e) {
+      debugPrint('❌ Error updating cached deliverables: $e');
     }
   }
 

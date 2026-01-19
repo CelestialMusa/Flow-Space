@@ -34,11 +34,10 @@ dependencies:
   permission_handler: ^11.3.1
   
   # Database
-  http: ^1.1.0
   crypto: ^3.0.3
 
 
-  socket_io_client: ^2.0.0
+  # socket_io_client entry consolidated below
 
   
   # Export functionality
@@ -71,6 +70,10 @@ dependencies:
   # Email
   mailer: ^6.0.1
   firebase_core: ^4.1.1
+  http: ^1.5.0
+  http_parser: ^4.1.2
+  web_socket_channel: ^2.4.0
+  socket_io_client: ^2.0.3
 
 dev_dependencies:
   flutter_test:
@@ -84,16 +87,13 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
   
   assets:
     - assets/Icons/khono_bg.png  # Background image
     - assets/Icons/khono.png
-    - assets/logo.png
-    - assets/logo_icon.png
+    - assets/Icons/logo.png
     - assets/fonts/
-    - assets/images/
-    - assets/videos/
-    - assets/audios/
     - assets/Icons/Red_Khono_Discs.png
 
   fonts:
