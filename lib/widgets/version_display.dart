@@ -59,6 +59,11 @@ class VersionBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Return empty container to hide banner completely
+    return const SizedBox.shrink();
+    
+    // Original banner code (commented out)
+    /*
     final versionInfo = VersionService.getVersionDetails();
     final environment = versionInfo['environment'] as String;
     
@@ -94,5 +99,6 @@ class VersionBanner extends StatelessWidget {
         ),
       ),
     );
+    */
   }
 }
