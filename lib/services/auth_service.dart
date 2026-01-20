@@ -268,4 +268,59 @@ class AuthService {
       return ApiResponse.error('Failed to check verification status: $e');
     }
   }
+
+  // Authenticate with JWT token from external system
+  Future<bool> authenticateWithJwtToken(String token, Map<String, dynamic> userData) async {
+    try {
+      // Save the JWT token
+      await _apiService.saveTokens(token, '', DateTime.now().add(const Duration(hours: 24)));
+      
+      // Create user from token data
+      final user = User(
+        id: userData['user_id'] ?? '',
+        email: userData['email'] ?? '',
+        name: userData['full_name'] ?? userData['email']?.split('@')[0] ?? 'User',
+        role: _mapStringToUserRole(userData['role'] ?? 'user'),
+        isActive: true,
+        createdAt: DateTime.now(),
+        lastLoginAt: DateTime.now(),
+      );
+      
+      _currentUser = user;
+      _isAuthenticated = true;
+      
+      debugPrint('✅ User authenticated with JWT: ${user.name} (${user.roleDisplayName})');
+      return true;
+    } catch (e) {
+      debugPrint('JWT authentication error: $e');
+      return false;
+    }
+  }
+
+  // Map string role to UserRole enum
+  UserRole _mapStringToUserRole(String roleString) {
+    switch (roleString.toLowerCase()) {
+      case 'system admin':
+      case 'system_admin':
+      case 'admin':
+      case 'system administrator':
+        return UserRole.systemAdmin;
+      case 'client reviewer':
+      case 'client_reviewer':
+      case 'client':
+        return UserRole.clientReviewer;
+      case 'delivery lead':
+      case 'delivery_lead':
+      case 'delivery':
+        return UserRole.deliveryLead;
+      case 'team member':
+      case 'team_member':
+      case 'team':
+        return UserRole.teamMember;
+      case 'manager':
+        return UserRole.deliveryLead; // Map manager to delivery lead
+      default:
+        return UserRole.teamMember; // Default to team member
+    }
+  }
 }
