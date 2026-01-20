@@ -45,6 +45,7 @@ import 'screens/epic_detail_screen.dart';
 import 'screens/deadlines_screen.dart';
 import 'screens/deliverables_list_screen.dart';
 import 'screens/skill_assessment_screen.dart';
+import 'screens/environment_management_screen.dart';
 
 
 void main() async {
@@ -448,6 +449,15 @@ final GoRouter _router = GoRouter(
         route: '/skill-assessment',
         child: SidebarScaffold(
           child: SkillAssessmentScreen(selectedSkill: state.pathParameters['skill']),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/environment-management',
+      builder: (context, state) => const RouteGuard(
+        route: '/environment-management',
+        child: SidebarScaffold(
+          child: EnvironmentManagementScreen(),
         ),
       ),
     ),
