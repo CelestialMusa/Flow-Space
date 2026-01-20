@@ -2,7 +2,7 @@ services:
   - type: web
     name: flow-space-frontend
     env: static
-    buildCommand: "cd Flow-Space && flutter build web"
+    buildCommand: "chmod +x build.sh && ./build.sh"
     staticPublishPath: ./Flow-Space/build/web
     envVars:
       - key: FLUTTER_WEB_CANVASKIT_URL
