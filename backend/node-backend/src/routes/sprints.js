@@ -46,6 +46,8 @@ function normalizeSprintData(body) {
   if (uatRate != null) d.uat_pass_rate = uatRate;
   const risksIdentified = body.risks_identified ?? body.risksIdentified;
   if (risksIdentified != null) d.risks_identified = risksIdentified;
+  const risks = body.risks;
+  if (risks != null) d.risks = risks;
   const risksMitigated = body.risks_mitigated ?? body.risksMitigated;
   if (risksMitigated != null) d.risks_mitigated = risksMitigated;
   const blockers = body.blockers;

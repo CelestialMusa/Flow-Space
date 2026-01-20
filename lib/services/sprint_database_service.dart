@@ -85,6 +85,24 @@ class SprintDatabaseService {
     int? boardId,
     String? projectId,
     int plannedPoints = 0,
+    int? committedPoints,
+    int? completedPoints,
+    int? carriedOverPoints,
+    double? testPassRate,
+    int? codeCoverage,
+    int? escapedDefects,
+    int? defectsOpened,
+    int? defectsClosed,
+    Map<String, dynamic>? defectSeverityMix,
+    int? codeReviewCompletion,
+    String? documentationStatus,
+    String? uatNotes,
+    int? uatPassRate,
+    int? risksIdentified,
+    String? risks,
+    int? risksMitigated,
+    String? blockers,
+    String? decisions,
   }) async {
     try {
       final body = {
@@ -96,6 +114,24 @@ class SprintDatabaseService {
         if (boardId != null) 'boardId': boardId,
         if (projectId != null) 'project_id': projectId,
         'planned_points': plannedPoints,
+        if (committedPoints != null) 'committed_points': committedPoints,
+        if (completedPoints != null) 'completed_points': completedPoints,
+        if (carriedOverPoints != null) 'carried_over_points': carriedOverPoints,
+        if (testPassRate != null) 'test_pass_rate': testPassRate,
+        if (codeCoverage != null) 'code_coverage': codeCoverage,
+        if (escapedDefects != null) 'escaped_defects': escapedDefects,
+        if (defectsOpened != null) 'defects_opened': defectsOpened,
+        if (defectsClosed != null) 'defects_closed': defectsClosed,
+        if (defectSeverityMix != null) 'defect_severity_mix': defectSeverityMix,
+        if (codeReviewCompletion != null) 'code_review_completion': codeReviewCompletion,
+        if (documentationStatus != null) 'documentation_status': documentationStatus,
+        if (uatNotes != null) 'uat_notes': uatNotes,
+        if (uatPassRate != null) 'uat_pass_rate': uatPassRate,
+        if (risksIdentified != null) 'risks_identified': risksIdentified,
+        if (risks != null) 'risks': risks,
+        if (risksMitigated != null) 'risks_mitigated': risksMitigated,
+        if (blockers != null) 'blockers': blockers,
+        if (decisions != null) 'decisions': decisions,
       };
 
       debugPrint('🚀 Creating sprint with data: $body');
@@ -158,6 +194,24 @@ class SprintDatabaseService {
     DateTime? startDate,
     DateTime? endDate,
     String? projectId,
+    int? committedPoints,
+    int? completedPoints,
+    int? carriedOverPoints,
+    double? testPassRate,
+    int? codeCoverage,
+    int? escapedDefects,
+    int? defectsOpened,
+    int? defectsClosed,
+    Map<String, dynamic>? defectSeverityMix,
+    int? codeReviewCompletion,
+    String? documentationStatus,
+    String? uatNotes,
+    int? uatPassRate,
+    int? risksIdentified,
+    String? risks,
+    int? risksMitigated,
+    String? blockers,
+    String? decisions,
   }) async {
     try {
       final body = <String, dynamic>{};
@@ -167,6 +221,24 @@ class SprintDatabaseService {
       if (startDate != null) body['startDate'] = startDate.toIso8601String();
       if (endDate != null) body['endDate'] = endDate.toIso8601String();
       if (projectId != null) body['project_id'] = projectId;
+      if (committedPoints != null) body['committed_points'] = committedPoints;
+      if (completedPoints != null) body['completed_points'] = completedPoints;
+      if (carriedOverPoints != null) body['carried_over_points'] = carriedOverPoints;
+      if (testPassRate != null) body['test_pass_rate'] = testPassRate;
+      if (codeCoverage != null) body['code_coverage'] = codeCoverage;
+      if (escapedDefects != null) body['escaped_defects'] = escapedDefects;
+      if (defectsOpened != null) body['defects_opened'] = defectsOpened;
+      if (defectsClosed != null) body['defects_closed'] = defectsClosed;
+      if (defectSeverityMix != null) body['defect_severity_mix'] = defectSeverityMix;
+      if (codeReviewCompletion != null) body['code_review_completion'] = codeReviewCompletion;
+      if (documentationStatus != null) body['documentation_status'] = documentationStatus;
+      if (uatNotes != null) body['uat_notes'] = uatNotes;
+      if (uatPassRate != null) body['uat_pass_rate'] = uatPassRate;
+      if (risksIdentified != null) body['risks_identified'] = risksIdentified;
+      if (risks != null) body['risks'] = risks;
+      if (risksMitigated != null) body['risks_mitigated'] = risksMitigated;
+      if (blockers != null) body['blockers'] = blockers;
+      if (decisions != null) body['decisions'] = decisions;
 
       final response = await http.put(
         Uri.parse('$_baseUrl/sprints/$sprintId'),
