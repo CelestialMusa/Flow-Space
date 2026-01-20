@@ -1,5 +1,5 @@
 class VersionControl {
-  static const String environment = 'SIT';
+  static const String environment = 'PROD';
   
   static String generateVersionNumber({int releaseNumber = 1}) {
     final now = DateTime.now();

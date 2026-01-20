@@ -30,9 +30,14 @@ class AppContainer extends StatelessWidget {
             ),
           // Content
           child,
+          // Version control in bottom left corner
+          const Positioned(
+            left: 16,
+            bottom: 16,
+            child: VersionDisplay(),
+          ),
         ],
       ),
-      bottomNavigationBar: VersionBanner(),
     );
   }
 }

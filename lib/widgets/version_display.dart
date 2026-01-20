@@ -62,47 +62,35 @@ class VersionBanner extends StatelessWidget {
     final versionInfo = VersionService.getVersionDetails();
     final environment = versionInfo['environment'] as String;
     
-    Color backgroundColor;
     Color textColor;
     
     switch (environment) {
       case 'PROD':
-        backgroundColor = Colors.red[900] ?? Colors.red;
-        textColor = Colors.white;
+        textColor = Colors.red[300] ?? Colors.red;
         break;
       case 'UAT':
-        backgroundColor = Colors.orange[900] ?? Colors.orange;
-        textColor = Colors.white;
+        textColor = Colors.orange[300] ?? Colors.orange;
         break;
       case 'SIT':
-        backgroundColor = Colors.grey[900] ?? Colors.grey;
-        textColor = Colors.grey[300] ?? Colors.white70;
+        textColor = Colors.grey[400] ?? Colors.white70;
         break;
       default:
-        backgroundColor = Colors.grey[900] ?? Colors.grey;
-        textColor = Colors.grey[300] ?? Colors.white70;
+        textColor = Colors.grey[400] ?? Colors.white70;
     }
     
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: backgroundColor,
-        border: Border(
-          top: BorderSide(
-            color: Colors.grey[800] ?? Colors.grey,
-            width: 0.5,
-          ),
-        ),
+        color: Colors.black.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        '${versionInfo['version']} - $environment Environment',
-        textAlign: TextAlign.center,
+        '${versionInfo['version']} - $environment',
         style: TextStyle(
           color: textColor,
-          fontSize: 11,
+          fontSize: 16,
           fontWeight: FontWeight.w400,
-          letterSpacing: 0.5,
+          fontFamily: 'Poppins',
         ),
       ),
     );

@@ -24,6 +24,12 @@ void main(List<String> args) async {
       await DeploymentService.validateDeployment(environment, approvals);
     }
 
+    // Auto-increment version for production deployments
+    if (environment == 'PROD') {
+      stdout.writeln('🔄 Auto-incrementing version for production deployment...');
+      await _autoIncrementVersion();
+    }
+
     // Switch environment
     await DeploymentService.switchEnvironment(environment);
 
@@ -49,6 +55,21 @@ void main(List<String> args) async {
   } catch (e) {
     stderr.writeln('❌ Deployment failed: $e');
     exit(1);
+  }
+}
+
+Future<void> _autoIncrementVersion() async {
+  try {
+    // Run the auto-increment script
+    final result = await Process.run('dart', ['scripts/auto_increment_version.dart', '--increment']);
+    
+    if (result.exitCode != 0) {
+      throw Exception('Failed to auto-increment version: ${result.stderr}');
+    }
+    
+    stdout.writeln('✅ Version auto-incremented successfully');
+  } catch (e) {
+    stderr.writeln('⚠️ Warning: Could not auto-increment version: $e');
   }
 }
 
