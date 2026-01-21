@@ -7,48 +7,48 @@ class VersionDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final versionInfo = VersionService.getVersionDetails();
+    final environment = versionInfo['environment'] as String;
+    
+    // Environment-specific colors
+    Color textColor;
+    Color bgColor;
+    
+    switch (environment) {
+      case 'PROD':
+        textColor = Colors.red[300] ?? Colors.red;
+        bgColor = Colors.red.withValues(alpha: 0.1);
+        break;
+      case 'UAT':
+        textColor = Colors.orange[300] ?? Colors.orange;
+        bgColor = Colors.orange.withValues(alpha: 0.1);
+        break;
+      case 'SIT':
+        textColor = Colors.blue[300] ?? Colors.blue;
+        bgColor = Colors.blue.withValues(alpha: 0.1);
+        break;
+      default:
+        textColor = Colors.grey[400] ?? Colors.grey;
+        bgColor = Colors.grey.withValues(alpha: 0.1);
+    }
     
     return Container(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(4),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: textColor.withValues(alpha: 0.3),
+          width: 1,
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Version: ${versionInfo['version']}',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Environment: ${versionInfo['environment']}',
-            style: const TextStyle(
-              fontSize: 10,
-              color: Colors.black54,
-            ),
-          ),
-          Text(
-            'Build Date: ${versionInfo['year']}-${versionInfo['month'].toString().padLeft(2, '0')}-${versionInfo['day'].toString().padLeft(2, '0')}',
-            style: const TextStyle(
-              fontSize: 10,
-              color: Colors.black54,
-            ),
-          ),
-          Text(
-            'Week ${versionInfo['weekNumber']}, Day ${versionInfo['dayOfWeek']}',
-            style: const TextStyle(
-              fontSize: 10,
-              color: Colors.black54,
-            ),
-          ),
-        ],
+      child: Text(
+        '${versionInfo['version']} - $environment',
+        style: TextStyle(
+          color: textColor,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          fontFamily: 'Poppins',
+        ),
       ),
     );
   }
