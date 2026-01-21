@@ -2,7 +2,7 @@ services:
   - type: web
     name: flow-space-frontend
     env: static
-    buildCommand: "flutter build web"
+    buildCommand: "flutter build web --no-wasm"
     staticPublishPath: ./build/web
     envVars:
       - key: FLUTTER_WEB_CANVASKIT_URL
