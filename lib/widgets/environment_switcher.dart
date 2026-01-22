@@ -3,6 +3,7 @@ import '../services/deployment_service.dart';
 import '../utils/version_config.dart';
 import '../utils/version_control.dart';
 
+// Environment switcher widget for development/testing
 class EnvironmentSwitcher extends StatefulWidget {
   const EnvironmentSwitcher({super.key});
 
