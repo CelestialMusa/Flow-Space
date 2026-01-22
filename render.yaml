@@ -2,8 +2,12 @@ services:
   - type: web
     name: flow-space-frontend
     env: static
-    buildCommand: "flutter build web"
-    staticPublishPath: ./build/web
+    buildCommand: |
+      git clone https://github.com/flutter/flutter.git -b stable --depth 1
+      export PATH="$PATH:$(pwd)/flutter/bin"
+      flutter pub get
+      flutter build web --dart-define=API_BASE_URL=https://flow-space.onrender.com/api/v1
+    staticPublishPath: build/web
     envVars:
       - key: FLUTTER_WEB_CANVASKIT_URL
         value: https://cdn.jsdelivr.net/gh/flutter/canvaskit@master

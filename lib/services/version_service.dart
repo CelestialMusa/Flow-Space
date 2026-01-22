@@ -18,14 +18,14 @@ class VersionService {
   }
   
   static bool isProductionEnvironment() {
-    return VersionControl.isProductionEnvironment();
+    return VersionControl.environment == 'PROD';
   }
   
   static bool isStagingEnvironment() {
-    return VersionControl.isStagingEnvironment();
+    return VersionControl.environment == 'SIT' || VersionControl.environment == 'UAT';
   }
   
   static bool isDevelopmentEnvironment() {
-    return VersionControl.isDevelopmentEnvironment();
+    return VersionControl.environment == 'DEV';
   }
 }
