@@ -24,9 +24,12 @@ class FileUploadService {
     async uploadFile(file, prefix = '', metaOverrides = {}) {
         try {
             await this.ensureStorageDirectory();
-            // Generate unique filename
-            const fileExtension = path.extname(file.originalname) || '.bin';
-            const uniqueFilename = `${uuidv4().replace(/-/g, '')}${fileExtension}`;
+            
+            // Use original filename (sanitized) instead of UUID
+            // Sanitize: remove special characters that might be unsafe, but keep spaces or replace them
+            // For now, let's keep it simple and just use the original name, maybe replacing some chars
+            const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.\-_ ]/g, '');
+            const uniqueFilename = sanitizedName;
             
             let storagePath;
             let urlPath;
@@ -40,6 +43,19 @@ class FileUploadService {
                 storagePath = path.join(this.storageBasePath, uniqueFilename);
                 urlPath = `${this.baseUrl}/${uniqueFilename}`;
             }
+
+            // Check if file already exists
+            try {
+                await fs.access(storagePath);
+                // If access succeeds, file exists
+                throw new Error('File already exists');
+            } catch (error) {
+                if (error.code !== 'ENOENT') {
+                    // If error is not "file not found", rethrow it (e.g. "File already exists" or permission error)
+                    throw error;
+                }
+                // File does not exist, proceed
+            }
             
             // Write file to storage
             await fs.writeFile(storagePath, file.buffer);
@@ -49,7 +65,8 @@ class FileUploadService {
                 title: typeof metaOverrides.title === 'string' && metaOverrides.title.trim() !== '' ? metaOverrides.title.trim() : file.originalname,
                 description: typeof metaOverrides.description === 'string' ? metaOverrides.description : '',
                 tags: Array.isArray(metaOverrides.tags) ? metaOverrides.tags : (typeof metaOverrides.tags === 'string' && metaOverrides.tags.trim() !== '' ? metaOverrides.tags.split(',').map(s=>s.trim()) : []),
-                uploadedBy: typeof metaOverrides.uploadedBy === 'string' ? metaOverrides.uploadedBy : undefined
+                uploadedBy: typeof metaOverrides.uploadedBy === 'string' ? metaOverrides.uploadedBy : undefined,
+                uploaderName: typeof metaOverrides.uploaderName === 'string' ? metaOverrides.uploaderName : undefined
             };
             try {
                 await fs.writeFile(`${storagePath}.meta.json`, JSON.stringify(metadata));
@@ -61,6 +78,8 @@ class FileUploadService {
                 title: metadata.title,
                 url: urlPath,
                 size: file.size,
+                uploadedBy: metadata.uploadedBy,
+                uploaderName: metadata.uploaderName,
                 storageProvider: 'local'
             };
             
@@ -131,6 +150,9 @@ class FileUploadService {
             for (const file of files) {
                 try {
                     const filePath = path.join(directoryPath, file);
+                    // Skip metadata files in listing
+                    if (file.endsWith('.meta.json')) continue;
+
                     const stats = await fs.stat(filePath);
                     
                     if (stats.isFile()) {
@@ -139,6 +161,8 @@ class FileUploadService {
                         let description = '';
                         let tags = [];
                         let uploadDate = stats.mtime;
+                        let uploadedBy = undefined;
+                        let uploaderName = undefined;
                         try {
                             const metaRaw = await fs.readFile(`${filePath}.meta.json`, 'utf8');
                             const meta = JSON.parse(metaRaw);
@@ -147,6 +171,8 @@ class FileUploadService {
                             if (meta && meta.description) description = meta.description;
                             if (meta && meta.tags) tags = meta.tags;
                             if (meta && meta.uploadDate) uploadDate = new Date(meta.uploadDate);
+                            if (meta && meta.uploadedBy) uploadedBy = meta.uploadedBy;
+                            if (meta && meta.uploaderName) uploaderName = meta.uploaderName;
                         } catch (_) {}
                         fileDetails.push({
                             filename: file,
@@ -157,6 +183,8 @@ class FileUploadService {
                             size: stats.size,
                             uploadDate: uploadDate,
                             url: `${this.baseUrl}/${prefix ? prefix + '/' : ''}${file}`,
+                            uploadedBy: uploadedBy,
+                            uploaderName: uploaderName,
                             storageProvider: 'local'
                         });
                     }

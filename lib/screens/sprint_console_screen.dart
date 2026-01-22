@@ -17,6 +17,7 @@ import '../services/jira_service.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/glass_button.dart';
+import 'create_sprint_screen.dart';
 
 class SprintConsoleScreen extends StatefulWidget {
   final String? initialProjectKey;
@@ -1230,275 +1231,35 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
     );
   }
 
-  void _showCreateSprintDialog() {
+  void _showCreateSprintDialog() async {
     if (_selectedProjectKey == null) {
       _showSnackBar('Select a project first', isError: true);
       return;
     }
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final startDateController = TextEditingController();
-    final endDateController = TextEditingController();
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: FlownetColors.charcoalBlack,
-        title: const Text(
-          'Create New Sprint',
-          style: TextStyle(color: FlownetColors.pureWhite),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              style: const TextStyle(color: FlownetColors.pureWhite),
-              decoration: const InputDecoration(
-                labelText: 'Sprint Name',
-                labelStyle: TextStyle(color: FlownetColors.electricBlue),
-                border: OutlineInputBorder(
-                  borderSide: BorderSide(color: FlownetColors.electricBlue),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: FlownetColors.electricBlue, width: 2),
-                ),
-              ),
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: _isAiSuggesting ? null : () => aiSuggestSprintName(nameController),
-                icon: const Icon(Icons.auto_awesome),
-                label: const Text('Suggest with AI'),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descriptionController,
-              style: const TextStyle(color: FlownetColors.pureWhite),
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Description (Optional)',
-                labelStyle: TextStyle(color: FlownetColors.electricBlue),
-                border: OutlineInputBorder(
-                  borderSide: BorderSide(color: FlownetColors.electricBlue),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: FlownetColors.electricBlue, width: 2),
-                ),
-              ),
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: _isAiSuggesting ? null : () => aiSuggestSprintDescription(descriptionController),
-                icon: const Icon(Icons.auto_awesome),
-                label: const Text('Suggest with AI'),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: startDateController,
-                    style: const TextStyle(color: FlownetColors.pureWhite),
-                    decoration: const InputDecoration(
-                      labelText: 'Start Date',
-                      labelStyle: TextStyle(color: FlownetColors.electricBlue),
-                      border: OutlineInputBorder(
-                        borderSide: BorderSide(color: FlownetColors.electricBlue),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: FlownetColors.electricBlue, width: 2),
-                      ),
-                    ),
-                    readOnly: true,
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (date != null) {
-                        startDateController.text = date.toIso8601String().split('T')[0];
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextField(
-                    controller: endDateController,
-                    style: const TextStyle(color: FlownetColors.pureWhite),
-                    decoration: const InputDecoration(
-                      labelText: 'End Date',
-                      labelStyle: TextStyle(color: FlownetColors.electricBlue),
-                      border: OutlineInputBorder(
-                        borderSide: BorderSide(color: FlownetColors.electricBlue),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: FlownetColors.electricBlue, width: 2),
-                      ),
-                    ),
-                    readOnly: true,
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now().add(const Duration(days: 7)),
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (date != null) {
-                        endDateController.text = date.toIso8601String().split('T')[0];
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: FlownetColors.pureWhite),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.trim().isEmpty || 
-                  startDateController.text.isEmpty || 
-                  endDateController.text.isEmpty) {
-                _showSnackBar('Please fill in all required fields', isError: true);
-                return;
-              }
+    final selectedProject = _projects.firstWhere(
+      (p) => p['key'] == _selectedProjectKey,
+      orElse: () => {},
+    );
+    final projectId = selectedProject['id']?.toString();
+    final projectName = selectedProject['name']?.toString();
 
-              Navigator.of(context).pop();
-              await createSprint(
-                nameController.text.trim(),
-                descriptionController.text.trim(),
-                startDateController.text,
-                endDateController.text,
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: FlownetColors.electricBlue,
-            ),
-            child: const Text(
-              'Create',
-              style: TextStyle(color: FlownetColors.pureWhite),
-            ),
-          ),
-        ],
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreateSprintScreen(
+          projectId: projectId,
+          projectName: projectName,
+        ),
       ),
     );
-  }
 
-  Future<void> aiSuggestSprintName(TextEditingController nameController) async {
-    if (_isAiSuggesting) return;
-    setState(() => _isAiSuggesting = true);
-    try {
-      final selectedProject = _projects.firstWhere((p) => p['key'] == _selectedProjectKey, orElse: () => {});
-      final projectName = selectedProject['name']?.toString() ?? '';
-      final messages = [
-        {'role': 'system', 'content': 'Propose a sprint name indicating focus and iteration number.'},
-        {'role': 'user', 'content': 'Project: $projectName'}
-      ];
-      final resp = await BackendApiService().aiChat(messages, temperature: 0.6, maxTokens: 24);
-      if (resp.isSuccess && resp.data != null) {
-        final data = resp.data is Map ? Map<String, dynamic>.from(resp.data as Map) : {};
-        final content = (data['content'] ?? (data['data']?['content']))?.toString() ?? '';
-        if (content.isNotEmpty) nameController.text = content.trim();
-      }
-    } catch (_) {}
-    finally {
-      if (mounted) setState(() => _isAiSuggesting = false);
+    if (result == true) {
+      _loadData();
     }
   }
 
-  Future<void> aiSuggestSprintDescription(TextEditingController descriptionController) async {
-    if (_isAiSuggesting) return;
-    setState(() => _isAiSuggesting = true);
-    try {
-      final messages = [
-        {'role': 'system', 'content': 'Write a brief sprint goal and scope summary.'}
-      ];
-      final resp = await BackendApiService().aiChat(messages, temperature: 0.7, maxTokens: 120);
-      if (resp.isSuccess && resp.data != null) {
-        final data = resp.data is Map ? Map<String, dynamic>.from(resp.data as Map) : {};
-        final content = (data['content'] ?? (data['data']?['content']))?.toString() ?? '';
-        if (content.isNotEmpty) descriptionController.text = content.trim();
-      }
-    } catch (_) {}
-    finally {
-      if (mounted) setState(() => _isAiSuggesting = false);
-    }
-  }
-
-  Future<void> createSprint(String name, String description, String startDate, String endDate) async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      debugPrint('🔍 Available projects: $_projects');
-      debugPrint('🎯 Selected project key: $_selectedProjectKey');
-      
-      final selectedProject = _projects.firstWhere(
-        (p) => p['id'] == _selectedProjectKey || p['key'] == _selectedProjectKey,
-        orElse: () => {'id': ''}, // Ensure we always have an ID
-      );
-      
-      debugPrint('📋 Selected project: $selectedProject');
-      final projectId = selectedProject['id']?.toString() ?? '';
-      
-      if (projectId.isEmpty) {
-        _showSnackBar('Project not found or invalid', isError: true);
-        return;
-      }
-
-      final parsedStartDate = DateTime.parse(startDate);
-      final parsedEndDate = DateTime.parse(endDate);
-
-      final result = await _sprintService.createSprint(
-        name: name,
-        description: description.isNotEmpty ? description : null,
-        startDate: parsedStartDate,
-        endDate: parsedEndDate,
-        projectId: projectId,
-      );
-
-      _showSnackBar('Sprint created successfully!');
-      try {
-        setState(() {
-          final mapResult = result;
-          _sprints.insert(0, mapResult);
-          _selectedSprintId = mapResult['id']?.toString();
-        });
-        final id = result['id']?.toString() ?? '';
-        final nameArg = Uri.encodeComponent((result['name'] ?? '').toString());
-        if (id.isNotEmpty) {
-          if (!mounted) return;
-          GoRouter.of(context).go('/sprint-board/$id?name=$nameArg');
-        } else {
-          await _loadData();
-        }
-      } catch (_) {
-        await _loadData();
-      }
-    } catch (e) {
-      _showSnackBar('Error creating sprint: $e', isError: true);
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
+  // AI suggestion methods removed as they are now handled in CreateSprintScreen
 
   Widget _buildTicketsSection() {
     if (_tickets.isEmpty) {

@@ -353,16 +353,17 @@ class BackendApiService {
     return await _apiClient.put('/notifications/read-all');
   }
 
-  Future<ApiResponse> simulateReportReminder({String? reportId, bool force = true, String? recipientRole}) async {
+  Future<ApiResponse> simulateReportReminder({String? reportId, bool force = true, String? recipientRole, String? recipientId}) async {
     final body = <String, dynamic>{};
     if (reportId != null && reportId.isNotEmpty) body['reportId'] = reportId;
     if (force) body['force'] = true;
     if (recipientRole != null && recipientRole.isNotEmpty) body['recipientRole'] = recipientRole;
+    if (recipientId != null && recipientId.isNotEmpty) body['recipientId'] = recipientId;
     return await _apiClient.post('/system/simulate-report-reminder', body: body);
   }
 
-  Future<ApiResponse> sendReminderForReport(String reportId, String recipientRole) async {
-    return await simulateReportReminder(reportId: reportId, recipientRole: recipientRole, force: true);
+  Future<ApiResponse> sendReminderForReport(String reportId, String recipientRole, {String? recipientId}) async {
+    return await simulateReportReminder(reportId: reportId, recipientRole: recipientRole, recipientId: recipientId, force: true);
   }
 
   Future<ApiResponse> deleteNotification(String notificationId) async {

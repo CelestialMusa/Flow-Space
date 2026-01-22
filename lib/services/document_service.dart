@@ -187,7 +187,11 @@ final ApiClient _apiClient = ApiClient();
         final errorBody = response.body;
         try {
           final errorData = jsonDecode(errorBody);
-          return ApiResponse.error(errorData['error'] ?? 'Failed to upload document: ${response.statusCode}');
+          final errorMessage = errorData['error'] ?? 'Failed to upload document';
+          final errorDetails = errorData['details'];
+          return ApiResponse.error(
+            errorDetails != null ? '$errorMessage: $errorDetails' : '$errorMessage: ${response.statusCode}',
+          );
         } catch (_) {
           return ApiResponse.error('Failed to upload document: ${response.statusCode}');
         }
@@ -258,7 +262,11 @@ final ApiClient _apiClient = ApiClient();
         final errorBody = response.body;
         try {
           final errorData = jsonDecode(errorBody);
-          return ApiResponse.error(errorData['error'] ?? 'Failed to upload document: ${response.statusCode}');
+          final errorMessage = errorData['error'] ?? 'Failed to upload document';
+          final errorDetails = errorData['details'];
+          return ApiResponse.error(
+            errorDetails != null ? '$errorMessage: $errorDetails' : '$errorMessage: ${response.statusCode}',
+          );
         } catch (_) {
           return ApiResponse.error('Failed to upload document: ${response.statusCode}');
         }

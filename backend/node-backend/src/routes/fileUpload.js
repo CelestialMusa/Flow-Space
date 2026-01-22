@@ -88,7 +88,8 @@ router.post('/upload', authenticateToken, handleMulterSingle, async (req, res) =
                 title: req.body && req.body.title,
                 description: req.body && req.body.description,
                 tags: (req.body && req.body.tags) ? req.body.tags : derivedTags,
-                uploadedBy: (req.user && req.user.id) || undefined
+                uploadedBy: (req.user && req.user.id) || undefined,
+                uploaderName: (req.user && (req.user.name || req.user.email)) || undefined
             }
         );
         try {
