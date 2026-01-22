@@ -82,7 +82,7 @@ class _EnvironmentSwitcherState extends State<EnvironmentSwitcher> {
               children: [
                 Icon(Icons.settings_suggest, color: Colors.blue[400]),
                 const SizedBox(width: 8),
-                Text(
+                const Text(
                   'Environment Control',
                   style: TextStyle(
                     fontSize: 18,
@@ -149,7 +149,7 @@ class _EnvironmentSwitcherState extends State<EnvironmentSwitcher> {
             const SizedBox(height: 20),
             
             // Environment switcher
-            Text(
+            const Text(
               'Switch Environment',
               style: TextStyle(
                 fontSize: 14,
@@ -288,7 +288,7 @@ class _EnvironmentSwitcherState extends State<EnvironmentSwitcher> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('This will change the application environment to:'),
+            const Text('This will change the application environment to:'),
             const SizedBox(height: 8),
             Text(
               VersionConfig.getEnvironmentDisplayName(environment),
