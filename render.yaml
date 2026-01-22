@@ -7,7 +7,8 @@ services:
       export PATH="$PATH:$(pwd)/flutter/bin"
       flutter pub get
       echo "Building with API_BASE_URL=https://flow-space.onrender.com/api/v1"
-      flutter build web --dart-define=API_BASE_URL=https://flow-space.onrender.com/api/v1 --dart-define=DEBUG_MODE=false --no-wasm --verbose
+      echo "Build timestamp: $(date)"
+      flutter build web --dart-define=API_BASE_URL=https://flow-space.onrender.com/api/v1 --dart-define=DEBUG_MODE=false --no-wasm --verbose --web-renderer canvaskit
     staticPublishPath: build/web
     envVars:
       - key: FLUTTER_WEB_CANVASKIT_URL
@@ -26,3 +27,6 @@ services:
       - path: /*
         name: Expires
         value: 0
+      - path: /*
+        name: Build-Timestamp
+        value: "$(date)"
