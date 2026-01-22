@@ -10,47 +10,60 @@ class VersionDisplay extends StatelessWidget {
     final versionInfo = VersionService.getVersionDetails();
     final environment = versionInfo['environment'] as String;
     
-    // Environment-specific colors
-    Color textColor;
-    Color bgColor;
-    
-    switch (environment) {
-      case 'PROD':
-        textColor = Colors.red[300] ?? Colors.red;
-        bgColor = Colors.red.withValues(alpha: 0.1);
-        break;
-      case 'UAT':
-        textColor = Colors.orange[300] ?? Colors.orange;
-        bgColor = Colors.orange.withValues(alpha: 0.1);
-        break;
-      case 'SIT':
-        textColor = Colors.blue[300] ?? Colors.blue;
-        bgColor = Colors.blue.withValues(alpha: 0.1);
-        break;
-      default:
-        textColor = Colors.grey[400] ?? Colors.grey;
-        bgColor = Colors.grey.withValues(alpha: 0.1);
-    }
-    
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: textColor.withValues(alpha: 0.3),
-          width: 1,
-        ),
+        color: Colors.black.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(
-        '${versionInfo['version']} - $environment',
-        style: GoogleFonts.poppins(
-          color: textColor,
-          fontSize: 16,
-          fontWeight: FontWeight.w400,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Version number
+          Text(
+            versionInfo['version'].toString(),
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Environment indicator with color
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: _getEnvironmentColor(environment),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          // Environment name
+          Text(
+            environment,
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  Color _getEnvironmentColor(String env) {
+    switch (env) {
+      case 'PROD':
+        return Colors.red;
+      case 'UAT':
+        return Colors.orange;
+      case 'SIT':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
   }
 }
 
