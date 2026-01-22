@@ -61,44 +61,5 @@ class VersionBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     // Return empty container to hide banner completely
     return const SizedBox.shrink();
-    
-    // Original banner code (commented out)
-    /*
-    final versionInfo = VersionService.getVersionDetails();
-    final environment = versionInfo['environment'] as String;
-    
-    Color textColor;
-    
-    switch (environment) {
-      case 'PROD':
-        textColor = Colors.red[300] ?? Colors.red;
-        break;
-      case 'UAT':
-        textColor = Colors.orange[300] ?? Colors.orange;
-        break;
-      case 'SIT':
-        textColor = Colors.grey[400] ?? Colors.white70;
-        break;
-      default:
-        textColor = Colors.grey[400] ?? Colors.white70;
-    }
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        '${versionInfo['version']} - $environment',
-        style: TextStyle(
-          color: textColor,
-          fontSize: 16,
-          fontWeight: FontWeight.w400,
-          fontFamily: 'Poppins',
-        ),
-      ),
-    );
-    */
   }
 }

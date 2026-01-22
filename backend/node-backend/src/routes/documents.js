@@ -15,13 +15,13 @@ function toRepositoryFile(file) {
     name: file.title || file.originalName || file.filename,
     fileType: ext || 'file',
     uploaded_at: new Date(file.uploadDate).toISOString(),
-    uploaded_by: 'system',
+    uploaded_by: file.uploadedBy || 'system',
     size: file.size,
     size_in_mb: sizeInMB,
     description: file.description || '',
     tags: Array.isArray(file.tags) ? file.tags.join(',') : (file.tags || ''),
     file_path: file.url,
-    uploader_name: 'System',
+    uploader_name: file.uploaderName || 'System',
   };
 }
 

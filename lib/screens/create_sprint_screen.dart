@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/sprint_database_service.dart';
 
@@ -36,6 +37,7 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
   final TextEditingController _uatNotesController = TextEditingController();
   final TextEditingController _uatPassRateController = TextEditingController();
   final TextEditingController _risksIdentifiedController = TextEditingController();
+  final TextEditingController _risksController = TextEditingController();
   final TextEditingController _risksMitigatedController = TextEditingController();
   final TextEditingController _blockersController = TextEditingController();
   final TextEditingController _decisionsController = TextEditingController();
@@ -81,12 +83,41 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
     }
 
     try {
+      // Parse JSON for severity mix
+      Map<String, dynamic>? severityMix;
+      if (_defectSeverityMixController.text.isNotEmpty) {
+        try {
+          severityMix = jsonDecode(_defectSeverityMixController.text) as Map<String, dynamic>;
+        } catch (_) {
+          // If not valid JSON, we could try to parse simple key:value format or just ignore
+          // For now, let's just ignore if it fails
+        }
+      }
+
       await _sprintService.createSprint(
         name: _nameController.text,
         startDate: _startDate!,
         endDate: _endDate!,
         projectId: widget.projectId,
-        plannedPoints: 0,
+        plannedPoints: int.tryParse(_plannedPointsController.text) ?? 0,
+        committedPoints: int.tryParse(_committedPointsController.text),
+        completedPoints: int.tryParse(_completedPointsController.text),
+        carriedOverPoints: int.tryParse(_carriedOverPointsController.text),
+        testPassRate: double.tryParse(_testPassRateController.text),
+        codeCoverage: int.tryParse(_codeCoverageController.text),
+        escapedDefects: int.tryParse(_escapedDefectsController.text),
+        defectsOpened: int.tryParse(_defectsOpenedController.text),
+        defectsClosed: int.tryParse(_defectsClosedController.text),
+        defectSeverityMix: severityMix,
+        codeReviewCompletion: int.tryParse(_codeReviewCompletionController.text),
+        documentationStatus: _documentationStatusController.text.isNotEmpty ? _documentationStatusController.text : null,
+        uatNotes: _uatNotesController.text.isNotEmpty ? _uatNotesController.text : null,
+        uatPassRate: int.tryParse(_uatPassRateController.text),
+        risksIdentified: int.tryParse(_risksIdentifiedController.text),
+        risks: _risksController.text.isNotEmpty ? _risksController.text : null,
+        risksMitigated: int.tryParse(_risksMitigatedController.text),
+        blockers: _blockersController.text.isNotEmpty ? _blockersController.text : null,
+        decisions: _decisionsController.text.isNotEmpty ? _decisionsController.text : null,
       );
 
       if (mounted) {
@@ -96,6 +127,7 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
         Navigator.pop(context, true);
       }
     } catch (e) {
+      debugPrint('Error creating sprint: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error creating sprint')),
@@ -125,10 +157,22 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
     _uatNotesController.dispose();
     _uatPassRateController.dispose();
     _risksIdentifiedController.dispose();
+    _risksController.dispose();
     _risksMitigatedController.dispose();
     _blockersController.dispose();
     _decisionsController.dispose();
     super.dispose();
+  }
+
+  Widget _buildNumberField(TextEditingController controller, String label, {bool isDouble = false}) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+    );
   }
 
   @override
@@ -220,6 +264,130 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _plannedPointsController,
+                decoration: const InputDecoration(
+                  labelText: 'Planned Points',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.assessment),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 24),
+
+              ExpansionTile(
+                title: const Text('Outcomes', style: TextStyle(fontWeight: FontWeight.bold)),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(child: _buildNumberField(_committedPointsController, 'Committed Pts')),
+                            const SizedBox(width: 16),
+                            Expanded(child: _buildNumberField(_completedPointsController, 'Completed Pts')),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _buildNumberField(_carriedOverPointsController, 'Carried Over Points'),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(child: _buildNumberField(_defectsOpenedController, 'Defects Opened')),
+                            const SizedBox(width: 16),
+                            Expanded(child: _buildNumberField(_defectsClosedController, 'Defects Closed')),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(child: _buildNumberField(_testPassRateController, 'Pass Rate %', isDouble: true)),
+                            const SizedBox(width: 16),
+                            Expanded(child: _buildNumberField(_codeCoverageController, 'Coverage %')),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _uatNotesController,
+                          decoration: const InputDecoration(
+                            labelText: 'UAT Notes',
+                            border: OutlineInputBorder(),
+                          ),
+                          maxLines: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              ExpansionTile(
+                title: const Text('Quality Signals', style: TextStyle(fontWeight: FontWeight.bold)),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      children: [
+                        _buildNumberField(_escapedDefectsController, 'Escaped Defects'),
+                        const SizedBox(height: 16),
+                        _buildNumberField(_codeReviewCompletionController, 'Code Review Completion %'),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _documentationStatusController,
+                          decoration: const InputDecoration(
+                            labelText: 'Documentation Status',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                         _buildNumberField(_uatPassRateController, 'UAT Pass Rate %'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              ExpansionTile(
+                title: const Text('Notes & Risks', style: TextStyle(fontWeight: FontWeight.bold)),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      children: [
+                         TextFormField(
+                          controller: _risksController,
+                          decoration: const InputDecoration(
+                            labelText: 'Risks (Free-text)',
+                            border: OutlineInputBorder(),
+                          ),
+                          maxLines: 3,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _blockersController,
+                          decoration: const InputDecoration(
+                            labelText: 'Blockers',
+                            border: OutlineInputBorder(),
+                          ),
+                          maxLines: 3,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _decisionsController,
+                          decoration: const InputDecoration(
+                            labelText: 'Decisions',
+                            border: OutlineInputBorder(),
+                          ),
+                          maxLines: 3,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,

@@ -1,4 +1,8 @@
 class VersionConfig {
+  static const String currentVersion = '1.0.0';
+  static const String buildNumber = '1';
+  static const String environment = 'PROD';
+  
   // Environment configurations
   static const Map<String, String> environments = {
     'DEV': 'Development Environment',
@@ -69,5 +73,30 @@ class VersionConfig {
   // Get environment color scheme
   static Map<String, String> getEnvironmentColors(String env) {
     return environmentColors[env] ?? environmentColors['DEV']!;
+  }
+  
+  static Map<String, dynamic> getVersionConfig() {
+    return {
+      'version': currentVersion,
+      'buildNumber': buildNumber,
+      'environment': environment,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+  }
+  
+  static String getFullVersion() {
+    return '$currentVersion+$buildNumber';
+  }
+  
+  static bool isProduction() {
+    return environment == 'PROD';
+  }
+  
+  static bool isStaging() {
+    return environment == 'UAT';
+  }
+  
+  static bool isDevelopment() {
+    return environment == 'DEV' || environment == 'SIT';
   }
 }

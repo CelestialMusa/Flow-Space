@@ -33,7 +33,7 @@ class DeploymentService {
     
     String content = await versionFile.readAsString();
     content = content.replaceAll(
-      "static const String environment = 'SIT';",
+      "static const String environment = 'PROD';",
       "static const String environment = '$environment';"
     );
     

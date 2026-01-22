@@ -40,9 +40,18 @@ Version Information:
 - Environment: ${info['environment']}
 - Date: ${info['year']}-${info['month'].toString().padLeft(2, '0')}-${info['day'].toString().padLeft(2, '0')}
 - Week Number: ${info['weekNumber']}
-- Day of Week: ${info['dayOfWeek']}
-- Release Number: ${info['releaseNumber']}
-- Timestamp: ${info['timestamp']}
 ''';
+  }
+  
+  static bool isProductionEnvironment() {
+    return environment == 'PROD';
+  }
+  
+  static bool isStagingEnvironment() {
+    return environment == 'UAT';
+  }
+  
+  static bool isDevelopmentEnvironment() {
+    return environment == 'DEV' || environment == 'SIT';
   }
 }

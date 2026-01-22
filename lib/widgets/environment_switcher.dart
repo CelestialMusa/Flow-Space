@@ -11,6 +11,8 @@ class EnvironmentSwitcher extends StatefulWidget {
 }
 
 class _EnvironmentSwitcherState extends State<EnvironmentSwitcher> {
+  String currentEnvironment = VersionConfig.environment;
+  bool isDeploying = false;
   String? selectedEnvironment;
   bool isLoading = false;
   Map<String, dynamic>? currentConfig;
@@ -18,53 +20,38 @@ class _EnvironmentSwitcherState extends State<EnvironmentSwitcher> {
   @override
   void initState() {
     super.initState();
-    _loadCurrentConfig();
-  }
-
-  Future<void> _loadCurrentConfig() async {
-    final config = await DeploymentService.getCurrentDeploymentConfig();
-    setState(() {
-      currentConfig = config;
-      selectedEnvironment = config?['environment'] ?? 'SIT';
-    });
+    currentConfig = {
+      'environment': currentEnvironment,
+    };
   }
 
   Future<void> _switchEnvironment(String environment) async {
-    setState(() => isLoading = true);
-    
+    setState(() {
+      isDeploying = true;
+    });
+
     try {
       await DeploymentService.switchEnvironment(environment);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Environment switched to $environment'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-        
-        // Reload the app to apply changes
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          Navigator.of(context).pushNamedAndRemoveUntil(
-            '/',
-            (route) => false,
-          );
+        setState(() {
+          currentEnvironment = environment;
+          currentConfig = {'environment': environment};
         });
-      }
-    } catch (e) {
-      if (mounted) {
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Failed to switch environment: $e'),
-            backgroundColor: Colors.red,
+            content: Text('Environment switched to $environment'),
+            backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
           ),
         );
       }
     } finally {
       if (mounted) {
-        setState(() => isLoading = false);
+        setState(() {
+          isDeploying = false;
+        });
       }
     }
   }
@@ -169,6 +156,9 @@ class _EnvironmentSwitcherState extends State<EnvironmentSwitcher> {
                   selected: isCurrent,
                   onSelected: isCurrent ? null : (selected) {
                     if (selected) {
+                      setState(() {
+                        selectedEnvironment = env;
+                      });
                       _showSwitchConfirmation(env);
                     }
                   },
@@ -201,64 +191,43 @@ class _EnvironmentSwitcherState extends State<EnvironmentSwitcher> {
   }
 
   Widget _buildEnvironmentInfo() {
-    if (selectedEnvironment == null) return const SizedBox.shrink();
+    if (selectedEnvironment == null) {
+      return const SizedBox.shrink();
+    }
     
     final env = selectedEnvironment!;
-    final displayName = VersionConfig.getEnvironmentDisplayName(env);
-    final colors = VersionConfig.getEnvironmentColors(env);
-    final requiredApprovals = VersionConfig.requiredApprovals[env] ?? [];
     
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[900],
+        color: Colors.grey[800],
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[700]!),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            displayName,
+            'Selected Environment: $env',
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
           const SizedBox(height: 8),
-          _buildInfoRow('Pipeline', VersionConfig.pipelineConfig[env] ?? 'N/A'),
-          _buildInfoRow('Required Approvals', requiredApprovals.join(', ')),
-          _buildInfoRow('Color Scheme', '#${colors['background']}'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              '$label:',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[400],
-              ),
+          Text(
+            'Display Name: ${VersionConfig.getEnvironmentDisplayName(env)}',
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.white70,
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.white,
-              ),
+          const SizedBox(height: 8),
+          Text(
+            'Required Approvals: ${VersionConfig.requiredApprovals[env]?.join(", ") ?? "None"}',
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.white70,
             ),
           ),
         ],

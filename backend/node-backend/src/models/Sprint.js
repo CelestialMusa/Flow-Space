@@ -78,6 +78,9 @@ module.exports = (sequelize, DataTypes) => {
     risks_identified: {
       type: DataTypes.INTEGER
     },
+    risks: {
+      type: DataTypes.TEXT
+    },
     risks_mitigated: {
       type: DataTypes.INTEGER
     },

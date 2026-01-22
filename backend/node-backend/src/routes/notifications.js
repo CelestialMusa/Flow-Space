@@ -31,6 +31,11 @@ router.post('/', authenticateToken, async (req, res) => {
     
     const notification = await Notification.create(notificationData);
     
+    // Send real-time notification
+    if (socketService && typeof socketService.sendToUser === 'function') {
+      socketService.sendToUser(notification.recipient_id, 'notification_received', notification);
+    }
+    
     res.status(201).json(notification);
   } catch (error) {
     console.error('Error creating notification:', error);
@@ -67,6 +72,28 @@ router.get('/me', authenticateToken, async (req, res) => {
     res.json(notifications);
   } catch (error) {
     console.error('Error fetching user notifications:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * @route GET /api/notifications/count
+ * @desc Get unread notification count
+ * @access Private
+ */
+router.get('/count', authenticateToken, async (req, res) => {
+  try {
+    const uid = req.user && req.user.id;
+    if (!uid || !/^[0-9a-fA-F-]{36}$/.test(String(uid))) {
+      return res.json({ success: true, data: { unreadCount: 0 } });
+    }
+
+    const unreadCount = await Notification.count({
+      where: { recipient_id: uid, is_read: false }
+    });
+    res.json({ success: true, data: { unreadCount } });
+  } catch (error) {
+    console.error('Error fetching unread notification count:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -145,23 +172,6 @@ router.put('/read-all', authenticateToken, async (req, res) => {
     res.json({ success: true, data: { markedCount: affectedCount } });
   } catch (error) {
     console.error('Error marking all notifications as read:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-router.get('/count', authenticateToken, async (req, res) => {
-  try {
-    const uid = req.user && req.user.id;
-    if (!uid || !/^[0-9a-fA-F-]{36}$/.test(String(uid))) {
-      return res.json({ success: true, data: { unreadCount: 0 } });
-    }
-
-    const unreadCount = await Notification.count({
-      where: { recipient_id: uid, is_read: false }
-    });
-    res.json({ success: true, data: { unreadCount } });
-  } catch (error) {
-    console.error('Error fetching unread notification count:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

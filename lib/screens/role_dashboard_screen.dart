@@ -69,16 +69,6 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     await _loadData();
   }
 
-
-
-
-
-
-
-
-
-
-
   @override
   void initState() {
     super.initState();
@@ -92,7 +82,6 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     _loadPendingReports();
     _loadClientReviewMetrics();
     _computeTeamMetrics();
-    _setupRealtimeListeners();
   }
 
   @override
@@ -103,8 +92,21 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
 
   @override
   void dispose() {
-    // Remove all listeners
+    realtimeService.off('user_role_changed', _handleRoleChanged);
+    realtimeService.offAll('sprint_created');
+    realtimeService.offAll('sprint_updated');
+    realtimeService.offAll('deliverable_created');
+    realtimeService.offAll('deliverable_updated');
+    realtimeService.offAll('approval_created');
+    realtimeService.offAll('approval_updated');
+    realtimeService.offAll('project_created');
+    realtimeService.offAll('project_updated');
+    // Do not call offAll for notification_received as it affects other widgets
     super.dispose();
+  }
+
+  void _handleRoleChanged(dynamic data) {
+    _loadCurrentUser();
   }
 
   void _computeTeamMetrics() {
@@ -406,6 +408,12 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
         
         // Load audit logs after user is loaded
         _loadAuditLogs();
+        
+        // Initialize realtime service with valid token
+        if (_authService.accessToken != null) {
+          realtimeService.initialize(authToken: _authService.accessToken);
+          _setupRealtimeListeners();
+        }
       } else {
         if (!_authService.isAuthenticated) {
           debugPrint('❌ Inactive or no user found, redirecting to login');
@@ -585,7 +593,6 @@ _isLoadingAuditLogs = false;
       ),
     );
   }
-
 
   Widget _buildMetricsCards(int total, int pending, int approved, int rejected) {
     return Row(
@@ -2566,141 +2573,4 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     await _authService.signOut();
     if (mounted) context.go('/');
   }
-
-  void handleRoleChanged(dynamic _) {
-    _loadCurrentUser();
-  }
-
-  void setupRealtimeListeners() {
-    realtimeService.on('user_role_changed', handleRoleChanged);
-    realtimeService.on('sprint_created', (_) => _loadDashboardSprints());
-    realtimeService.on('sprint_updated', (_) => _loadDashboardSprints());
-    realtimeService.on('deliverable_created', (_) => _loadDashboardDeliverables());
-    realtimeService.on('deliverable_updated', (_) => _loadDashboardDeliverables());
-    realtimeService.on('approval_created', (_) { loadPendingReports(); loadClientReviewMetrics(); _loadDashboardDeliverables(); });
-    realtimeService.on('approval_updated', (_) { loadPendingReports(); loadClientReviewMetrics(); _loadDashboardDeliverables(); });
-    realtimeService.on('report_submitted', (_) { loadPendingReports(); loadClientReviewMetrics(); _loadDashboardDeliverables(); });
-    realtimeService.on('report_approved', (_) { loadPendingReports(); loadClientReviewMetrics(); _loadDashboardDeliverables(); });
-    realtimeService.on('report_change_requested', (_) { loadPendingReports(); loadClientReviewMetrics(); _loadDashboardDeliverables(); });
-    realtimeService.on('project_created', (_) => _loadDashboardProjects());
-    realtimeService.on('project_updated', (_) => _loadDashboardProjects());
-    realtimeService.on('notification_received', (data) {
-      try {
-        final type = (data['type'] ?? '').toString();
-        if (type == 'project') {
-          _loadDashboardProjects();
-        } else if (type == 'sprint') {
-          _loadDashboardSprints();
-        } else if (type == 'deliverable' || type == 'approval' || type == 'change_request') {
-          _loadDashboardDeliverables();
-          loadPendingReports();
-          loadClientReviewMetrics();
-        }
-      } catch (_) {}
-    });
-  }
-
-  // Placeholder methods for missing functionality
-  void loadData() {
-    // Placeholder implementation
-    if (mounted) {
-      setState(() {
-        _errorMessage = null;
-      });
-    }
-  }
-
-  Widget buildMetricsRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white70)),
-          Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-
-  Widget buildSignoffReportStatsRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white70)),
-          Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-
-  Widget buildQuickLinks(List<Map<String, dynamic>> links) {
-    return Column(
-      children: links.map((link) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: ElevatedButton(
-          onPressed: () {
-            // Handle link navigation
-          },
-          child: Text(link['title'] ?? 'Link'),
-        ),
-      )).toList(),
-    );
-  }
-
-  Widget buildContentSection(String title, Widget content) {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 12),
-          content,
-        ],
-      ),
-    );
-  }
-
-  Widget buildSectionHeader(String title) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-      ),
-    );
-  }
-
-  Widget buildSignoffTimeRow(String label, String time) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white70)),
-          Text(time, style: const TextStyle(color: Colors.white)),
-        ],
-      ),
-    );
-  }
-
 }
