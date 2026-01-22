@@ -29,7 +29,7 @@ class _NotificationCenterWidgetState extends State<NotificationCenterWidget> {
   
   int _unreadCount = 0;
   bool _isLoading = true;
-  bool _disposed = false;
+  final bool _disposed = false;
 
   @override
   void initState() {
@@ -60,19 +60,6 @@ class _NotificationCenterWidgetState extends State<NotificationCenterWidget> {
     
     // Initial load
     _loadUnreadCount();
-  }
-
-  Future<void> _initializeRealtimeConnection() async {
-    try {
-      final token = _authService.accessToken;
-      if (token != null && !_disposed) {
-        await _realtime.initialize(authToken: token);
-        _realtime.on('notification_received', (_) => _loadUnreadCount());
-        _realtime.on('notifications_updated', (_) => _loadUnreadCount());
-      }
-    } catch (e) {
-      debugPrint('Error initializing realtime connection: $e');
-    }
   }
 
   Future<void> _loadUnreadCount() async {
