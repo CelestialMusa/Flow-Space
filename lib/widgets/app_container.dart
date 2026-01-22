@@ -30,11 +30,14 @@ class AppContainer extends StatelessWidget {
             ),
           // Content
           child,
-          // Version control in bottom left corner
+          // Version control in bottom left corner with proper z-index
           const Positioned(
             left: 16,
             bottom: 16,
-            child: VersionDisplay(),
+            child: Material(
+              color: Colors.transparent,
+              child: VersionDisplay(),
+            ),
           ),
         ],
       ),

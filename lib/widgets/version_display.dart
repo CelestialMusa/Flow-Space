@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/version_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class VersionDisplay extends StatelessWidget {
   const VersionDisplay({super.key});
@@ -32,10 +33,10 @@ class VersionDisplay extends StatelessWidget {
     }
     
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(
           color: textColor.withValues(alpha: 0.3),
           width: 1,
@@ -43,11 +44,10 @@ class VersionDisplay extends StatelessWidget {
       ),
       child: Text(
         '${versionInfo['version']} - $environment',
-        style: TextStyle(
+        style: GoogleFonts.poppins(
           color: textColor,
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          fontFamily: 'Poppins',
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
         ),
       ),
     );

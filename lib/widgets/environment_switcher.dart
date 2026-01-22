@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/deployment_service.dart';
 import '../utils/version_config.dart';
 import '../utils/version_control.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class EnvironmentSwitcher extends StatefulWidget {
   const EnvironmentSwitcher({super.key});
@@ -120,10 +121,10 @@ class _EnvironmentSwitcherState extends State<EnvironmentSwitcher> {
                         ),
                         child: Text(
                           VersionControl.generateVersionNumber(),
-                          style: const TextStyle(
-                            fontSize: 11,
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
                             color: Colors.white,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ),
