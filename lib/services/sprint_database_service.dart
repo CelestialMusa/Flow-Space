@@ -10,7 +10,7 @@ import 'backend_api_service.dart';
 import 'auth_service.dart';
 
 class SprintDatabaseService {
-  static const String _baseUrl = Environment.apiBaseUrl;
+  static final String _baseUrl = Environment.apiBaseUrl;
   final NotificationService _notificationService = NotificationService();
   final ApiClient _apiClient = ApiClient();
   final BackendApiService _backendApiService = BackendApiService();

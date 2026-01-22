@@ -17,7 +17,7 @@ import 'document_service_stub.dart'
 class DocumentService {
   final AuthService _authService;
 final ApiClient _apiClient = ApiClient();
-  static const String _baseUrl = Environment.apiBaseUrl;
+  static final String _baseUrl = Environment.apiBaseUrl;
 
   DocumentService(this._authService);
 

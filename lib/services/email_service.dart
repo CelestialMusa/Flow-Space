@@ -10,7 +10,7 @@ class EmailService {
   EmailService._internal();
 
   // Email service configuration
-  static const String _baseUrl = Environment.apiBaseUrl;
+  static final String _baseUrl = Environment.apiBaseUrl;
   
   // Send verification email
   Future<bool> sendVerificationEmail({

@@ -5,7 +5,7 @@ import '../models/notification_item.dart';
 import '../config/environment.dart';
 
 class NotificationService {
-static const String _baseUrl = Environment.apiBaseUrl;
+static final String _baseUrl = Environment.apiBaseUrl;
   String? _authToken;
 
   void setAuthToken(String token) {
