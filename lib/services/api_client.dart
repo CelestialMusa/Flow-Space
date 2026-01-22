@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/environment.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user.dart';
+import '../utils/debug_helper.dart';
 
 class ApiClient {
   static final ApiClient _instance = ApiClient._internal();
@@ -39,6 +40,7 @@ static String get _baseUrlWithVersion => Environment.apiBaseUrl;
   // Initialize API client
   Future<void> initialize() async {
     await _loadStoredTokens();
+    DebugHelper.logEnvironmentInfo();
     debugPrint('API Client initialized with base URL: $_baseUrlWithVersion');
   }
 
