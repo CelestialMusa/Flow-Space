@@ -6,7 +6,7 @@ services:
       git clone https://github.com/flutter/flutter.git -b stable --depth 1
       export PATH="$PATH:$(pwd)/flutter/bin"
       flutter pub get
-      flutter build web --dart-define=API_BASE_URL=https://flow-space.onrender.com/api/v1 --dart-define=DEBUG_MODE=false
+      flutter build web --dart-define=API_BASE_URL=https://flow-space.onrender.com/api/v1 --dart-define=DEBUG_MODE=false --no-wasm
     staticPublishPath: build/web
     envVars:
       - key: FLUTTER_WEB_CANVASKIT_URL

@@ -8,7 +8,7 @@ import 'backend_api_service.dart';
 import '../config/environment.dart';
 
 class ApiService {
-static const String baseUrl = Environment.apiBaseUrl;
+static final String baseUrl = Environment.apiBaseUrl;
   
   // Get auth headers with token
   static Future<Map<String, String>> _getHeaders() async {
