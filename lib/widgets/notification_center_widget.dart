@@ -59,7 +59,6 @@ class _NotificationCenterWidgetState extends State<NotificationCenterWidget> {
     _realtime.on('notifications_updated', _notificationListener);
     
     // Initial load
->>>>>>> f65b7115226807b38d7aec4122169e261e9f9e74
     _loadUnreadCount();
   }
 

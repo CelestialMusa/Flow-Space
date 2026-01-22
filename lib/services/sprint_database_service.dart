@@ -154,7 +154,6 @@ String? description,
         if (risksMitigated != null) 'risks_mitigated': risksMitigated,
         if (blockers != null) 'blockers': blockers,
         if (decisions != null) 'decisions': decisions,
->>>>>>> f65b7115226807b38d7aec4122169e261e9f9e74
       };
 
       debugPrint('🚀 Creating sprint with data: $body');
