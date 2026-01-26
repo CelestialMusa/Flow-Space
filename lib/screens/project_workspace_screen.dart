@@ -1,0 +1,869 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/project.dart';
+import '../models/deliverable.dart';
+import '../models/sprint.dart';
+import '../models/user.dart';
+import '../widgets/glass_card.dart';
+import '../services/api_service.dart';
+import '../services/auth_service.dart';
+
+class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
+  final String? projectId;
+  
+  const ProjectWorkspaceScreen({
+    super.key,
+    this.projectId,
+  });
+
+  @override
+  ConsumerState<ProjectWorkspaceScreen> createState() => _ProjectWorkspaceScreenState();
+}
+
+class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _clientNameController = TextEditingController();
+  final _tagsController = TextEditingController();
+  
+  ProjectStatus _selectedStatus = ProjectStatus.planning;
+  ProjectPriority _selectedPriority = ProjectPriority.medium;
+  String _selectedProjectType = 'software';
+  DateTime? _startDate;
+  DateTime? _endDate;
+  
+  List<ProjectMember> _members = [];
+  List<String> _deliverableIds = [];
+  List<String> _sprintIds = [];
+  List<Deliverable> _availableDeliverables = [];
+  List<Sprint> _availableSprints = [];
+  List<User> _availableUsers = [];
+  
+  bool _isLoading = false;
+  bool _isEditing = false;
+  Project? _currentProject;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.projectId != null) {
+      _isEditing = true;
+      _loadProject();
+    }
+    _loadAvailableData();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _clientNameController.dispose();
+    _tagsController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProject() async {
+    if (widget.projectId == null) return;
+    
+    setState(() => _isLoading = true);
+    try {
+      final project = await ApiService.getProject(widget.projectId!);
+      if (project != null) {
+        setState(() {
+          _currentProject = project;
+          _nameController.text = project.name;
+          _descriptionController.text = project.description;
+          _clientNameController.text = project.clientName ?? '';
+          _selectedStatus = project.status;
+          _selectedPriority = project.priority;
+          _selectedProjectType = project.projectType;
+          _startDate = project.startDate;
+          _endDate = project.endDate;
+          _tagsController.text = project.tags.join(', ');
+          _members = project.members;
+          _deliverableIds = project.deliverableIds;
+          _sprintIds = project.sprintIds;
+        });
+      }
+    } catch (e) {
+      _showErrorSnackBar('Failed to load project: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadAvailableData() async {
+    try {
+      final deliverables = await ApiService.getDeliverables();
+      final sprints = await ApiService.getSprints();
+      final users = await ApiService.getUsers();
+      
+      setState(() {
+        _availableDeliverables = deliverables.map((d) => Deliverable.fromJson(d)).toList();
+        _availableSprints = sprints.map((s) => Sprint.fromJson(s)).toList();
+        _availableUsers = users.map((u) => User.fromJson(u)).toList();
+      });
+    } catch (e) {
+      _showErrorSnackBar('Failed to load available data: $e');
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  Future<void> _saveProject() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final project = Project(
+        id: _isEditing ? _currentProject!.id : DateTime.now().millisecondsSinceEpoch.toString(),
+        name: _nameController.text.trim(),
+        description: _descriptionController.text.trim(),
+        clientName: _clientNameController.text.trim().isEmpty ? null : _clientNameController.text.trim(),
+        status: _selectedStatus,
+        priority: _selectedPriority,
+        projectType: _selectedProjectType,
+        startDate: _startDate ?? DateTime.now(),
+        endDate: _endDate,
+        tags: _tagsController.text.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList(),
+        members: _members,
+        deliverableIds: _deliverableIds,
+        sprintIds: _sprintIds,
+        createdBy: AuthService().currentUser?.id ?? 'unknown',
+        createdAt: _isEditing ? _currentProject!.createdAt : DateTime.now(),
+        updatedAt: DateTime.now(),
+        updatedBy: AuthService().currentUser?.id ?? 'unknown',
+      );
+
+      if (_isEditing) {
+        await ApiService.updateProject(project);
+        _showSuccessSnackBar('Project updated successfully');
+      } else {
+        await ApiService.createProjectModel(project);
+        _showSuccessSnackBar('Project created successfully');
+      }
+
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      _showErrorSnackBar('Failed to save project: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _addMember() {
+    showDialog(
+      context: context,
+      builder: (context) => _AddMemberDialog(
+        availableUsers: _availableUsers,
+        onAdd: (user, role) {
+          setState(() {
+            if (!_members.any((m) => m.userId == user.id)) {
+              _members.add(ProjectMember(
+                userId: user.id,
+                userName: user.name,
+                userEmail: user.email,
+                role: role,
+                assignedAt: DateTime.now(),
+              ));
+            }
+          });
+        },
+      ),
+    );
+  }
+
+  void _removeMember(String userId) {
+    setState(() {
+      _members.removeWhere((m) => m.userId == userId);
+    });
+  }
+
+  void _addDeliverable() {
+    showDialog(
+      context: context,
+      builder: (context) => _SelectDeliverablesDialog(
+        availableDeliverables: _availableDeliverables,
+        selectedIds: _deliverableIds,
+        onSelect: (ids) {
+          setState(() {
+            _deliverableIds = ids;
+          });
+        },
+      ),
+    );
+  }
+
+  void _addSprint() {
+    showDialog(
+      context: context,
+      builder: (context) => _SelectSprintsDialog(
+        availableSprints: _availableSprints,
+        selectedIds: _sprintIds,
+        onSelect: (ids) {
+          setState(() {
+            _sprintIds = ids;
+          });
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Edit Project' : 'Create New Project'),
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        elevation: 0,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildBasicInfoSection(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildMetadataSection(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildDatesSection(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildMembersSection(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildDeliverablesSection(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildSprintsSection(colorScheme),
+                    const SizedBox(height: 32),
+                    _buildActionButtons(colorScheme),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+
+  Widget _buildBasicInfoSection(ColorScheme colorScheme) {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Basic Information',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _nameController,
+            decoration: const InputDecoration(
+              labelText: 'Project Name *',
+              border: OutlineInputBorder(),
+            ),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Project name is required';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _descriptionController,
+            decoration: const InputDecoration(
+              labelText: 'Description *',
+              border: OutlineInputBorder(),
+            ),
+            maxLines: 3,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Description is required';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _clientNameController,
+            decoration: const InputDecoration(
+              labelText: 'Client Name',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetadataSection(ColorScheme colorScheme) {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Project Metadata',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<ProjectStatus>(
+            initialValue: _selectedStatus,
+            decoration: const InputDecoration(
+              labelText: 'Status',
+              border: OutlineInputBorder(),
+            ),
+            items: ProjectStatus.values.map((status) {
+              return DropdownMenuItem(
+                value: status,
+                child: Text(status.name),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                _selectedStatus = value!;
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<ProjectPriority>(
+            initialValue: _selectedPriority,
+            decoration: const InputDecoration(
+              labelText: 'Priority',
+              border: OutlineInputBorder(),
+            ),
+            items: ProjectPriority.values.map((priority) {
+              return DropdownMenuItem(
+                value: priority,
+                child: Text(priority.name),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                _selectedPriority = value!;
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            initialValue: _selectedProjectType,
+            decoration: const InputDecoration(
+              labelText: 'Project Type',
+              border: OutlineInputBorder(),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'software', child: Text('Software')),
+              DropdownMenuItem(value: 'hardware', child: Text('Hardware')),
+              DropdownMenuItem(value: 'research', child: Text('Research')),
+              DropdownMenuItem(value: 'consulting', child: Text('Consulting')),
+              DropdownMenuItem(value: 'other', child: Text('Other')),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _selectedProjectType = value!;
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _tagsController,
+            decoration: const InputDecoration(
+              labelText: 'Tags (comma-separated)',
+              border: OutlineInputBorder(),
+              helperText: 'Enter tags separated by commas',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDatesSection(ColorScheme colorScheme) {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Project Dates',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ListTile(
+            title: Text('Start Date: ${_startDate != null ? _startDate!.toString().split(' ')[0] : 'Not set'}'),
+            trailing: const Icon(Icons.calendar_today),
+            onTap: () async {
+              final date = await showDatePicker(
+                context: context,
+                initialDate: _startDate ?? DateTime.now(),
+                firstDate: DateTime(2020),
+                lastDate: DateTime(2030),
+              );
+              if (date != null) {
+                setState(() {
+                  _startDate = date;
+                });
+              }
+            },
+          ),
+          ListTile(
+            title: Text('End Date: ${_endDate != null ? _endDate!.toString().split(' ')[0] : 'Not set'}'),
+            trailing: const Icon(Icons.calendar_today),
+            onTap: () async {
+              final date = await showDatePicker(
+                context: context,
+                initialDate: _endDate ?? DateTime.now().add(const Duration(days: 30)),
+                firstDate: DateTime(2020),
+                lastDate: DateTime(2030),
+              );
+              if (date != null) {
+                setState(() {
+                  _endDate = date;
+                });
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMembersSection(ColorScheme colorScheme) {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Team Members',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              IconButton(
+                onPressed: _addMember,
+                icon: const Icon(Icons.add),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_members.isEmpty)
+            const Text('No members added yet')
+          else
+            ..._members.map((member) => ListTile(
+              title: Text(member.userName),
+              subtitle: Text('${member.userEmail} • ${member.role.name}'),
+              trailing: IconButton(
+                onPressed: () => _removeMember(member.userId),
+                icon: const Icon(Icons.remove, color: Colors.red),
+              ),
+            )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeliverablesSection(ColorScheme colorScheme) {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Linked Deliverables',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              IconButton(
+                onPressed: _addDeliverable,
+                icon: const Icon(Icons.add),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_deliverableIds.isEmpty)
+            const Text('No deliverables linked yet')
+          else
+            ..._deliverableIds.map((id) {
+              final deliverable = _availableDeliverables.firstWhere(
+                (d) => d.id == id,
+                orElse: () => Deliverable(
+                  id: id,
+                  title: 'Unknown',
+                  description: '',
+                  status: DeliverableStatus.draft,
+                  createdAt: DateTime.now(),
+                  dueDate: DateTime.now(),
+                  sprintIds: [],
+                  definitionOfDone: [],
+                ),
+              );
+              return ListTile(
+                title: Text(deliverable.title),
+                subtitle: Text(deliverable.statusDisplayName),
+                trailing: IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _deliverableIds.remove(id);
+                    });
+                  },
+                  icon: const Icon(Icons.remove, color: Colors.red),
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSprintsSection(ColorScheme colorScheme) {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Associated Sprints',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              IconButton(
+                onPressed: _addSprint,
+                icon: const Icon(Icons.add),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_sprintIds.isEmpty)
+            const Text('No sprints associated yet')
+          else
+            ..._sprintIds.map((id) {
+              final sprint = _availableSprints.firstWhere(
+                (s) => s.id == id,
+                orElse: () => Sprint(
+                  id: id,
+                  name: 'Unknown',
+                  startDate: DateTime.now(),
+                  endDate: DateTime.now(),
+                  committedPoints: 0,
+                  completedPoints: 0,
+                  velocity: 0,
+                  testPassRate: 0.0,
+                  defectCount: 0,
+                ),
+              );
+              return ListTile(
+                title: Text(sprint.name),
+                subtitle: Text(sprint.statusText),
+                trailing: IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _sprintIds.remove(id);
+                    });
+                  },
+                  icon: const Icon(Icons.remove, color: Colors.red),
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(ColorScheme colorScheme) {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _saveProject,
+            child: _isLoading
+                ? const CircularProgressIndicator()
+                : Text(_isEditing ? 'Update Project' : 'Create Project'),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AddMemberDialog extends StatefulWidget {
+  final List<User> availableUsers;
+  final Function(User, ProjectRole) onAdd;
+
+  const _AddMemberDialog({
+    required this.availableUsers,
+    required this.onAdd,
+  });
+
+  @override
+  State<_AddMemberDialog> createState() => _AddMemberDialogState();
+}
+
+class _AddMemberDialogState extends State<_AddMemberDialog> {
+  User? _selectedUser;
+  ProjectRole _selectedRole = ProjectRole.contributor;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Add Team Member'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DropdownButtonFormField<User>(
+            initialValue: _selectedUser,
+            decoration: const InputDecoration(
+              labelText: 'Select User',
+              border: OutlineInputBorder(),
+            ),
+            items: widget.availableUsers.map((user) {
+              return DropdownMenuItem(
+                value: user,
+                child: Text('${user.name} (${user.email})'),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                _selectedUser = value;
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<ProjectRole>(
+            initialValue: _selectedRole,
+            decoration: const InputDecoration(
+              labelText: 'Role',
+              border: OutlineInputBorder(),
+            ),
+            items: ProjectRole.values.map((role) {
+              return DropdownMenuItem(
+                value: role,
+                child: Text(role.name),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                _selectedRole = value!;
+              });
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _selectedUser != null
+              ? () {
+                  widget.onAdd(_selectedUser!, _selectedRole);
+                  Navigator.of(context).pop();
+                }
+              : null,
+          child: const Text('Add'),
+        ),
+      ],
+    );
+  }
+}
+
+class _SelectDeliverablesDialog extends StatefulWidget {
+  final List<Deliverable> availableDeliverables;
+  final List<String> selectedIds;
+  final Function(List<String>) onSelect;
+
+  const _SelectDeliverablesDialog({
+    required this.availableDeliverables,
+    required this.selectedIds,
+    required this.onSelect,
+  });
+
+  @override
+  State<_SelectDeliverablesDialog> createState() => _SelectDeliverablesDialogState();
+}
+
+class _SelectDeliverablesDialogState extends State<_SelectDeliverablesDialog> {
+  late Set<String> _selectedIds;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIds = Set.from(widget.selectedIds);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Select Deliverables'),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 300,
+        child: ListView.builder(
+          itemCount: widget.availableDeliverables.length,
+          itemBuilder: (context, index) {
+            final deliverable = widget.availableDeliverables[index];
+            final isSelected = _selectedIds.contains(deliverable.id);
+            
+            return CheckboxListTile(
+              title: Text(deliverable.title),
+              subtitle: Text(deliverable.statusDisplayName),
+              value: isSelected,
+              onChanged: (value) {
+                setState(() {
+                  if (value == true) {
+                    _selectedIds.add(deliverable.id);
+                  } else {
+                    _selectedIds.remove(deliverable.id);
+                  }
+                });
+              },
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            widget.onSelect(_selectedIds.toList());
+            Navigator.of(context).pop();
+          },
+          child: const Text('Select'),
+        ),
+      ],
+    );
+  }
+}
+
+class _SelectSprintsDialog extends StatefulWidget {
+  final List<Sprint> availableSprints;
+  final List<String> selectedIds;
+  final Function(List<String>) onSelect;
+
+  const _SelectSprintsDialog({
+    required this.availableSprints,
+    required this.selectedIds,
+    required this.onSelect,
+  });
+
+  @override
+  State<_SelectSprintsDialog> createState() => _SelectSprintsDialogState();
+}
+
+class _SelectSprintsDialogState extends State<_SelectSprintsDialog> {
+  late Set<String> _selectedIds;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIds = Set.from(widget.selectedIds);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Select Sprints'),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 300,
+        child: ListView.builder(
+          itemCount: widget.availableSprints.length,
+          itemBuilder: (context, index) {
+            final sprint = widget.availableSprints[index];
+            final isSelected = _selectedIds.contains(sprint.id);
+            
+            return CheckboxListTile(
+              title: Text(sprint.name),
+              subtitle: Text(sprint.statusText),
+              value: isSelected,
+              onChanged: (value) {
+                setState(() {
+                  if (value == true) {
+                    _selectedIds.add(sprint.id);
+                  } else {
+                    _selectedIds.remove(sprint.id);
+                  }
+                });
+              },
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            widget.onSelect(_selectedIds.toList());
+            Navigator.of(context).pop();
+          },
+          child: const Text('Select'),
+        ),
+      ],
+    );
+  }
+}

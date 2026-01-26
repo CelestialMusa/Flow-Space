@@ -325,6 +325,37 @@ class BackendApiService {
     return await _apiClient.delete('/projects/$projectId');
   }
 
+  // Project member management
+  Future<ApiResponse> addProjectMember(String projectId, Map<String, dynamic> memberData) async {
+    return await _apiClient.post('/projects/$projectId/members', body: memberData);
+  }
+
+  Future<ApiResponse> removeProjectMember(String projectId, String userId) async {
+    return await _apiClient.delete('/projects/$projectId/members/$userId');
+  }
+
+  // Project deliverable linking
+  Future<ApiResponse> linkDeliverableToProject(String projectId, String deliverableId) async {
+    return await _apiClient.post('/projects/$projectId/deliverables', body: {
+      'deliverableId': deliverableId,
+    });
+  }
+
+  Future<ApiResponse> unlinkDeliverableFromProject(String projectId, String deliverableId) async {
+    return await _apiClient.delete('/projects/$projectId/deliverables/$deliverableId');
+  }
+
+  // Project sprint association
+  Future<ApiResponse> associateSprintWithProject(String projectId, String sprintId) async {
+    return await _apiClient.post('/projects/$projectId/sprints', body: {
+      'sprintId': sprintId,
+    });
+  }
+
+  Future<ApiResponse> dissociateSprintFromProject(String projectId, String sprintId) async {
+    return await _apiClient.delete('/projects/$projectId/sprints/$sprintId');
+  }
+
   // Release readiness endpoints
   Future<ApiResponse> getReleaseReadinessChecks(String deliverableId) async {
     return await _apiClient.get('/deliverables/$deliverableId/readiness-checks');

@@ -86,6 +86,12 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         route: '/profile',
         requiredPermission: null, // All users can access profile
       ),
+      const _NavItem(
+        label: 'Project Workspace',
+        icon: Icons.work_outline,
+        route: '/project-workspace',
+        requiredPermission: 'manage_projects',
+      ),
     ];
 
     // Filter items based on user permissions

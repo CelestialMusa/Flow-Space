@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
 import '../models/system_metrics.dart';
+import '../models/project.dart';
 import 'backend_api_service.dart';
 import '../config/environment.dart';
 
@@ -904,6 +905,30 @@ if (response.statusCode == 200 || response.statusCode == 201) {
     }
   }
 
+  static Future<List<Map<String, dynamic>>> getUsers() async {
+    try {
+      final backendService = BackendApiService();
+      final response = await backendService.getUsers(page: 1, limit: 200);
+
+      if (response.isSuccess && response.data != null) {
+        final dynamic raw = response.data;
+        if (raw is List) {
+          return raw.cast<Map<String, dynamic>>();
+        }
+        final List<dynamic> items = (raw is Map)
+            ? (raw['data'] ?? raw['users'] ?? raw['items'] ?? [])
+            : [];
+        return items.cast<Map<String, dynamic>>();
+      } else {
+        debugPrint('Failed to load users: ${response.statusCode} - ${response.error}');
+        return [];
+      }
+    } catch (e) {
+      debugPrint('Error loading users: $e');
+      return [];
+    }
+  }
+
   // Settings methods
   static Future<Map<String, dynamic>?> getUserSettings() async {
     try {
@@ -1062,6 +1087,204 @@ if (response.statusCode == 200 || response.statusCode == 201) {
     } catch (e) {
       debugPrint('Error loading test coverage: $e');
       return {};
+    }
+  }
+
+  // Project management methods
+  static Future<Project?> getProject(String projectId) async {
+    try {
+      final backendService = BackendApiService();
+      final response = await backendService.getProject(projectId);
+
+      if (response.isSuccess && response.data != null) {
+        return Project.fromJson(response.data!);
+      } else {
+        debugPrint('Failed to load project: ${response.statusCode} - ${response.error}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Error loading project: $e');
+      return null;
+    }
+  }
+
+  static Future<List<Project>> getProjectModels() async {
+    try {
+      final backendService = BackendApiService();
+      final response = await backendService.getProjects();
+
+      if (response.isSuccess && response.data != null) {
+        final List<dynamic> items = response.data!['data'] ?? response.data!['projects'] ?? [];
+        return items.map((item) => Project.fromJson(item)).toList();
+      } else {
+        debugPrint('Failed to load projects: ${response.statusCode} - ${response.error}');
+        return [];
+      }
+    } catch (e) {
+      debugPrint('Error loading projects: $e');
+      return [];
+    }
+  }
+
+  static Future<bool> createProjectModel(Project project) async {
+    try {
+      final backendService = BackendApiService();
+      final response = await backendService.createProject(project.toJson());
+
+      if (response.isSuccess) {
+        debugPrint('Project created successfully');
+        return true;
+      } else {
+        debugPrint('Failed to create project: ${response.statusCode} - ${response.error}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error creating project: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> updateProject(Project project) async {
+    try {
+      final backendService = BackendApiService();
+      final response = await backendService.updateProject(project.id, project.toJson());
+
+      if (response.isSuccess) {
+        debugPrint('Project updated successfully');
+        return true;
+      } else {
+        debugPrint('Failed to update project: ${response.statusCode} - ${response.error}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error updating project: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> deleteProject(String projectId) async {
+    try {
+      final backendService = BackendApiService();
+      final response = await backendService.deleteProject(projectId);
+
+      if (response.isSuccess) {
+        debugPrint('Project deleted successfully');
+        return true;
+      } else {
+        debugPrint('Failed to delete project: ${response.statusCode} - ${response.error}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error deleting project: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> addProjectMember(String projectId, ProjectMember member) async {
+    try {
+      final backendService = BackendApiService();
+      final response = await backendService.addProjectMember(projectId, member.toJson());
+
+      if (response.isSuccess) {
+        debugPrint('Project member added successfully');
+        return true;
+      } else {
+        debugPrint('Failed to add project member: ${response.statusCode} - ${response.error}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error adding project member: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> removeProjectMember(String projectId, String userId) async {
+    try {
+      final backendService = BackendApiService();
+      final response = await backendService.removeProjectMember(projectId, userId);
+
+      if (response.isSuccess) {
+        debugPrint('Project member removed successfully');
+        return true;
+      } else {
+        debugPrint('Failed to remove project member: ${response.statusCode} - ${response.error}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error removing project member: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> linkDeliverableToProject(String projectId, String deliverableId) async {
+    try {
+      final backendService = BackendApiService();
+      final response = await backendService.linkDeliverableToProject(projectId, deliverableId);
+
+      if (response.isSuccess) {
+        debugPrint('Deliverable linked to project successfully');
+        return true;
+      } else {
+        debugPrint('Failed to link deliverable to project: ${response.statusCode} - ${response.error}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error linking deliverable to project: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> unlinkDeliverableFromProject(String projectId, String deliverableId) async {
+    try {
+      final backendService = BackendApiService();
+      final response = await backendService.unlinkDeliverableFromProject(projectId, deliverableId);
+
+      if (response.isSuccess) {
+        debugPrint('Deliverable unlinked from project successfully');
+        return true;
+      } else {
+        debugPrint('Failed to unlink deliverable from project: ${response.statusCode} - ${response.error}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error unlinking deliverable from project: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> associateSprintWithProject(String projectId, String sprintId) async {
+    try {
+      final backendService = BackendApiService();
+      final response = await backendService.associateSprintWithProject(projectId, sprintId);
+
+      if (response.isSuccess) {
+        debugPrint('Sprint associated with project successfully');
+        return true;
+      } else {
+        debugPrint('Failed to associate sprint with project: ${response.statusCode} - ${response.error}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error associating sprint with project: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> dissociateSprintFromProject(String projectId, String sprintId) async {
+    try {
+      final backendService = BackendApiService();
+      final response = await backendService.dissociateSprintFromProject(projectId, sprintId);
+
+      if (response.isSuccess) {
+        debugPrint('Sprint dissociated from project successfully');
+        return true;
+      } else {
+        debugPrint('Failed to dissociate sprint from project: ${response.statusCode} - ${response.error}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error dissociating sprint from project: $e');
+      return false;
     }
   }
 }

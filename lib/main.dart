@@ -46,6 +46,7 @@ import 'screens/deadlines_screen.dart';
 import 'screens/deliverables_list_screen.dart';
 import 'screens/skill_assessment_screen.dart';
 import 'screens/environment_management_screen.dart';
+import 'screens/project_workspace_screen.dart';
 
 
 void main() async {
@@ -460,6 +461,27 @@ final GoRouter _router = GoRouter(
           child: EnvironmentManagementScreen(),
         ),
       ),
+    ),
+    GoRoute(
+      path: '/project-workspace',
+      builder: (context, state) => const RouteGuard(
+        route: '/project-workspace',
+        child: SidebarScaffold(
+          child: ProjectWorkspaceScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/project-workspace/:projectId',
+      builder: (context, state) {
+        final projectId = state.pathParameters['projectId'];
+        return RouteGuard(
+          route: '/project-workspace',
+          child: SidebarScaffold(
+            child: ProjectWorkspaceScreen(projectId: projectId),
+          ),
+        );
+      },
     ),
     GoRoute(
       path: '/account',

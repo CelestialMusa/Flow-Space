@@ -5,6 +5,7 @@ import '../services/backend_api_service.dart';
 import '../services/api_client.dart';
 import '../services/error_handler.dart';
 import '../services/realtime_service.dart';
+import '../services/api_service.dart';
 import '../models/user.dart';
 import '../theme/flownet_theme.dart';
 
@@ -15,6 +16,10 @@ final authServiceProvider = Provider<AuthService>((ref) {
 
 final backendApiServiceProvider = Provider<BackendApiService>((ref) {
   return BackendApiService();
+});
+
+final apiServiceProvider = Provider<ApiService>((ref) {
+  return ApiService();
 });
 
 final apiClientProvider = Provider<ApiClient>((ref) {
