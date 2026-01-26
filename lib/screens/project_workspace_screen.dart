@@ -237,35 +237,71 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        title: Text(_isEditing ? 'Edit Project' : 'Create New Project'),
-        backgroundColor: colorScheme.surface,
+        title: Text(
+          _isEditing ? 'Edit Project' : 'Create New Project',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: colorScheme.onSurface,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
         foregroundColor: colorScheme.onSurface,
         elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                colorScheme.surface.withAlpha(200),
+                colorScheme.surface.withAlpha(100),
+              ],
+            ),
+          ),
+        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildBasicInfoSection(colorScheme),
-                    const SizedBox(height: 24),
-                    _buildMetadataSection(colorScheme),
-                    const SizedBox(height: 24),
-                    _buildDatesSection(colorScheme),
-                    const SizedBox(height: 24),
-                    _buildMembersSection(colorScheme),
-                    const SizedBox(height: 24),
-                    _buildDeliverablesSection(colorScheme),
-                    const SizedBox(height: 24),
-                    _buildSprintsSection(colorScheme),
-                    const SizedBox(height: 32),
-                    _buildActionButtons(colorScheme),
+          ? Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+              ),
+            )
+          : Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    colorScheme.surface,
+                    colorScheme.surface.withAlpha(240),
+                    colorScheme.surface.withAlpha(220),
                   ],
+                ),
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildBasicInfoSection(colorScheme),
+                      const SizedBox(height: 24),
+                      _buildMetadataSection(colorScheme),
+                      const SizedBox(height: 24),
+                      _buildDatesSection(colorScheme),
+                      const SizedBox(height: 24),
+                      _buildMembersSection(colorScheme),
+                      const SizedBox(height: 24),
+                      _buildDeliverablesSection(colorScheme),
+                      const SizedBox(height: 24),
+                      _buildSprintsSection(colorScheme),
+                      const SizedBox(height: 32),
+                      _buildActionButtons(colorScheme),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -274,23 +310,64 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
 
   Widget _buildBasicInfoSection(ColorScheme colorScheme) {
     return GlassCard(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          colorScheme.primary.withAlpha(20),
+          colorScheme.secondary.withAlpha(10),
+        ],
+      ),
+      border: Border.all(
+        color: colorScheme.primary.withAlpha(40),
+        width: 1.0,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Basic Information',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: colorScheme.onSurface,
-            ),
+          Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                color: colorScheme.primary,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Basic Information',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           TextFormField(
             controller: _nameController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Project Name *',
-              border: OutlineInputBorder(),
+              hintText: 'Enter project name',
+              prefixIcon: Icon(Icons.work_outline, color: colorScheme.primary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.outline.withAlpha(100)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.outline.withAlpha(50)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.primary, width: 2),
+              ),
+              filled: true,
+              fillColor: colorScheme.surface.withAlpha(100),
+            ),
+            style: TextStyle(
+              fontSize: 16,
+              color: colorScheme.onSurface,
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
@@ -302,11 +379,30 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
           const SizedBox(height: 16),
           TextFormField(
             controller: _descriptionController,
-            decoration: const InputDecoration(
-              labelText: 'Description *',
-              border: OutlineInputBorder(),
-            ),
             maxLines: 3,
+            decoration: InputDecoration(
+              labelText: 'Description *',
+              hintText: 'Describe the project goals and objectives',
+              prefixIcon: Icon(Icons.description_outlined, color: colorScheme.primary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.outline.withAlpha(100)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.outline.withAlpha(50)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.primary, width: 2),
+              ),
+              filled: true,
+              fillColor: colorScheme.surface.withAlpha(100),
+            ),
+            style: TextStyle(
+              fontSize: 16,
+              color: colorScheme.onSurface,
+            ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
                 return 'Description is required';
@@ -317,9 +413,28 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
           const SizedBox(height: 16),
           TextFormField(
             controller: _clientNameController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Client Name',
-              border: OutlineInputBorder(),
+              hintText: 'Enter client or customer name',
+              prefixIcon: Icon(Icons.business_outlined, color: colorScheme.primary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.outline.withAlpha(100)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.outline.withAlpha(50)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.primary, width: 2),
+              ),
+              filled: true,
+              fillColor: colorScheme.surface.withAlpha(100),
+            ),
+            style: TextStyle(
+              fontSize: 16,
+              color: colorScheme.onSurface,
             ),
           ),
         ],
@@ -329,23 +444,63 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
 
   Widget _buildMetadataSection(ColorScheme colorScheme) {
     return GlassCard(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          colorScheme.secondary.withAlpha(20),
+          colorScheme.tertiary.withAlpha(10),
+        ],
+      ),
+      border: Border.all(
+        color: colorScheme.secondary.withAlpha(40),
+        width: 1.0,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Project Metadata',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: colorScheme.onSurface,
-            ),
+          Row(
+            children: [
+              Icon(
+                Icons.settings_outlined,
+                color: colorScheme.secondary,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Project Metadata',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           DropdownButtonFormField<ProjectStatus>(
             initialValue: _selectedStatus,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Status',
-              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.flag_outlined, color: colorScheme.secondary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.outline.withAlpha(100)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.outline.withAlpha(50)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.secondary, width: 2),
+              ),
+              filled: true,
+              fillColor: colorScheme.surface.withAlpha(100),
+            ),
+            style: TextStyle(
+              fontSize: 16,
+              color: colorScheme.onSurface,
             ),
             items: ProjectStatus.values.map((status) {
               return DropdownMenuItem(
@@ -362,9 +517,27 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
           const SizedBox(height: 16),
           DropdownButtonFormField<ProjectPriority>(
             initialValue: _selectedPriority,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Priority',
-              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.priority_high_outlined, color: colorScheme.secondary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.outline.withAlpha(100)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.outline.withAlpha(50)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.secondary, width: 2),
+              ),
+              filled: true,
+              fillColor: colorScheme.surface.withAlpha(100),
+            ),
+            style: TextStyle(
+              fontSize: 16,
+              color: colorScheme.onSurface,
             ),
             items: ProjectPriority.values.map((priority) {
               return DropdownMenuItem(
@@ -381,9 +554,27 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             initialValue: _selectedProjectType,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Project Type',
-              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.category_outlined, color: colorScheme.secondary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.outline.withAlpha(100)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.outline.withAlpha(50)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.secondary, width: 2),
+              ),
+              filled: true,
+              fillColor: colorScheme.surface.withAlpha(100),
+            ),
+            style: TextStyle(
+              fontSize: 16,
+              color: colorScheme.onSurface,
             ),
             items: const [
               DropdownMenuItem(value: 'software', child: Text('Software')),
@@ -401,10 +592,29 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
           const SizedBox(height: 16),
           TextFormField(
             controller: _tagsController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Tags (comma-separated)',
-              border: OutlineInputBorder(),
+              hintText: 'e.g. mobile, frontend, urgent',
+              prefixIcon: Icon(Icons.tag_outlined, color: colorScheme.secondary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.outline.withAlpha(100)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.outline.withAlpha(50)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.secondary, width: 2),
+              ),
+              filled: true,
+              fillColor: colorScheme.surface.withAlpha(100),
               helperText: 'Enter tags separated by commas',
+            ),
+            style: TextStyle(
+              fontSize: 16,
+              color: colorScheme.onSurface,
             ),
           ),
         ],
@@ -414,51 +624,118 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
 
   Widget _buildDatesSection(ColorScheme colorScheme) {
     return GlassCard(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          colorScheme.tertiary.withAlpha(20),
+          colorScheme.primary.withAlpha(10),
+        ],
+      ),
+      border: Border.all(
+        color: colorScheme.tertiary.withAlpha(40),
+        width: 1.0,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Project Dates',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: colorScheme.onSurface,
+          Row(
+            children: [
+              Icon(
+                Icons.date_range_outlined,
+                color: colorScheme.tertiary,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Project Dates',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: colorScheme.outline.withAlpha(50),
+              ),
+              color: colorScheme.surface.withAlpha(100),
+            ),
+            child: ListTile(
+              leading: Icon(Icons.calendar_today, color: colorScheme.tertiary),
+              title: Text(
+                'Start Date',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              subtitle: Text(
+                _startDate != null ? _startDate!.toString().split(' ')[0] : 'Not set',
+                style: TextStyle(
+                  color: colorScheme.onSurface.withAlpha(180),
+                ),
+              ),
+              trailing: Icon(Icons.arrow_drop_down, color: colorScheme.tertiary),
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: _startDate ?? DateTime.now(),
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2030),
+                );
+                if (date != null) {
+                  setState(() {
+                    _startDate = date;
+                  });
+                }
+              },
             ),
           ),
-          const SizedBox(height: 16),
-          ListTile(
-            title: Text('Start Date: ${_startDate != null ? _startDate!.toString().split(' ')[0] : 'Not set'}'),
-            trailing: const Icon(Icons.calendar_today),
-            onTap: () async {
-              final date = await showDatePicker(
-                context: context,
-                initialDate: _startDate ?? DateTime.now(),
-                firstDate: DateTime(2020),
-                lastDate: DateTime(2030),
-              );
-              if (date != null) {
-                setState(() {
-                  _startDate = date;
-                });
-              }
-            },
-          ),
-          ListTile(
-            title: Text('End Date: ${_endDate != null ? _endDate!.toString().split(' ')[0] : 'Not set'}'),
-            trailing: const Icon(Icons.calendar_today),
-            onTap: () async {
-              final date = await showDatePicker(
-                context: context,
-                initialDate: _endDate ?? DateTime.now().add(const Duration(days: 30)),
-                firstDate: DateTime(2020),
-                lastDate: DateTime(2030),
-              );
-              if (date != null) {
-                setState(() {
-                  _endDate = date;
-                });
-              }
-            },
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: colorScheme.outline.withAlpha(50),
+              ),
+              color: colorScheme.surface.withAlpha(100),
+            ),
+            child: ListTile(
+              leading: Icon(Icons.event_outlined, color: colorScheme.tertiary),
+              title: Text(
+                'End Date',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              subtitle: Text(
+                _endDate != null ? _endDate!.toString().split(' ')[0] : 'Not set',
+                style: TextStyle(
+                  color: colorScheme.onSurface.withAlpha(180),
+                ),
+              ),
+              trailing: Icon(Icons.arrow_drop_down, color: colorScheme.tertiary),
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: _endDate ?? DateTime.now().add(const Duration(days: 30)),
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2030),
+                );
+                if (date != null) {
+                  setState(() {
+                    _endDate = date;
+                  });
+                }
+              },
+            ),
           ),
         ],
       ),
@@ -622,24 +899,82 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   }
 
   Widget _buildActionButtons(ColorScheme colorScheme) {
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : _saveProject,
-            child: _isLoading
-                ? const CircularProgressIndicator()
-                : Text(_isEditing ? 'Update Project' : 'Create Project'),
+    return GlassCard(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          colorScheme.primary.withAlpha(30),
+          colorScheme.secondary.withAlpha(20),
+        ],
+      ),
+      border: Border.all(
+        color: colorScheme.primary.withAlpha(50),
+        width: 1.0,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _saveProject,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              child: _isLoading
+                  ? SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(colorScheme.onPrimary),
+                      ),
+                    )
+                  : _isEditing 
+                  ? const Text(
+                      'Update Project',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                  : const Text(
+                      'Create Project',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+            ),
           ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: OutlinedButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+          const SizedBox(width: 16),
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: colorScheme.onSurface,
+                side: BorderSide(color: colorScheme.outline),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
