@@ -500,6 +500,78 @@ app.get('/api/v1/projects/:projectId/user-role', authenticateToken, async (req, 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
+// Authentication middleware
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid or expired token' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
+const defaultRolePermissions = {
+  teammember: new Set(['view_sprints', 'update_tickets', 'update_sprint_status']),
+  deliverylead: new Set(['view_sprints', 'update_tickets', 'update_sprint_status']),
+  clientreviewer: new Set(['view_sprints'])
+};
+
+const requirePermission = (permissionName) => async (req, res, next) => {
+  try {
+    const role = req.user && req.user.role ? String(req.user.role) : null;
+    if (!role) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const normalizedRole = role.toLowerCase();
+    // Explicitly forbid admin from update operations
+    const pn = String(permissionName).toLowerCase();
+    if ((pn.startsWith('update_')) && ['systemadmin', 'admin', 'system_admin'].includes(normalizedRole)) {
+      return res.status(403).json({ error: 'Forbidden: admin cannot update statuses' });
+    }
+    try {
+      const result = await pool.query(
+        `
+          SELECT 1
+          FROM user_roles ur
+          JOIN role_permissions rp ON rp.role_id = ur.id
+          JOIN permissions p ON p.id = rp.permission_id
+          WHERE ur.user_id = $1 AND p.name = $2
+        `,
+        [req.user.id, permissionName]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+      }
+      next();
+    } catch (dbError) {
+      // If permissions tables don't exist, fall back to default role permissions
+      if (dbError.code === '42P01') {
+        const permissions = defaultRolePermissions[normalizedRole];
+        if (permissions && permissions.has(permissionName)) {
+          next();
+        } else {
+          return res.status(403).json({ error: 'Insufficient permissions' });
+        }
+      } else {
+        throw dbError;
+      }
+    }
+  } catch (error) {
+    console.error('Permission check error:', error);
+    return res.status(500).json({ error: 'Permission check failed' });
+  }
+};
+
 // Email Configuration - Use SendGrid with SMTP fallback
 const SendGridEmailService = require('./sendgridEmailService');
 const EmailService = require('./emailService');
@@ -582,83 +654,6 @@ const upload = multer({
     cb(null, true);
   }
 });
-
-// Authentication middleware
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
-  }
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid or expired token' });
-    }
-    req.user = user;
-    next();
-  });
-};
-
-const defaultRolePermissions = {
-  teammember: new Set(['view_sprints', 'update_tickets', 'update_sprint_status']),
-  deliverylead: new Set(['view_sprints', 'update_tickets', 'update_sprint_status']),
-  clientreviewer: new Set(['view_sprints'])
-};
-
-const requirePermission = (permissionName) => async (req, res, next) => {
-  try {
-    const role = req.user && req.user.role ? String(req.user.role) : null;
-    if (!role) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const normalizedRole = role.toLowerCase();
-    // Explicitly forbid admin from update operations
-    const pn = String(permissionName).toLowerCase();
-    if ((pn.startsWith('update_')) && ['systemadmin', 'admin', 'system_admin'].includes(normalizedRole)) {
-      return res.status(403).json({ error: 'Forbidden: admin cannot update statuses' });
-    }
-    try {
-      const result = await pool.query(
-        `
-          SELECT 1
-          FROM user_roles ur
-          JOIN role_permissions rp ON rp.role_id = ur.id
-          JOIN permissions p ON p.id = rp.permission_id
-          WHERE LOWER(ur.name) = $1 AND LOWER(p.name) = $2
-          LIMIT 1
-        `,
-        [normalizedRole, String(permissionName).toLowerCase()]
-      );
-      if (result.rowCount > 0) {
-        // Additional guard: block admin from updates even if DB grants
-        if ((pn.startsWith('update_')) && ['systemadmin', 'admin', 'system_admin'].includes(normalizedRole)) {
-          return res.status(403).json({ error: 'Forbidden: admin cannot update statuses' });
-        }
-        return next();
-      }
-    } catch (dbErr) {
-      console.warn('Permission table lookup failed, using defaults:', dbErr.message);
-    }
-
-    const allowedByDefault = defaultRolePermissions[normalizedRole] && defaultRolePermissions[normalizedRole].has(String(permissionName).toLowerCase());
-    if (allowedByDefault) {
-      return next();
-    }
-
-    return res.status(403).json({ error: 'Forbidden: missing permission', permission: permissionName });
-  } catch (err) {
-    console.error('Permission check error:', err);
-    const normalizedRole = (req.user && req.user.role ? String(req.user.role).toLowerCase() : '');
-    const allowedByDefault = defaultRolePermissions[normalizedRole] && defaultRolePermissions[normalizedRole].has(String(permissionName).toLowerCase());
-    if (allowedByDefault) {
-      return next();
-    }
-    return res.status(403).json({ error: 'Forbidden: missing permission', permission: permissionName });
-  }
-};
 
 // PostgreSQL connection
 const pool = new Pool({
