@@ -55,8 +55,445 @@ io.on('connection', (socket) => {
   });
 });
 
-httpServer.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Middleware to check if user has project-level permission
+async function checkProjectPermission(req, res, next) {
+  try {
+    const { projectId } = req.params;
+    const userId = req.user.id;
+    
+    // Get user's role in this project
+    const memberResult = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+    `, [projectId, userId]);
+    
+    if (memberResult.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'You are not a member of this project'
+      });
+    }
+    
+    const userRole = memberResult.rows[0].role;
+    const requiredPermission = req.requiredPermission;
+    
+    // Define project permissions
+    const projectPermissions = {
+      'edit_project_setup': ['owner'],
+      'manage_team_members': ['owner'],
+      'create_deliverables': ['owner', 'contributor'],
+      'edit_deliverables': ['owner', 'contributor'],
+      'delete_deliverables': ['owner', 'contributor'],
+      'manage_sprints': ['owner', 'contributor'],
+      'submit_for_review': ['owner', 'contributor'],
+      'view_analytics': ['owner', 'contributor'],
+      'export_data': ['owner', 'contributor'],
+      'view_project': ['owner', 'contributor', 'viewer'],
+      'view_deliverables': ['owner', 'contributor', 'viewer'],
+      'view_sprints': ['owner', 'contributor', 'viewer'],
+    };
+    
+    const allowedRoles = projectPermissions[requiredPermission] || [];
+    
+    if (!allowedRoles.includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        error: `Insufficient permissions. Required: ${requiredPermission}`
+      });
+    }
+    
+    req.projectRole = userRole;
+    next();
+  } catch (error) {
+    console.error('Permission check error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Permission check failed'
+    });
+  }
+}
+
+// Get all members of a project
+app.get('/api/v1/projects/:projectId/members', authenticateToken, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const userId = req.user.id;
+    
+    // Check if user is a member of this project
+    const memberCheck = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+    `, [projectId, userId]);
+    
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'You are not a member of this project'
+      });
+    }
+    
+    // Get all project members with user details
+    const membersResult = await pool.query(`
+      SELECT 
+        pm.id,
+        pm.user_id,
+        pm.project_id,
+        pm.role,
+        pm.joined_at,
+        u.name as user_name,
+        u.email as user_email,
+        u.avatar_url as user_avatar
+      FROM project_members pm
+      JOIN users u ON pm.user_id = u.id
+      WHERE pm.project_id = $1
+      ORDER BY 
+        CASE pm.role 
+          WHEN 'owner' THEN 1 
+          WHEN 'contributor' THEN 2 
+          WHEN 'viewer' THEN 3 
+        END,
+        u.name
+    `, [projectId]);
+    
+    res.json({
+      success: true,
+      data: membersResult.rows
+    });
+  } catch (error) {
+    console.error('Error fetching project members:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch project members'
+    });
+  }
+});
+
+// Add a member to a project
+app.post('/api/v1/projects/:projectId/members', authenticateToken, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { userEmail, role } = req.body;
+    const userId = req.user.id;
+    
+    // Validate role
+    const validRoles = ['owner', 'contributor', 'viewer'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid role. Must be owner, contributor, or viewer'
+      });
+    }
+    
+    // Check if requester is an owner of this project
+    const ownerCheck = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2 AND role = 'owner'
+    `, [projectId, userId]);
+    
+    if (ownerCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only project owners can add members'
+      });
+    }
+    
+    // Find the user by email
+    const userResult = await pool.query(`
+      SELECT id, name, email FROM users WHERE email = $1 AND is_active = true
+    `, [userEmail]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found or inactive'
+      });
+    }
+    
+    const targetUserId = userResult.rows[0].id;
+    
+    // Check if user is already a member
+    const existingMember = await pool.query(`
+      SELECT id FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+    `, [projectId, targetUserId]);
+    
+    if (existingMember.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'User is already a member of this project'
+      });
+    }
+    
+    // Add the member
+    const memberId = uuidv4();
+    await pool.query(`
+      INSERT INTO project_members (id, project_id, user_id, role, joined_at)
+      VALUES ($1, $2, $3, $4, NOW())
+    `, [memberId, projectId, targetUserId, role]);
+    
+    // Log the action
+    await pool.query(`
+      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
+      VALUES ($1, 'add_project_member', 'project', $2, $3::jsonb, NOW())
+    `, [
+      userId,
+      projectId,
+      JSON.stringify({ 
+        addedUserId: targetUserId,
+        addedUserEmail: userEmail,
+        role: role 
+      })
+    ]);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Member added successfully',
+      data: {
+        id: memberId,
+        user_id: targetUserId,
+        user_name: userResult.rows[0].name,
+        user_email: userResult.rows[0].email,
+        role: role,
+        joined_at: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Error adding project member:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add project member'
+    });
+  }
+});
+
+// Update a member's role
+app.put('/api/v1/projects/:projectId/members/:memberId', authenticateToken, async (req, res) => {
+  try {
+    const { projectId, memberId } = req.params;
+    const { role } = req.body;
+    const userId = req.user.id;
+    
+    // Validate role
+    const validRoles = ['owner', 'contributor', 'viewer'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid role. Must be owner, contributor, or viewer'
+      });
+    }
+    
+    // Check if requester is an owner of this project
+    const ownerCheck = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2 AND role = 'owner'
+    `, [projectId, userId]);
+    
+    if (ownerCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only project owners can change member roles'
+      });
+    }
+    
+    // Get current member details
+    const currentMember = await pool.query(`
+      SELECT pm.role, pm.user_id, u.name, u.email
+      FROM project_members pm
+      JOIN users u ON pm.user_id = u.id
+      WHERE pm.id = $1 AND pm.project_id = $2
+    `, [memberId, projectId]);
+    
+    if (currentMember.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Member not found'
+      });
+    }
+    
+    // Prevent removing the last owner
+    if (currentMember.rows[0].role === 'owner' && role !== 'owner') {
+      const ownerCount = await pool.query(`
+        SELECT COUNT(*) as count FROM project_members 
+        WHERE project_id = $1 AND role = 'owner'
+      `, [projectId]);
+      
+      if (parseInt(ownerCount.rows[0].count) <= 1) {
+        return res.status(400).json({
+          success: false,
+          error: 'Cannot remove the last owner from the project'
+        });
+      }
+    }
+    
+    const oldRole = currentMember.rows[0].role;
+    const targetUserId = currentMember.rows[0].user_id;
+    
+    // Update the member role
+    await pool.query(`
+      UPDATE project_members 
+      SET role = $1 
+      WHERE id = $2 AND project_id = $3
+    `, [role, memberId, projectId]);
+    
+    // Log the action
+    await pool.query(`
+      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
+      VALUES ($1, 'change_project_member_role', 'project', $2, $3::jsonb, NOW())
+    `, [
+      userId,
+      projectId,
+      JSON.stringify({ 
+        targetUserId: targetUserId,
+        targetUserEmail: currentMember.rows[0].email,
+        oldRole: oldRole,
+        newRole: role 
+      })
+    ]);
+    
+    res.json({
+      success: true,
+      message: 'Member role updated successfully',
+      data: {
+        id: memberId,
+        user_id: targetUserId,
+        user_name: currentMember.rows[0].name,
+        user_email: currentMember.rows[0].email,
+        old_role: oldRole,
+        new_role: role
+      }
+    });
+  } catch (error) {
+    console.error('Error updating member role:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update member role'
+    });
+  }
+});
+
+// Remove a member from a project
+app.delete('/api/v1/projects/:projectId/members/:memberId', authenticateToken, async (req, res) => {
+  try {
+    const { projectId, memberId } = req.params;
+    const userId = req.user.id;
+    
+    // Check if requester is an owner of this project
+    const ownerCheck = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2 AND role = 'owner'
+    `, [projectId, userId]);
+    
+    if (ownerCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only project owners can remove members'
+      });
+    }
+    
+    // Get member details
+    const memberDetails = await pool.query(`
+      SELECT pm.role, pm.user_id, u.name, u.email
+      FROM project_members pm
+      JOIN users u ON pm.user_id = u.id
+      WHERE pm.id = $1 AND pm.project_id = $2
+    `, [memberId, projectId]);
+    
+    if (memberDetails.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Member not found'
+      });
+    }
+    
+    // Prevent removing the last owner
+    if (memberDetails.rows[0].role === 'owner') {
+      const ownerCount = await pool.query(`
+        SELECT COUNT(*) as count FROM project_members 
+        WHERE project_id = $1 AND role = 'owner'
+      `, [projectId]);
+      
+      if (parseInt(ownerCount.rows[0].count) <= 1) {
+        return res.status(400).json({
+          success: false,
+          error: 'Cannot remove the last owner from the project'
+        });
+      }
+    }
+    
+    const targetUserId = memberDetails.rows[0].user_id;
+    
+    // Remove the member
+    await pool.query(`
+      DELETE FROM project_members 
+      WHERE id = $1 AND project_id = $2
+    `, [memberId, projectId]);
+    
+    // Log the action
+    await pool.query(`
+      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
+      VALUES ($1, 'remove_project_member', 'project', $2, $3::jsonb, NOW())
+    `, [
+      userId,
+      projectId,
+      JSON.stringify({ 
+        removedUserId: targetUserId,
+        removedUserEmail: memberDetails.rows[0].email,
+        removedRole: memberDetails.rows[0].role 
+      })
+    ]);
+    
+    res.json({
+      success: true,
+      message: 'Member removed successfully',
+      data: {
+        id: memberId,
+        user_id: targetUserId,
+        user_name: memberDetails.rows[0].name,
+        user_email: memberDetails.rows[0].email,
+        removed_role: memberDetails.rows[0].role
+      }
+    });
+  } catch (error) {
+    console.error('Error removing project member:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to remove project member'
+    });
+  }
+});
+
+// Get user's role in a project
+app.get('/api/v1/projects/:projectId/user-role', authenticateToken, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const userId = req.user.id;
+    
+    const memberResult = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+    `, [projectId, userId]);
+    
+    if (memberResult.rows.length === 0) {
+      return res.json({
+        success: true,
+        data: { role: null, isMember: false }
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: { 
+        role: memberResult.rows[0].role,
+        isMember: true 
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user role:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch user role'
+    });
+  }
 });
 
 // JWT Configuration
@@ -5208,7 +5645,6 @@ app.post('/api/v1/epics', authenticateToken, async (req, res) => {
   }
 });
 
-// Server already started with httpServer.listen(PORT) at line 58
 const checkReportApprovalReminders = async () => {
   try {
     const dueReports = await pool.query(`
@@ -5265,7 +5701,1211 @@ const checkReportApprovalReminders = async () => {
   }
 };
 
-checkReportApprovalReminders();
 setInterval(checkReportApprovalReminders, 30 * 60 * 1000);
 
-// End of file here
+// ============================================================
+// PROJECT MEMBER MANAGEMENT ENDPOINTS
+// ============================================================
+
+// Middleware to check if user has project-level permission
+async function checkProjectPermission(req, res, next) {
+  try {
+    const { projectId } = req.params;
+    const userId = req.user.id;
+    
+    // Get user's role in this project
+    const memberResult = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+    `, [projectId, userId]);
+    
+    if (memberResult.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'You are not a member of this project'
+      });
+    }
+    
+    const userRole = memberResult.rows[0].role;
+    const requiredPermission = req.requiredPermission;
+    
+    // Define project permissions
+    const projectPermissions = {
+      'edit_project_setup': ['owner'],
+      'manage_team_members': ['owner'],
+      'create_deliverables': ['owner', 'contributor'],
+      'edit_deliverables': ['owner', 'contributor'],
+      'delete_deliverables': ['owner', 'contributor'],
+      'manage_sprints': ['owner', 'contributor'],
+      'submit_for_review': ['owner', 'contributor'],
+      'view_analytics': ['owner', 'contributor'],
+      'export_data': ['owner', 'contributor'],
+      'view_project': ['owner', 'contributor', 'viewer'],
+      'view_deliverables': ['owner', 'contributor', 'viewer'],
+      'view_sprints': ['owner', 'contributor', 'viewer'],
+    };
+    
+    const allowedRoles = projectPermissions[requiredPermission] || [];
+    
+    if (!allowedRoles.includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        error: `Insufficient permissions. Required: ${requiredPermission}`
+      });
+    }
+    
+    req.projectRole = userRole;
+    next();
+  } catch (error) {
+    console.error('Permission check error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Permission check failed'
+    });
+  }
+}
+
+// Get all members of a project
+app.get('/api/v1/projects/:projectId/members', authenticateToken, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const userId = req.user.id;
+    
+    // Check if user is a member of this project
+    const memberCheck = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+    `, [projectId, userId]);
+    
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'You are not a member of this project'
+      });
+    }
+    
+    // Get all project members with user details
+    const membersResult = await pool.query(`
+      SELECT 
+        pm.id,
+        pm.user_id,
+        pm.project_id,
+        pm.role,
+        pm.joined_at,
+        u.name as user_name,
+        u.email as user_email,
+        u.avatar_url as user_avatar
+      FROM project_members pm
+      JOIN users u ON pm.user_id = u.id
+      WHERE pm.project_id = $1
+      ORDER BY 
+        CASE pm.role 
+          WHEN 'owner' THEN 1 
+          WHEN 'contributor' THEN 2 
+          WHEN 'viewer' THEN 3 
+        END,
+        u.name
+    `, [projectId]);
+    
+    res.json({
+      success: true,
+      data: membersResult.rows
+    });
+  } catch (error) {
+    console.error('Error fetching project members:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch project members'
+    });
+  }
+});
+
+// Add a member to a project
+app.post('/api/v1/projects/:projectId/members', authenticateToken, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { userEmail, role } = req.body;
+    const userId = req.user.id;
+    
+    // Validate role
+    const validRoles = ['owner', 'contributor', 'viewer'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid role. Must be owner, contributor, or viewer'
+      });
+    }
+    
+    // Check if requester is an owner of this project
+    const ownerCheck = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2 AND role = 'owner'
+    `, [projectId, userId]);
+    
+    if (ownerCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only project owners can add members'
+      });
+    }
+    
+    // Find the user by email
+    const userResult = await pool.query(`
+      SELECT id, name, email FROM users WHERE email = $1 AND is_active = true
+    `, [userEmail]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found or inactive'
+      });
+    }
+    
+    const targetUserId = userResult.rows[0].id;
+    
+    // Check if user is already a member
+    const existingMember = await pool.query(`
+      SELECT id FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+    `, [projectId, targetUserId]);
+    
+    if (existingMember.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'User is already a member of this project'
+      });
+    }
+    
+    // Add the member
+    const memberId = uuidv4();
+    await pool.query(`
+      INSERT INTO project_members (id, project_id, user_id, role, joined_at)
+      VALUES ($1, $2, $3, $4, NOW())
+    `, [memberId, projectId, targetUserId, role]);
+    
+    // Log the action
+    await pool.query(`
+      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
+      VALUES ($1, 'add_project_member', 'project', $2, $3::jsonb, NOW())
+    `, [
+      userId,
+      projectId,
+      JSON.stringify({ 
+        addedUserId: targetUserId,
+        addedUserEmail: userEmail,
+        role: role 
+      })
+    ]);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Member added successfully',
+      data: {
+        id: memberId,
+        user_id: targetUserId,
+        user_name: userResult.rows[0].name,
+        user_email: userResult.rows[0].email,
+        role: role,
+        joined_at: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Error adding project member:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add project member'
+    });
+  }
+});
+
+// Update a member's role
+app.put('/api/v1/projects/:projectId/members/:memberId', authenticateToken, async (req, res) => {
+  try {
+    const { projectId, memberId } = req.params;
+    const { role } = req.body;
+    const userId = req.user.id;
+    
+    // Validate role
+    const validRoles = ['owner', 'contributor', 'viewer'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid role. Must be owner, contributor, or viewer'
+      });
+    }
+    
+    // Check if requester is an owner of this project
+    const ownerCheck = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2 AND role = 'owner'
+    `, [projectId, userId]);
+    
+    if (ownerCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only project owners can change member roles'
+      });
+    }
+    
+    // Get current member details
+    const currentMember = await pool.query(`
+      SELECT pm.role, pm.user_id, u.name, u.email
+      FROM project_members pm
+      JOIN users u ON pm.user_id = u.id
+      WHERE pm.id = $1 AND pm.project_id = $2
+    `, [memberId, projectId]);
+    
+    if (currentMember.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Member not found'
+      });
+    }
+    
+    // Prevent removing the last owner
+    if (currentMember.rows[0].role === 'owner' && role !== 'owner') {
+      const ownerCount = await pool.query(`
+        SELECT COUNT(*) as count FROM project_members 
+        WHERE project_id = $1 AND role = 'owner'
+      `, [projectId]);
+      
+      if (parseInt(ownerCount.rows[0].count) <= 1) {
+        return res.status(400).json({
+          success: false,
+          error: 'Cannot remove the last owner from the project'
+        });
+      }
+    }
+    
+    const oldRole = currentMember.rows[0].role;
+    const targetUserId = currentMember.rows[0].user_id;
+    
+    // Update the member role
+    await pool.query(`
+      UPDATE project_members 
+      SET role = $1 
+      WHERE id = $2 AND project_id = $3
+    `, [role, memberId, projectId]);
+    
+    // Log the action
+    await pool.query(`
+      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
+      VALUES ($1, 'change_project_member_role', 'project', $2, $3::jsonb, NOW())
+    `, [
+      userId,
+      projectId,
+      JSON.stringify({ 
+        targetUserId: targetUserId,
+        targetUserEmail: currentMember.rows[0].email,
+        oldRole: oldRole,
+        newRole: role 
+      })
+    ]);
+    
+    res.json({
+      success: true,
+      message: 'Member role updated successfully',
+      data: {
+        id: memberId,
+        user_id: targetUserId,
+        user_name: currentMember.rows[0].name,
+        user_email: currentMember.rows[0].email,
+        old_role: oldRole,
+        new_role: role
+      }
+    });
+  } catch (error) {
+    console.error('Error updating member role:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update member role'
+    });
+  }
+});
+
+// Remove a member from a project
+app.delete('/api/v1/projects/:projectId/members/:memberId', authenticateToken, async (req, res) => {
+  try {
+    const { projectId, memberId } = req.params;
+    const userId = req.user.id;
+    
+    // Check if requester is an owner of this project
+    const ownerCheck = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2 AND role = 'owner'
+    `, [projectId, userId]);
+    
+    if (ownerCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only project owners can remove members'
+      });
+    }
+    
+    // Get member details
+    const memberDetails = await pool.query(`
+      SELECT pm.role, pm.user_id, u.name, u.email
+      FROM project_members pm
+      JOIN users u ON pm.user_id = u.id
+      WHERE pm.id = $1 AND pm.project_id = $2
+    `, [memberId, projectId]);
+    
+    if (memberDetails.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Member not found'
+      });
+    }
+    
+    // Prevent removing the last owner
+    if (memberDetails.rows[0].role === 'owner') {
+      const ownerCount = await pool.query(`
+        SELECT COUNT(*) as count FROM project_members 
+        WHERE project_id = $1 AND role = 'owner'
+      `, [projectId]);
+      
+      if (parseInt(ownerCount.rows[0].count) <= 1) {
+        return res.status(400).json({
+          success: false,
+          error: 'Cannot remove the last owner from the project'
+        });
+      }
+    }
+    
+    const targetUserId = memberDetails.rows[0].user_id;
+    
+    // Remove the member
+    await pool.query(`
+      DELETE FROM project_members 
+      WHERE id = $1 AND project_id = $2
+    `, [memberId, projectId]);
+    
+    // Log the action
+    await pool.query(`
+      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
+      VALUES ($1, 'remove_project_member', 'project', $2, $3::jsonb, NOW())
+    `, [
+      userId,
+      projectId,
+      JSON.stringify({ 
+        removedUserId: targetUserId,
+        removedUserEmail: memberDetails.rows[0].email,
+        removedRole: memberDetails.rows[0].role 
+      })
+    ]);
+    
+    res.json({
+      success: true,
+      message: 'Member removed successfully',
+      data: {
+        id: memberId,
+        user_id: targetUserId,
+        user_name: memberDetails.rows[0].name,
+        user_email: memberDetails.rows[0].email,
+        removed_role: memberDetails.rows[0].role
+      }
+    });
+  } catch (error) {
+    console.error('Error removing project member:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to remove project member'
+    });
+  }
+});
+
+// Get user's role in a project
+app.get('/api/v1/projects/:projectId/user-role', authenticateToken, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const userId = req.user.id;
+    
+    const memberResult = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+    `, [projectId, userId]);
+    
+    if (memberResult.rows.length === 0) {
+      return res.json({
+        success: true,
+        data: { role: null, isMember: false }
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: { 
+        role: memberResult.rows[0].role,
+        isMember: true 
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user role:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch user role'
+    });
+  }
+});
+
+// ============================================================
+// PROJECT DELIVERABLE LINKING ENDPOINTS
+// ============================================================
+
+// Get deliverables linked to a project
+app.get('/api/v1/projects/:projectId/deliverables', authenticateToken, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const userId = req.user.id;
+    
+    // Check if user is a member of this project
+    const memberCheck = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+    `, [projectId, userId]);
+    
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'You are not a member of this project'
+      });
+    }
+    
+    const userRole = memberCheck.rows[0].role;
+    
+    // Get deliverables linked to this project
+    let query = `
+      SELECT 
+        d.id,
+        d.title,
+        d.description,
+        d.status,
+        d.priority,
+        d.due_date,
+        d.created_at,
+        d.updated_at,
+        u1.name as created_by_name,
+        u2.name as assigned_to_name,
+        s.name as sprint_name
+      FROM deliverables d
+      LEFT JOIN users u1 ON d.created_by = u1.id
+      LEFT JOIN users u2 ON d.assigned_to = u2.id
+      LEFT JOIN sprints s ON d.sprint_id = s.id
+      WHERE d.project_id = $1
+    `;
+    
+    const params = [projectId];
+    
+    // Apply role-based filtering
+    if (userRole === 'viewer') {
+      // Viewers can see all deliverables in the project
+      // No additional filtering needed
+    } else if (userRole === 'contributor' || userRole === 'owner') {
+      // Contributors and owners can see all deliverables in the project
+      // No additional filtering needed
+    }
+    
+    query += ' ORDER BY d.created_at DESC';
+    
+    const result = await pool.query(query, params);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching project deliverables:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch project deliverables'
+    });
+  }
+});
+
+// Link deliverables to a project
+app.post('/api/v1/projects/:projectId/deliverables', authenticateToken, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { deliverableIds } = req.body;
+    const userId = req.user.id;
+    
+    // Check if user has permission to link deliverables
+    const memberCheck = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+    `, [projectId, userId]);
+    
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'You are not a member of this project'
+      });
+    }
+    
+    const userRole = memberCheck.rows[0].role;
+    
+    // Only owners and contributors can link deliverables
+    if (!['owner', 'contributor'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only project owners and contributors can link deliverables'
+      });
+    }
+    
+    if (!Array.isArray(deliverableIds) || deliverableIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'deliverableIds must be a non-empty array'
+      });
+    }
+    
+    // Link deliverables to the project
+    const linkedDeliverables = [];
+    const errors = [];
+    
+    for (const deliverableId of deliverableIds) {
+      try {
+        // Check if deliverable exists and user has access to it
+        const deliverableCheck = await pool.query(`
+          SELECT id, title, project_id as current_project_id
+          FROM deliverables 
+          WHERE id = $1
+        `, [deliverableId]);
+        
+        if (deliverableCheck.rows.length === 0) {
+          errors.push({ deliverableId, error: 'Deliverable not found' });
+          continue;
+        }
+        
+        // Update the deliverable's project_id
+        await pool.query(`
+          UPDATE deliverables 
+          SET project_id = $1, updated_at = NOW()
+          WHERE id = $2
+        `, [projectId, deliverableId]);
+        
+        linkedDeliverables.push({
+          id: deliverableId,
+          title: deliverableCheck.rows[0].title,
+          previousProjectId: deliverableCheck.rows[0].current_project_id
+        });
+        
+        // Log the action
+        await pool.query(`
+          INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
+          VALUES ($1, 'link_deliverable_to_project', 'deliverable', $2, $3::jsonb, NOW())
+        `, [
+          userId,
+          deliverableId,
+          JSON.stringify({
+            projectId: projectId,
+            deliverableTitle: deliverableCheck.rows[0].title,
+            previousProjectId: deliverableCheck.rows[0].current_project_id
+          })
+        ]);
+        
+      } catch (error) {
+        errors.push({ deliverableId, error: error.message });
+      }
+    }
+    
+    res.status(201).json({
+      success: true,
+      message: `Successfully linked ${linkedDeliverables.length} deliverables to project`,
+      data: {
+        linkedDeliverables: linkedDeliverables,
+        errors: errors
+      }
+    });
+  } catch (error) {
+    console.error('Error linking deliverables to project:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to link deliverables to project'
+    });
+  }
+});
+
+// Unlink deliverable from a project
+app.delete('/api/v1/projects/:projectId/deliverables/:deliverableId', authenticateToken, async (req, res) => {
+  try {
+    const { projectId, deliverableId } = req.params;
+    const userId = req.user.id;
+    
+    // Check if user has permission to unlink deliverables
+    const memberCheck = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+    `, [projectId, userId]);
+    
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'You are not a member of this project'
+      });
+    }
+    
+    const userRole = memberCheck.rows[0].role;
+    
+    // Only owners and contributors can unlink deliverables
+    if (!['owner', 'contributor'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only project owners and contributors can unlink deliverables'
+      });
+    }
+    
+    // Check if deliverable is linked to this project
+    const deliverableCheck = await pool.query(`
+      SELECT id, title, project_id
+      FROM deliverables 
+      WHERE id = $1 AND project_id = $2
+    `, [deliverableId, projectId]);
+    
+    if (deliverableCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Deliverable not found in this project'
+      });
+    }
+    
+    // Unlink the deliverable (set project_id to null)
+    await pool.query(`
+      UPDATE deliverables 
+      SET project_id = NULL, updated_at = NOW()
+      WHERE id = $1
+    `, [deliverableId]);
+    
+    // Log the action
+    await pool.query(`
+      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
+      VALUES ($1, 'unlink_deliverable_from_project', 'deliverable', $2, $3::jsonb, NOW())
+    `, [
+      userId,
+      deliverableId,
+      JSON.stringify({
+        projectId: projectId,
+        deliverableTitle: deliverableCheck.rows[0].title
+      })
+    ]);
+    
+    res.json({
+      success: true,
+      message: 'Deliverable unlinked from project successfully',
+      data: {
+        deliverableId: deliverableId,
+        deliverableTitle: deliverableCheck.rows[0].title
+      }
+    });
+  } catch (error) {
+    console.error('Error unlinking deliverable from project:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to unlink deliverable from project'
+    });
+  }
+});
+
+// Get available deliverables that can be linked to a project
+app.get('/api/v1/projects/:projectId/available-deliverables', authenticateToken, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { search } = req.query;
+    const userId = req.user.id;
+    
+    // Check if user has permission to link deliverables
+    const memberCheck = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+    `, [projectId, userId]);
+    
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'You are not a member of this project'
+      });
+    }
+    
+    const userRole = memberCheck.rows[0].role;
+    
+    // Only owners and contributors can link deliverables
+    if (!['owner', 'contributor'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only project owners and contributors can link deliverables'
+      });
+    }
+    
+    // Get deliverables that are not already linked to this project
+    let query = `
+      SELECT 
+        d.id,
+        d.title,
+        d.description,
+        d.status,
+        d.priority,
+        d.created_at,
+        u1.name as created_by_name,
+        u2.name as assigned_to_name,
+        s.name as sprint_name
+      FROM deliverables d
+      LEFT JOIN users u1 ON d.created_by = u1.id
+      LEFT JOIN users u2 ON d.assigned_to = u2.id
+      LEFT JOIN sprints s ON d.sprint_id = s.id
+      WHERE (d.project_id IS NULL OR d.project_id != $1)
+    `;
+    
+    const params = [projectId];
+    
+    // Add search filter if provided
+    if (search && search.trim()) {
+      query += ` AND (d.title ILIKE $2 OR d.description ILIKE $2)`;
+      params.push(`%${search.trim()}%`);
+    }
+    
+    // Filter by user role - team members can only see their own deliverables
+    if (req.user.role === 'teamMember') {
+      query += ` AND (d.created_by = $${params.length + 1} OR d.assigned_to = $${params.length + 1})`;
+      params.push(userId);
+    }
+    
+    query += ' ORDER BY d.created_at DESC LIMIT 50';
+    
+    const result = await pool.query(query, params);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching available deliverables:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch available deliverables'
+    });
+  }
+});
+
+// ============================================================
+// PROJECT SPRINT LINKING ENDPOINTS
+// ============================================================
+
+// Get sprints linked to a project
+app.get('/api/v1/projects/:projectId/sprints', authenticateToken, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const userId = req.user.id;
+    
+    // Check if user is a member of this project
+    const memberCheck = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+    `, [projectId, userId]);
+    
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'You are not a member of this project'
+      });
+    }
+    
+    const userRole = memberCheck.rows[0].role;
+    
+    // Get sprints linked to this project
+    let query = `
+      SELECT 
+        s.id,
+        s.name,
+        s.description,
+        s.status,
+        s.start_date,
+        s.end_date,
+        s.created_at,
+        s.updated_at,
+        u.name as created_by_name,
+        COUNT(t.id) as ticket_count,
+        COUNT(CASE WHEN t.status = 'done' THEN 1 END) as completed_tickets,
+        SUM(t.points) as total_points,
+        SUM(CASE WHEN t.status = 'done' THEN t.points ELSE 0 END) as completed_points
+      FROM sprints s
+      LEFT JOIN users u ON s.created_by = u.id
+      LEFT JOIN tickets t ON s.id = t.sprint_id
+      WHERE s.project_id = $1
+      GROUP BY s.id, u.name
+      ORDER BY s.created_at DESC
+    `;
+    
+    const result = await pool.query(query, [projectId]);
+    
+    // Calculate progress for each sprint
+    const sprints = result.rows.map(sprint => ({
+      ...sprint,
+      progress: sprint.total_points > 0 
+        ? Math.round((sprint.completed_points / sprint.total_points) * 100)
+        : (sprint.ticket_count > 0 
+          ? Math.round((sprint.completed_tickets / sprint.ticket_count) * 100)
+          : 0)
+    }));
+    
+    res.json({
+      success: true,
+      data: sprints
+    });
+  } catch (error) {
+    console.error('Error fetching project sprints:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch project sprints'
+    });
+  }
+});
+
+// Link sprints to a project
+app.post('/api/v1/projects/:projectId/sprints', authenticateToken, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { sprintIds } = req.body;
+    const userId = req.user.id;
+    
+    // Check if user has permission to link sprints
+    const memberCheck = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+    `, [projectId, userId]);
+    
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'You are not a member of this project'
+      });
+    }
+    
+    const userRole = memberCheck.rows[0].role;
+    
+    // Only owners and contributors can link sprints
+    if (!['owner', 'contributor'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only project owners and contributors can link sprints'
+      });
+    }
+    
+    if (!Array.isArray(sprintIds) || sprintIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'sprintIds must be a non-empty array'
+      });
+    }
+    
+    // Link sprints to the project
+    const linkedSprints = [];
+    const errors = [];
+    
+    for (const sprintId of sprintIds) {
+      try {
+        // Check if sprint exists and user has access to it
+        const sprintCheck = await pool.query(`
+          SELECT id, name, project_id as current_project_id
+          FROM sprints 
+          WHERE id = $1
+        `, [sprintId]);
+        
+        if (sprintCheck.rows.length === 0) {
+          errors.push({ sprintId, error: 'Sprint not found' });
+          continue;
+        }
+        
+        // Update the sprint's project_id
+        await pool.query(`
+          UPDATE sprints 
+          SET project_id = $1, updated_at = NOW()
+          WHERE id = $2
+        `, [projectId, sprintId]);
+        
+        linkedSprints.push({
+          id: sprintId,
+          name: sprintCheck.rows[0].name,
+          previousProjectId: sprintCheck.rows[0].current_project_id
+        });
+        
+        // Log the action
+        await pool.query(`
+          INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
+          VALUES ($1, 'link_sprint_to_project', 'sprint', $2, $3::jsonb, NOW())
+        `, [
+          userId,
+          sprintId,
+          JSON.stringify({
+            projectId: projectId,
+            sprintName: sprintCheck.rows[0].name,
+            previousProjectId: sprintCheck.rows[0].current_project_id
+          })
+        ]);
+        
+      } catch (error) {
+        errors.push({ sprintId, error: error.message });
+      }
+    }
+    
+    res.status(201).json({
+      success: true,
+      message: `Successfully linked ${linkedSprints.length} sprints to project`,
+      data: {
+        linkedSprints: linkedSprints,
+        errors: errors
+      }
+    });
+  } catch (error) {
+    console.error('Error linking sprints to project:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to link sprints to project'
+    });
+  }
+});
+
+// Create and link a new sprint to a project
+app.post('/api/v1/projects/:projectId/sprints/new', authenticateToken, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { name, description, start_date, end_date } = req.body;
+    const userId = req.user.id;
+    
+    // Check if user has permission to create sprints
+    const memberCheck = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+    `, [projectId, userId]);
+    
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'You are not a member of this project'
+      });
+    }
+    
+    const userRole = memberCheck.rows[0].role;
+    
+    // Only owners and contributors can create sprints
+    if (!['owner', 'contributor'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only project owners and contributors can create sprints'
+      });
+    }
+    
+    if (!name || name.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Sprint name is required'
+      });
+    }
+    
+    // Create the sprint linked to the project
+    const result = await pool.query(`
+      INSERT INTO sprints (name, description, start_date, end_date, project_id, created_by, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      RETURNING *
+    `, [
+      name.trim(),
+      description || null,
+      start_date ? new Date(start_date) : null,
+      end_date ? new Date(end_date) : null,
+      projectId,
+      userId
+    ]);
+    
+    // Log the action
+    await pool.query(`
+      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
+      VALUES ($1, 'create_sprint_for_project', 'sprint', $2, $3::jsonb, NOW())
+    `, [
+      userId,
+      result.rows[0].id,
+      JSON.stringify({
+        projectId: projectId,
+        sprintName: name.trim(),
+        description: description,
+        startDate: start_date,
+        endDate: end_date
+      })
+    ]);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Sprint created and linked to project successfully',
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error creating sprint for project:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create sprint for project'
+    });
+  }
+});
+
+// Unlink sprint from a project
+app.delete('/api/v1/projects/:projectId/sprints/:sprintId', authenticateToken, async (req, res) => {
+  try {
+    const { projectId, sprintId } = req.params;
+    const userId = req.user.id;
+    
+    // Check if user has permission to unlink sprints
+    const memberCheck = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+    `, [projectId, userId]);
+    
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'You are not a member of this project'
+      });
+    }
+    
+    const userRole = memberCheck.rows[0].role;
+    
+    // Only owners and contributors can unlink sprints
+    if (!['owner', 'contributor'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only project owners and contributors can unlink sprints'
+      });
+    }
+    
+    // Check if sprint is linked to this project
+    const sprintCheck = await pool.query(`
+      SELECT id, name, project_id
+      FROM sprints 
+      WHERE id = $1 AND project_id = $2
+    `, [sprintId, projectId]);
+    
+    if (sprintCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Sprint not found in this project'
+      });
+    }
+    
+    // Unlink the sprint (set project_id to null)
+    await pool.query(`
+      UPDATE sprints 
+      SET project_id = NULL, updated_at = NOW()
+      WHERE id = $1
+    `, [sprintId]);
+    
+    // Log the action
+    await pool.query(`
+      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
+      VALUES ($1, 'unlink_sprint_from_project', 'sprint', $2, $3::jsonb, NOW())
+    `, [
+      userId,
+      sprintId,
+      JSON.stringify({
+        projectId: projectId,
+        sprintName: sprintCheck.rows[0].name
+      })
+    ]);
+    
+    res.json({
+      success: true,
+      message: 'Sprint unlinked from project successfully',
+      data: {
+        sprintId: sprintId,
+        sprintName: sprintCheck.rows[0].name
+      }
+    });
+  } catch (error) {
+    console.error('Error unlinking sprint from project:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to unlink sprint from project'
+    });
+  }
+});
+
+// Get available sprints that can be linked to a project
+app.get('/api/v1/projects/:projectId/available-sprints', authenticateToken, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { search } = req.query;
+    const userId = req.user.id;
+    
+    // Check if user has permission to link sprints
+    const memberCheck = await pool.query(`
+      SELECT role FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+    `, [projectId, userId]);
+    
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'You are not a member of this project'
+      });
+    }
+    
+    const userRole = memberCheck.rows[0].role;
+    
+    // Only owners and contributors can link sprints
+    if (!['owner', 'contributor'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only project owners and contributors can link sprints'
+      });
+    }
+    
+    // Get sprints that are not already linked to this project
+    let query = `
+      SELECT 
+        s.id,
+        s.name,
+        s.description,
+        s.status,
+        s.start_date,
+        s.end_date,
+        s.created_at,
+        u.name as created_by_name,
+        COUNT(t.id) as ticket_count
+      FROM sprints s
+      LEFT JOIN users u ON s.created_by = u.id
+      LEFT JOIN tickets t ON s.id = t.sprint_id
+      WHERE (s.project_id IS NULL OR s.project_id != $1)
+    `;
+    
+    const params = [projectId];
+    
+    // Add search filter if provided
+    if (search && search.trim()) {
+      query += ` AND (s.name ILIKE $2 OR s.description ILIKE $2)`;
+      params.push(`%${search.trim()}%`);
+    }
+    
+    // Filter by user role - team members can only see their own sprints
+    if (req.user.role === 'teamMember') {
+      query += ` AND s.created_by = $${params.length + 1}`;
+      params.push(userId);
+    }
+    
+    query += `
+      GROUP BY s.id, u.name
+      ORDER BY s.created_at DESC 
+      LIMIT 50
+    `;
+    
+    const result = await pool.query(query, params);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching available sprints:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch available sprints'
+    });
+  }
+});
+
+// Server is already started at line 58 with httpServer.listen(PORT)
