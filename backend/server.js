@@ -6520,4 +6520,9 @@ app.get('/api/v1/projects/:projectId/available-sprints', authenticateToken, asyn
   }
 });
 
-// Server is already started at line 58 with httpServer.listen(PORT)
+// Start the server
+httpServer.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📊 Dashboard: http://localhost:${PORT}`);
+  console.log(`🔗 API Base: http://localhost:${PORT}/api/v1`);
+});
