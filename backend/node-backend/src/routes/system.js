@@ -9,6 +9,7 @@ const { sequelize, User, Project, Sprint, Deliverable, AuditLog, Notification } 
 const { QueryTypes } = require('sequelize');
 const analyticsService = require('../services/analyticsService');
 const { loggingService } = require('../services/loggingService');
+const schedulerService = require('../services/schedulerService');
 
 const router = express.Router();
 
@@ -824,6 +825,22 @@ router.post('/cache/clear', authenticateToken, requireRole(['system_admin']), as
       error: 'Failed to clear system cache',
       details: error.message
     });
+  }
+});
+
+// Trigger Escalation and Reminders Manually
+router.post('/trigger-escalation', authenticateToken, requireRole(['system_admin', 'delivery_lead']), async (req, res) => {
+  try {
+    const { force } = req.body; // Pass force=true to bypass duplicate checks
+    const results = await schedulerService.runScheduledTasks({ force });
+    res.json({
+      success: true,
+      message: 'Scheduled tasks triggered manually',
+      results
+    });
+  } catch (error) {
+    console.error('Error triggering escalation manually:', error);
+    res.status(500).json({ error: 'Failed to trigger escalation' });
   }
 });
 

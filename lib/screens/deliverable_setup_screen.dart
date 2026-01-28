@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../models/deliverable.dart';
 import '../services/deliverable_service.dart';
 import '../services/backend_api_service.dart';
 
@@ -198,7 +199,13 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
       final response = await _deliverableService.createDeliverable(
         title: _titleController.text,
         description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
-        definitionOfDone: _dodController.text.isEmpty ? null : _dodController.text,
+        definitionOfDone: _dodController.text.isEmpty 
+            ? null 
+            : _dodController.text.split('\n')
+                .map((s) => s.trim())
+                .where((s) => s.isNotEmpty)
+                .map((s) => DoDItem(text: s))
+                .toList(),
         priority: _priority,
         status: _status,
         dueDate: _dueDate,
@@ -227,18 +234,26 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
                   id: m['id'].toString(),
                   title: _titleController.text,
                   description: _descriptionController.text,
-                  definitionOfDone: _dodController.text,
+                  definitionOfDone: _dodController.text.split('\n')
+                      .map((s) => s.trim())
+                      .where((s) => s.isNotEmpty)
+                      .map((s) => DoDItem(text: s))
+                      .toList(),
                   priority: _priority,
-                  status: _status,
-                  dueDate: _dueDate,
+                  status: DeliverableStatus.values.firstWhere(
+                    (e) => e.name == _status, 
+                    orElse: () => DeliverableStatus.draft
+                  ),
+                  dueDate: _dueDate ?? DateTime.now(),
                   createdBy: '',
                   assignedTo: null,
-                  sprintId: _selectedSprints.isNotEmpty ? _selectedSprints.first : null,
+                  sprintIds: _selectedSprints,
                   createdByName: null,
                   assignedToName: null,
-                  sprintName: null,
                   createdAt: DateTime.now(),
-                  updatedAt: DateTime.now(),
+                  evidenceLinks: _evidenceLinksController.text.isNotEmpty 
+                      ? _evidenceLinksController.text.split(',').map((e) => e.trim()).toList() 
+                      : [],
                 );
               }
 

@@ -735,9 +735,10 @@ class BackendApiService {
     return await _apiClient.post('/approvals', body: requestData);
   }
 
-
-
-
+  // System endpoints
+  Future<ApiResponse> triggerEscalation({bool force = false}) async {
+    return await _apiClient.post('/system/trigger-escalation', body: {'force': force});
+  }
 }
 
 const String _reportsKey = 'cached_signoff_reports';

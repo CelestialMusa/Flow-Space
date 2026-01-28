@@ -12,6 +12,7 @@ import '../services/sign_off_report_service.dart';
 import '../models/sign_off_report.dart';
 import '../services/notification_service.dart';
 import '../models/notification_item.dart';
+import '../models/deliverable.dart';
 import '../widgets/sprint_performance_chart.dart';
 import '../widgets/background_image.dart';
 import '../widgets/notification_center_widget.dart';
@@ -490,6 +491,8 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
           const SizedBox(height: 24),
           _buildMyDeliverables(),
           const SizedBox(height: 24),
+          _buildReviewMetrics(),
+          const SizedBox(height: 24),
           _buildRecentActivity(),
         ],
       ),
@@ -507,6 +510,8 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
           _buildReminderQuickActions(),
           const SizedBox(height: 24),
           _buildTeamMetrics(),
+          const SizedBox(height: 24),
+          _buildReviewMetrics(),
           const SizedBox(height: 24),
           _buildSprintOverview(),
           const SizedBox(height: 24),
@@ -568,16 +573,21 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildCardHeader(Icons.notifications_active, 'Approval Reminders', route: '/approval-requests'),
+            _buildCardHeader(Icons.notifications_active, 'Quick Actions', route: '/approval-requests'),
             const SizedBox(height: 16),
-            Row(
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
               children: [
-                Expanded(
-                  child: _buildActionButton(
-                    icon: Icons.assignment,
-                    label: 'Send Reminder For Report',
-                    onTap: () => context.push('/send-reminder'),
-                  ),
+                _buildActionButton(
+                  icon: Icons.assignment,
+                  label: 'Send Reminder',
+                  onTap: () => context.push('/send-reminder'),
+                ),
+                _buildActionButton(
+                  icon: Icons.trending_up,
+                  label: 'Trigger Escalation',
+                  onTap: _triggerEscalation,
                 ),
               ],
             ),
@@ -585,6 +595,40 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _triggerEscalation() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Trigger Escalation'),
+          content: const Text('This will check for stalled approvals and send escalation notifications. Continue?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Trigger'),
+            ),
+          ],
+        ),
+      );
+
+      if (result != true) return;
+
+      final resp = await _backendService.triggerEscalation(force: true);
+      if (resp.isSuccess) {
+        messenger.showSnackBar(const SnackBar(content: Text('Escalation process triggered successfully')));
+      } else {
+        messenger.showSnackBar(SnackBar(content: Text('Failed to trigger escalation: ${resp.error}')));
+      }
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   Widget _buildRoleSpecificFAB() {
@@ -789,13 +833,22 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                                   ),
                                   const Spacer(),
                                   IconButton(
-                                    onPressed: () {
-                                      final route = id.isNotEmpty ? '/report-editor/$id' : '/repository';
-                                      context.go(route);
-                                    },
-                                    icon: const Icon(Icons.open_in_new),
-                                    tooltip: 'Open',
-                                  ),
+                                onPressed: () {
+                                  if (id.isNotEmpty) {
+                                    try {
+                                      final deliverable = Deliverable.fromJson(d);
+                                      context.push('/deliverable-detail', extra: deliverable);
+                                    } catch (e) {
+                                      debugPrint('Error parsing deliverable for navigation: $e');
+                                      context.go('/repository');
+                                    }
+                                  } else {
+                                    context.go('/repository');
+                                  }
+                                },
+                                icon: const Icon(Icons.open_in_new),
+                                tooltip: 'Open',
+                              ),
                                 ],
                               ),
                             ],
@@ -835,51 +888,72 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                     final id = (d['id']?.toString() ?? d['uuid']?.toString() ?? '');
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.assignment_outlined, size: 18),
-                              const SizedBox(width: 8),
-                              Expanded(child: Text(status.isNotEmpty ? '$title • $status' : title)),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 4,
-                            children: [
-                              _priorityChip((d['priority'] ?? '').toString()),
-                              _dueDateChip(d['due_date'] ?? d['dueDate'] ?? d['deadline']),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              TextButton.icon(
-                                onPressed: id.isEmpty ? null : () => _editDeliverable(d),
-                                icon: const Icon(Icons.edit_outlined, size: 18),
-                                label: const Text('Edit'),
-                              ),
-                              const SizedBox(width: 4),
-                              TextButton.icon(
-                                onPressed: id.isEmpty ? null : () => _updateDeliverableStatus(id, 'completed'),
-                                icon: const Icon(Icons.check_circle_outline, size: 18),
-                                label: const Text('Complete'),
-                              ),
-                              const Spacer(),
-                              IconButton(
-                                onPressed: () {
-                                  final route = id.isNotEmpty ? '/report-editor/$id' : '/deliverables';
-                                  context.go(route);
-                                },
-                                icon: const Icon(Icons.open_in_new),
-                                tooltip: 'Open',
-                              ),
-                            ],
-                          ),
-                        ],
+                      child: InkWell(
+                        onTap: () {
+                          if (id.isNotEmpty) {
+                            try {
+                              final deliverable = Deliverable.fromJson(d);
+                              context.push('/deliverable-detail', extra: deliverable);
+                            } catch (e) {
+                              debugPrint('Error parsing deliverable for navigation: $e');
+                            }
+                          }
+                        },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.assignment_outlined, size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text(status.isNotEmpty ? '$title • $status' : title)),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              children: [
+                                _priorityChip((d['priority'] ?? '').toString()),
+                                _dueDateChip(d['due_date'] ?? d['dueDate'] ?? d['deadline']),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                TextButton.icon(
+                                  onPressed: id.isEmpty ? null : () => _editDeliverable(d),
+                                  icon: const Icon(Icons.edit_outlined, size: 18),
+                                  label: const Text('Edit'),
+                                ),
+                                const SizedBox(width: 4),
+                                TextButton.icon(
+                                  onPressed: id.isEmpty ? null : () => _updateDeliverableStatus(id, 'completed'),
+                                  icon: const Icon(Icons.check_circle_outline, size: 18),
+                                  label: const Text('Complete'),
+                                ),
+                                const Spacer(),
+                                IconButton(
+                                  onPressed: () {
+                                    if (id.isNotEmpty) {
+                                      try {
+                                        final deliverable = Deliverable.fromJson(d);
+                                        context.push('/deliverable-detail', extra: deliverable);
+                                      } catch (e) {
+                                        debugPrint('Error parsing deliverable for navigation: $e');
+                                        context.go('/deliverables');
+                                      }
+                                    } else {
+                                      context.go('/deliverables');
+                                    }
+                                  },
+                                  icon: const Icon(Icons.open_in_new),
+                                  tooltip: 'Open',
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }),
@@ -1174,9 +1248,10 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                 spacing: 12,
                 runSpacing: 12,
                 children: [
+                  _metricTile('Draft', _clientReviewMetrics['draft'] ?? 0, Icons.drafts_outlined, Colors.grey),
                   _metricTile('Submitted', _clientReviewMetrics['submitted'] ?? 0, Icons.upload_outlined, Colors.orange),
                   _metricTile('Approved', _clientReviewMetrics['approved'] ?? 0, Icons.check_circle_outline, Colors.green),
-                  _metricTile('Changes Requested', _clientReviewMetrics['changes'] ?? 0, Icons.edit_note, Colors.blueGrey),
+                  _metricTile('Change Requested', _clientReviewMetrics['changes'] ?? 0, Icons.edit_note, Colors.blueGrey),
                   _metricTile('Rejected', _clientReviewMetrics['rejected'] ?? 0, Icons.cancel_outlined, Colors.red),
                   _metricTile('Avg Review Time', _clientReviewMetrics['avg_review_time'] ?? '-', Icons.schedule_outlined, Colors.blue),
                 ],
@@ -1407,86 +1482,18 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   Future<void> _editDeliverable(Map<String, dynamic> d) async {
     final id = (d['id']?.toString() ?? d['uuid']?.toString() ?? '');
     if (id.isEmpty) return;
-    final titleController = TextEditingController(text: (d['title'] ?? d['name'] ?? '').toString());
-    final descriptionController = TextEditingController(text: (d['description'] ?? '').toString());
-    final dodController = TextEditingController(text: (d['definition_of_done'] ?? d['definitionOfDone'] ?? '').toString());
-    String priority = (d['priority'] ?? '').toString().toLowerCase();
-    final dueController = TextEditingController(text: (d['due_date'] ?? d['dueDate'] ?? d['deadline'] ?? '').toString());
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Edit Deliverable'),
-          content: SizedBox(
-            width: 480,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(controller: descriptionController, maxLines: 3, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(controller: dodController, maxLines: 2, decoration: const InputDecoration(labelText: 'Definition of Done', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: priority.isNotEmpty ? priority : null,
-                  items: const [
-                    DropdownMenuItem(value: 'low', child: Text('Low')),
-                    DropdownMenuItem(value: 'medium', child: Text('Medium')),
-                    DropdownMenuItem(value: 'high', child: Text('High')),
-                  ],
-                  onChanged: (v) { if (v != null) priority = v; },
-                  decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: dueController,
-                  readOnly: true,
-                  decoration: const InputDecoration(labelText: 'Due Date', border: OutlineInputBorder(), suffixIcon: Icon(Icons.calendar_today)),
-                  onTap: () async {
-                    final now = DateTime.now();
-                    final initial = dueController.text.isNotEmpty ? (DateTime.tryParse(dueController.text) ?? now) : now;
-                    final date = await showDatePicker(context: context, initialDate: initial, firstDate: now.subtract(const Duration(days: 365)), lastDate: now.add(const Duration(days: 365 * 3)),);
-                    if (date != null) dueController.text = date.toIso8601String();
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => context.pop(false), child: const Text('Cancel')),
-            ElevatedButton(onPressed: () => context.pop(true), child: const Text('Save')),
-          ],
-        );
-      },
-    );
-    if (confirmed != true) return;
-    final updates = <String, dynamic>{};
-    if (titleController.text.trim().isNotEmpty) updates['title'] = titleController.text.trim();
-    if (descriptionController.text.trim().isNotEmpty) updates['description'] = descriptionController.text.trim();
-    if (dodController.text.trim().isNotEmpty) updates['definition_of_done'] = dodController.text.trim();
-    if (priority.isNotEmpty) updates['priority'] = priority;
-    if (dueController.text.trim().isNotEmpty) updates['due_date'] = dueController.text.trim();
-    if (updates.isEmpty) return;
-    final resp = await _backendService.updateDeliverable(id, updates);
-    if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    if (resp.isSuccess) {
-      setState(() {
-        _dashboardDeliverables = _dashboardDeliverables.map((e) {
-          final eId = (e['id']?.toString() ?? e['uuid']?.toString() ?? '');
-          if (eId == id) {
-            final m = Map<String, dynamic>.from(e);
-            updates.forEach((k, v) { m[k] = v; });
-            return m;
-          }
-          return e;
-        }).toList();
-      });
-      messenger.showSnackBar(const SnackBar(content: Text('Deliverable updated')));
-      _computeTeamMetrics();
-    } else {
-      messenger.showSnackBar(SnackBar(content: Text(resp.error ?? 'Failed to update deliverable')));
+    
+    try {
+      final deliverable = Deliverable.fromJson(d);
+      await context.push('/deliverable-detail', extra: deliverable);
+      // Reload deliverables when returning to reflect changes
+      _loadDashboardDeliverables();
+    } catch (e) {
+      debugPrint('Error navigating to deliverable detail: $e');
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error opening deliverable: $e')),
+      );
     }
   }
 
@@ -1641,6 +1648,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     try {
       final resp = await _reportService.getSignOffReports();
       final m = {
+        'draft': 0,
         'submitted': 0,
         'approved': 0,
         'changes': 0,
@@ -1676,6 +1684,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
             }
           }
         }
+        int draft = 0;
         int submitted = 0;
         int approved = 0;
         int changes = 0;
@@ -1683,6 +1692,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
         final durations = <double>[];
         for (final r in items.whereType<Map>()) {
           final s = (r['status'] ?? '').toString().toLowerCase();
+          if (s == 'draft') draft++;
           if (s == 'submitted') submitted++;
           if (s == 'approved') approved++;
           if (s.contains('change')) changes++;
@@ -1696,6 +1706,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
             durations.add(hours);
           }
         }
+        m['draft'] = draft;
         m['submitted'] = submitted;
         m['approved'] = approved;
         m['changes'] = changes;

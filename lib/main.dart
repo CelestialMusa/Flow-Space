@@ -43,6 +43,7 @@ import 'theme/flownet_theme.dart';
 import 'screens/deadlines_screen.dart';
 import 'screens/deliverables_list_screen.dart';
 import 'screens/skill_assessment_screen.dart';
+import 'screens/deliverable_detail_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -179,6 +180,18 @@ final GoRouter _router = GoRouter(
           child: EnhancedDeliverableSetupScreen(),
         ),
       ),
+    ),
+    GoRoute(
+      path: '/deliverable-detail',
+      builder: (context, state) {
+        final deliverable = state.extra as Deliverable;
+        return RouteGuard(
+          route: '/deliverable-detail',
+          child: SidebarScaffold(
+            child: DeliverableDetailScreen(deliverable: deliverable),
+          ),
+        );
+      },
     ),
     GoRoute(
       path: '/sprint-metrics/:sprintId',
