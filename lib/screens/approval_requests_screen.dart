@@ -10,6 +10,7 @@ import '../widgets/flownet_logo.dart';
 import '../utils/date_utils.dart' as du;
 import 'package:go_router/go_router.dart';
 import 'client_review_workflow_screen.dart';
+import '../widgets/app_modal.dart';
 
 class ApprovalRequestsScreen extends StatefulWidget {
   const ApprovalRequestsScreen({super.key});
@@ -499,7 +500,7 @@ class _ApprovalRequestsScreenState extends State<ApprovalRequestsScreen> {
   }
 
   void _showRequestDetails(core.ApprovalRequest request) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: FlownetColors.graphiteGray,
@@ -887,3 +888,4 @@ class _ApprovalRequestsScreenState extends State<ApprovalRequestsScreen> {
     );
   }
 }
+

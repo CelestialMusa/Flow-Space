@@ -17,6 +17,7 @@ import '../widgets/background_image.dart';
 import '../widgets/notification_center_widget.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
+import '../widgets/app_modal.dart';
 
 class RoleDashboardScreen extends ConsumerStatefulWidget {
   const RoleDashboardScreen({super.key});
@@ -590,7 +591,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   Widget _buildRoleSpecificFAB() {
     return FloatingActionButton(
       onPressed: () {
-        showModalBottomSheet(
+        showAppModalBottomSheet(
           context: context,
           builder: (context) {
             return SafeArea(
@@ -1960,7 +1961,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   
 
   void _showProfileDialog() {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Profile'),
@@ -1971,7 +1972,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   }
 
   void _showSettingsDialog() {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => const AlertDialog(
         title: Text('Settings'),
@@ -2035,3 +2036,4 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   
 
 }
+

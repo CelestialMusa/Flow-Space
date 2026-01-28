@@ -15,6 +15,7 @@ import '../widgets/flownet_logo.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/document_preview_widget.dart';
 import '../widgets/audit_history_widget.dart';
+import '../widgets/app_modal.dart';
 
 class RepositoryScreen extends StatefulWidget {
   final String? projectKey;
@@ -217,7 +218,7 @@ class _RepositoryScreenState extends State<RepositoryScreen> {
   }
 
   void _showUploadDialog(String filePath) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: FlownetColors.graphiteGray,
@@ -300,7 +301,7 @@ class _RepositoryScreenState extends State<RepositoryScreen> {
   }
 
   void _showWebUploadDialog(PlatformFile pickedFile) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: FlownetColors.graphiteGray,
@@ -472,7 +473,7 @@ class _RepositoryScreenState extends State<RepositoryScreen> {
   }
 
   Future<void> _previewDocument(RepositoryFile document) async {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => Dialog(
         backgroundColor: Colors.transparent,
@@ -965,7 +966,7 @@ class _RepositoryScreenState extends State<RepositoryScreen> {
   }
 
   void _showDocumentAuditHistory(String documentId) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => Dialog(
         backgroundColor: FlownetColors.graphiteGray,
@@ -1024,3 +1025,4 @@ class _RepositoryScreenState extends State<RepositoryScreen> {
     );
   }
 }
+

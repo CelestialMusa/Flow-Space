@@ -7,6 +7,7 @@ import '../widgets/flownet_logo.dart';
 import '../widgets/ai_readiness_gate_widget.dart';
 import '../services/deliverable_service.dart';
 import '../services/backend_api_service.dart';
+import '../widgets/app_modal.dart';
 
 class EnhancedDeliverableSetupScreen extends ConsumerStatefulWidget {
   const EnhancedDeliverableSetupScreen({super.key});
@@ -125,7 +126,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   }
 
   void _addDoDItem() {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) {
         final controller = TextEditingController();
@@ -161,7 +162,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   }
 
   void _addEvidenceLink() {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) {
         final controller = TextEditingController();
@@ -455,7 +456,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   }
 
   void _showReadinessDialog() {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: FlownetColors.graphiteGray,
@@ -724,3 +725,4 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
     super.dispose();
   }
 }
+

@@ -10,6 +10,7 @@ import '../services/jira_service.dart';
 import '../theme/flownet_theme.dart';
 import '../widgets/sprint_board_widget.dart';
 import '../widgets/app_scaffold.dart';
+import '../widgets/app_modal.dart';
 
 class SprintBoardScreen extends ConsumerStatefulWidget {
   final String sprintId;
@@ -239,7 +240,7 @@ class _SprintBoardScreenState extends ConsumerState<SprintBoardScreen> {
     String selectedPriority = 'Medium';
     String selectedType = 'Task';
 
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: FlownetColors.charcoalBlack,
@@ -925,3 +926,4 @@ class _SprintBoardScreenState extends ConsumerState<SprintBoardScreen> {
     );
   }
 }
+

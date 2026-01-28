@@ -2,6 +2,8 @@
 
 import 'dart:ui' as ui;
 
+import '../widgets/app_modal.dart';
+
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:go_router/go_router.dart';
@@ -56,7 +58,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
     DateTime? startDate;
     DateTime? endDate;
 
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -1329,7 +1331,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
     String selectedPriority = 'Medium';
     String selectedType = 'Task';
 
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) {
         bool useAi = _useAiForTicket;
@@ -1674,3 +1676,4 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
 
 }
  
+

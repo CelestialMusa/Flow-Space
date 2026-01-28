@@ -49,6 +49,13 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         requiredPermission: null, // All users can access notifications
       ),
       const _NavItem(
+        label: 'Timeline',
+        icon: Icons.calendar_today_outlined,
+        iconName: 'timeline',
+        route: '/timeline',
+        requiredPermission: null, // All users can access timeline
+      ),
+      const _NavItem(
         label: 'Approval Requests',
         icon: Icons.assignment_outlined,
         iconName: 'approval_requests',

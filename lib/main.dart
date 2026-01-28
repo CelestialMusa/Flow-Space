@@ -32,6 +32,7 @@ import 'screens/role_management_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/sprint_board_screen.dart';
+import 'screens/timeline_screen.dart';
 import 'screens/system_metrics_screen.dart';
 import 'screens/system_health_screen.dart';
 import 'screens/audit_logs_screen.dart';
@@ -191,6 +192,15 @@ final GoRouter _router = GoRouter(
           ),
         );
       },
+    ),
+    GoRoute(
+      path: '/timeline',
+      builder: (context, state) => const RouteGuard(
+        route: '/timeline',
+        child: SidebarScaffold(
+          child: TimelineScreen(),
+        ),
+      ),
     ),
     GoRoute(
       path: '/report-builder/:deliverableId',

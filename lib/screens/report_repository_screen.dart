@@ -16,6 +16,7 @@ import '../widgets/document_preview_widget.dart';
 import '../widgets/audit_history_widget.dart';
 import 'report_editor_screen.dart';
 import 'client_review_workflow_screen.dart';
+import '../widgets/app_modal.dart';
 
 class ReportRepositoryScreen extends ConsumerStatefulWidget {
   const ReportRepositoryScreen({super.key});
@@ -287,7 +288,7 @@ class _ReportRepositoryScreenState extends ConsumerState<ReportRepositoryScreen>
   }
 
   void _showReportDetails(SignOffReport report) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: FlownetColors.graphiteGray,
@@ -422,7 +423,7 @@ class _ReportRepositoryScreenState extends ConsumerState<ReportRepositoryScreen>
   }
 
   void _showAuditHistory(String reportId) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => Dialog(
         backgroundColor: FlownetColors.graphiteGray,
@@ -467,7 +468,7 @@ class _ReportRepositoryScreenState extends ConsumerState<ReportRepositoryScreen>
     final feedbackController = TextEditingController();
     bool requestChanges = false;
 
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
@@ -651,7 +652,7 @@ class _ReportRepositoryScreenState extends ConsumerState<ReportRepositoryScreen>
 
 
   Future<void> _previewDocument(RepositoryFile document) async {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => Dialog(
         backgroundColor: Colors.transparent,
@@ -1349,3 +1350,4 @@ class _ReportRepositoryScreenState extends ConsumerState<ReportRepositoryScreen>
     super.dispose();
   }
 }
+

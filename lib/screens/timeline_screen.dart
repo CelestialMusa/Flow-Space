@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/glass_card.dart';
 import '../theme/flownet_theme.dart';
+import '../widgets/app_modal.dart';
 import '../models/timeline_event.dart';
 import '../services/auth_service.dart';
 import 'add_event_modal.dart';
@@ -30,6 +31,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
   
   // Events
   final List<TimelineEvent> _events = [];
+  final Set<String> _followedEventIds = {};
   
   // Calendar view constants
   static const int _startHour = 6; // 6 AM
@@ -136,6 +138,16 @@ class _TimelineScreenState extends State<TimelineScreen> {
   void _addEvent(TimelineEvent event) {
     setState(() {
       _events.add(event);
+    });
+  }
+
+  void _toggleFollow(TimelineEvent event) {
+    setState(() {
+      if (_followedEventIds.contains(event.id)) {
+        _followedEventIds.remove(event.id);
+      } else {
+        _followedEventIds.add(event.id);
+      }
     });
   }
 
@@ -1032,6 +1044,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
   Widget _buildTimelineItem(TimelineEvent event) {
     final color = _getColorForTag(event.colorTag);
+    final isFollowing = _followedEventIds.contains(event.id);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -1102,6 +1115,16 @@ class _TimelineScreenState extends State<TimelineScreen> {
               ],
             ),
           ),
+          const SizedBox(width: 12),
+          TextButton(
+            onPressed: () => _toggleFollow(event),
+            style: TextButton.styleFrom(
+              foregroundColor: isFollowing
+                  ? FlownetColors.coolGray
+                  : FlownetColors.crimsonRed,
+            ),
+            child: Text(isFollowing ? 'Following' : 'Follow'),
+          ),
         ],
       ),
     );
@@ -1157,7 +1180,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
   }
 
   void _showEventDetails(TimelineEvent event) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: FlownetColors.graphiteGray,
@@ -1213,6 +1236,13 @@ class _TimelineScreenState extends State<TimelineScreen> {
           ),
         ),
         actions: [
+          TextButton(
+            onPressed: () => _toggleFollow(event),
+            child: Text(
+              _followedEventIds.contains(event.id) ? 'Following' : 'Follow',
+              style: const TextStyle(color: FlownetColors.coolGray),
+            ),
+          ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Close', style: TextStyle(color: FlownetColors.crimsonRed)),
@@ -1361,7 +1391,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
   Widget _buildFAB() {
     return FloatingActionButton.extended(
       onPressed: () {
-        showDialog(
+        showAppDialog(
           context: context,
           builder: (context) => AddEventModal(
             onEventAdded: _addEvent,

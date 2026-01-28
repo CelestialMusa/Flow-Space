@@ -6,6 +6,7 @@ import '../services/backend_settings_service.dart';
 import '../services/error_handler.dart';
 import '../theme/flownet_theme.dart';
 import '../widgets/app_scaffold.dart';
+import '../widgets/app_modal.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -282,7 +283,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void _showForgotPasswordDialog() {
     final emailController = TextEditingController();
 
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: FlownetColors.charcoalBlack,
@@ -366,3 +367,4 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 }
+

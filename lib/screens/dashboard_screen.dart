@@ -7,6 +7,7 @@ import '../widgets/metrics_card.dart';
 import '../widgets/sprint_performance_chart.dart';
 import '../providers/dashboard_provider.dart';
 import '../widgets/notification_center_widget.dart';
+import '../widgets/app_modal.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -328,7 +329,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showCreateDeliverableDialog() {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Create New Deliverable'),
@@ -368,7 +369,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showSettingsDialog() {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Settings'),
@@ -384,7 +385,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showSprintManagementDialog() {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Sprint Management'),
@@ -400,7 +401,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showAllDeliverablesDialog() {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('All Deliverables'),
@@ -416,7 +417,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showDeliverableDetailsDialog(Deliverable deliverable) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(deliverable.title),
@@ -432,7 +433,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _handleLogout() {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Logout'),
@@ -454,3 +455,4 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 }
+

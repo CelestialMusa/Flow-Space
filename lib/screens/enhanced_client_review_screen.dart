@@ -1,5 +1,8 @@
 // ignore_for_file: avoid_print
 
+import '../widgets/app_modal.dart';
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/deliverable.dart';
@@ -202,7 +205,7 @@ Future<void> _submitApproval() async {
   }
 
   void _showErrorDialog(String message) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: FlownetColors.graphiteGray,
@@ -225,7 +228,7 @@ Future<void> _submitApproval() async {
   }
 
   void _showSuccessDialog(String message) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: FlownetColors.graphiteGray,
@@ -1004,7 +1007,7 @@ Future<void> _submitApproval() async {
   }
 
   void _showHelpDialog() {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: FlownetColors.graphiteGray,
@@ -1051,3 +1054,4 @@ Future<void> _submitApproval() async {
     super.dispose();
   }
 }
+
