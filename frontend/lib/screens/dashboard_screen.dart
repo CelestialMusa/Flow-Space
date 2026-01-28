@@ -19,6 +19,7 @@ import '../models/deliverable.dart';
 import '../services/api_service.dart';
 import 'sprint_report_screen.dart';
 import 'user_management_screen.dart';
+import 'project_setup_screen.dart';
 // Using Map-based data for deliverables and sprints
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -193,6 +194,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         visible: true,
         curve: Curves.bounceIn,
         children: [
+          SpeedDialChild(
+            child: const Icon(Icons.business_center),
+            backgroundColor: Colors.purple,
+            foregroundColor: Colors.white,
+            label: 'New Project',
+            labelStyle: const TextStyle(fontSize: 18.0),
+            onTap: () => _showCreateProjectDialog(),
+          ),
           SpeedDialChild(
             child: const Icon(Icons.assignment),
             backgroundColor: Colors.blue,
@@ -1251,6 +1260,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: const Text('Logout'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showCreateProjectDialog() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const ProjectSetupScreen(),
       ),
     );
   }
