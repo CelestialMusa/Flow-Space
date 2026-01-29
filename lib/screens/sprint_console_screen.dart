@@ -248,7 +248,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
       },
     );
   }
-
+  
   @override
   void initState() {
     super.initState();
@@ -366,7 +366,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
 
   Future<void> _loadTickets() async {
     if (_selectedSprintId == null) return;
-
+    
     try {
       final tickets = await _sprintService.getSprintTickets(_selectedSprintId!);
       setState(() {
@@ -569,7 +569,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
           return AlertDialog(
             title: const Text('Delete Sprint'),
             content: Text('Delete "$sprintName"? This cannot be undone.'),
-            actions: [
+        actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
                 child: const Text('Cancel'),
@@ -641,15 +641,15 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
           // Header
           _buildHeader(),
           const SizedBox(height: 24),
-
+          
           // Projects or Sprints Section
           if (_selectedProjectKey == null) ...[
-            _buildProjectsSection(),
+          _buildProjectsSection(),
           ] else ...[
             _buildSelectedProjectSprintsView(),
           ],
           const SizedBox(height: 24),
-
+          
           // Tickets Section (conditionally shown when a sprint is selected)
           if (_selectedSprintId != null) ...[
             _buildTicketsSection(),
@@ -754,15 +754,15 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: GlassCard(
-              padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(12),
               color: primaryColor.withAlpha(26),
               border: Border.all(color: primaryColor.withAlpha(77)),
-              child: Row(
-                children: [
+            child: Row(
+              children: [
                   Icon(Icons.info_outline, color: primaryColor, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
                       'Selected project: ${_projects.firstWhere(
                         (p) {
                           final keyOrId =
@@ -773,12 +773,12 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                       )['name']}',
                       style: TextStyle(
                         color: primaryColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                ],
+                ),
+              ],
               ),
             ),
           ),
@@ -826,7 +826,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
         final project = _projects[index];
         final projectKey = project['key']?.toString() ?? project['id']?.toString();
         final isSelected = _selectedProjectKey == projectKey;
-
+        
         return ProjectCard(
           project: project,
           isSelected: isSelected,
@@ -947,7 +947,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
             child: BackdropFilter(
               filter: ui.ImageFilter.blur(sigmaX: 0, sigmaY: 0),
               child: Container(
-                decoration: BoxDecoration(
+              decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface.withAlpha(77),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
@@ -1009,7 +1009,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                                   sprint['name']?.toString() ?? 'Unknown Sprint',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
+              style: TextStyle(
                                     color: Theme.of(context)
                                         .colorScheme
                                         .onSurface,
@@ -1037,26 +1037,26 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                               runSpacing: 8,
                               crossAxisAlignment: WrapCrossAlignment.center,
                               alignment: WrapAlignment.end,
-                              children: [
+              children: [
                                 if (sprint['status'] != null)
-                                  Container(
+                Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 12,
                                       vertical: 6,
                                     ),
-                                    decoration: BoxDecoration(
+                  decoration: BoxDecoration(
                                       color: getStatusColor(sprint['status']).withAlpha(26),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
                                         color: getStatusColor(sprint['status']).withAlpha(77),
                                       ),
                                     ),
                                     child: Text(
                                       sprint['status'].toString().toUpperCase(),
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
+                    style: TextStyle(
                                         color: getStatusColor(sprint['status']),
-                                        fontSize: 12,
+                      fontSize: 12,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -1338,12 +1338,12 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
         bool isGenerating = _isGeneratingAiTicket;
         return StatefulBuilder(
           builder: (context, dialogSetState) => AlertDialog(
-            backgroundColor: FlownetColors.charcoalBlack,
+        backgroundColor: FlownetColors.charcoalBlack,
             title: const Text('Create Ticket', style: TextStyle(color: FlownetColors.pureWhite)),
             content: SingleChildScrollView(
               child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+          mainAxisSize: MainAxisSize.min,
+          children: [
                   Row(
                     children: [
                       Expanded(
@@ -1356,21 +1356,21 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                     ],
                   ),
                   if (useAi) ...[
-                    TextField(
+            TextField(
                       controller: aiPromptController,
                       maxLines: 3,
-                      style: const TextStyle(color: FlownetColors.pureWhite),
-                      decoration: const InputDecoration(
+              style: const TextStyle(color: FlownetColors.pureWhite),
+              decoration: const InputDecoration(
                         labelText: 'AI Prompt (requirements/context)',
-                        labelStyle: TextStyle(color: FlownetColors.electricBlue),
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide(color: FlownetColors.electricBlue),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: FlownetColors.electricBlue, width: 2),
-                        ),
-                      ),
-                    ),
+                labelStyle: TextStyle(color: FlownetColors.electricBlue),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: FlownetColors.electricBlue),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: FlownetColors.electricBlue, width: 2),
+                ),
+              ),
+            ),
                     const SizedBox(height: 12),
                     Align(
                       alignment: Alignment.centerRight,
@@ -1434,70 +1434,70 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                         label: const Text('Generate with AI'),
                       ),
                     ),
-                    const SizedBox(height: 16),
+            const SizedBox(height: 16),
                   ],
-                  TextField(
+            TextField(
                     controller: titleController,
-                    style: const TextStyle(color: FlownetColors.pureWhite),
-                    decoration: const InputDecoration(
+              style: const TextStyle(color: FlownetColors.pureWhite),
+              decoration: const InputDecoration(
                       labelText: 'Ticket Title',
-                      labelStyle: TextStyle(color: FlownetColors.electricBlue),
-                      border: OutlineInputBorder(
-                        borderSide: BorderSide(color: FlownetColors.electricBlue),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: FlownetColors.electricBlue, width: 2),
-                      ),
-                    ),
-                  ),
+                labelStyle: TextStyle(color: FlownetColors.electricBlue),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: FlownetColors.electricBlue),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: FlownetColors.electricBlue, width: 2),
+                ),
+              ),
+            ),
                   const SizedBox(height: 16),
-                  TextField(
+            TextField(
                     controller: descriptionController,
                     maxLines: 3,
-                    style: const TextStyle(color: FlownetColors.pureWhite),
-                    decoration: const InputDecoration(
+              style: const TextStyle(color: FlownetColors.pureWhite),
+              decoration: const InputDecoration(
                       labelText: 'Description',
-                      labelStyle: TextStyle(color: FlownetColors.electricBlue),
-                      border: OutlineInputBorder(
-                        borderSide: BorderSide(color: FlownetColors.electricBlue),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: FlownetColors.electricBlue, width: 2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
+                labelStyle: TextStyle(color: FlownetColors.electricBlue),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: FlownetColors.electricBlue),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: FlownetColors.electricBlue, width: 2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
                     controller: assigneeController,
-                    style: const TextStyle(color: FlownetColors.pureWhite),
-                    decoration: const InputDecoration(
+              style: const TextStyle(color: FlownetColors.pureWhite),
+              decoration: const InputDecoration(
                       labelText: 'Assignee Email',
-                      labelStyle: TextStyle(color: FlownetColors.electricBlue),
-                      border: OutlineInputBorder(
-                        borderSide: BorderSide(color: FlownetColors.electricBlue),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: FlownetColors.electricBlue, width: 2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
+                labelStyle: TextStyle(color: FlownetColors.electricBlue),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: FlownetColors.electricBlue),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: FlownetColors.electricBlue, width: 2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
                         child: DropdownButtonFormField<String>(
                           initialValue: selectedPriority,
-                          style: const TextStyle(color: FlownetColors.pureWhite),
-                          decoration: const InputDecoration(
+                    style: const TextStyle(color: FlownetColors.pureWhite),
+                    decoration: const InputDecoration(
                             labelText: 'Priority',
-                            labelStyle: TextStyle(color: FlownetColors.electricBlue),
-                            border: OutlineInputBorder(
-                              borderSide: BorderSide(color: FlownetColors.electricBlue),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: FlownetColors.electricBlue, width: 2),
-                            ),
-                          ),
+                      labelStyle: TextStyle(color: FlownetColors.electricBlue),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: FlownetColors.electricBlue),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: FlownetColors.electricBlue, width: 2),
+                      ),
+                    ),
                           dropdownColor: FlownetColors.charcoalBlack,
                           items: const [
                             DropdownMenuItem(value: 'Low', child: Text('Low', style: TextStyle(color: FlownetColors.pureWhite))),
@@ -1506,23 +1506,23 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                             DropdownMenuItem(value: 'Critical', child: Text('Critical', style: TextStyle(color: FlownetColors.pureWhite))),
                           ],
                           onChanged: (value) => selectedPriority = value ?? 'Medium',
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
                         child: DropdownButtonFormField<String>(
                           initialValue: selectedType,
-                          style: const TextStyle(color: FlownetColors.pureWhite),
-                          decoration: const InputDecoration(
+                    style: const TextStyle(color: FlownetColors.pureWhite),
+                    decoration: const InputDecoration(
                             labelText: 'Type',
-                            labelStyle: TextStyle(color: FlownetColors.electricBlue),
-                            border: OutlineInputBorder(
-                              borderSide: BorderSide(color: FlownetColors.electricBlue),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: FlownetColors.electricBlue, width: 2),
-                            ),
-                          ),
+                      labelStyle: TextStyle(color: FlownetColors.electricBlue),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: FlownetColors.electricBlue),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: FlownetColors.electricBlue, width: 2),
+                      ),
+                    ),
                           dropdownColor: FlownetColors.charcoalBlack,
                           items: const [
                             DropdownMenuItem(value: 'Task', child: Text('Task', style: TextStyle(color: FlownetColors.pureWhite))),
@@ -1531,14 +1531,14 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                             DropdownMenuItem(value: 'Epic', child: Text('Epic', style: TextStyle(color: FlownetColors.pureWhite))),
                           ],
                           onChanged: (value) => selectedType = value ?? 'Task',
-                        ),
-                      ),
-                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            actions: [
+          ],
+              ),
+        ),
+        actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Cancel', style: TextStyle(color: FlownetColors.pureWhite)),
@@ -1596,8 +1596,8 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                 }
                 if (titleController.text.isEmpty) {
                   _showSnackBar('Provide a ticket title (AI can help)', isError: true);
-                  return;
-                }
+                return;
+              }
                 final res = await _sprintService.createTicket(
                   sprintId: _selectedSprintId!,
                   title: titleController.text,

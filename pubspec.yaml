@@ -96,6 +96,8 @@ flutter:
     - assets/Icons/logo.png
     - assets/fonts/
     - assets/Icons/Red_Khono_Discs.png
+    - assets/icons/
+    - assets/Icons/
 
   fonts:
     - family: Poppins

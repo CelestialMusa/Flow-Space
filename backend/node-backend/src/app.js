@@ -299,14 +299,21 @@ async function startServer() {
   try {
     // Test database connection
     await sequelize.authenticate();
-    await syncDatabase({ alter: true });
+    const syncOk = await syncDatabase({ alter: true });
     console.log('✅ Database connection established successfully');
+    if (!syncOk) {
+      console.warn('⚠️ Database sync failed; continuing without alter sync');
+    }
     
     // Sync database (use with caution in production)
     if (process.env.NODE_ENV === 'development') {
       // Use safe sync instead of alter to prevent infinite loops
-      await sequelize.sync({ force: false });
-      console.log('✅ Database synchronized safely');
+      try {
+        await sequelize.sync({ force: false });
+        console.log('✅ Database synchronized safely');
+      } catch (error) {
+        console.warn('⚠️ Database safe sync failed; continuing', error?.message || error);
+      }
     }
     
     // Start server first to ensure it's listening

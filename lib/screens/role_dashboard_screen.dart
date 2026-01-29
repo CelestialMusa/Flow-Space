@@ -77,7 +77,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     _loadClientReviewMetrics();
     _computeTeamMetrics();
   }
-
+  
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -195,7 +195,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
       } else {
         if (!_authService.isAuthenticated) {
           debugPrint('❌ Inactive or no user found, redirecting to login');
-          if (mounted) {
+        if (mounted) {
             final messenger = ScaffoldMessenger.of(context);
             final router = GoRouter.of(context);
             messenger.showSnackBar(
@@ -425,16 +425,16 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
               ),
             ),
             const PopupMenuItem(
-              value: 'logout',
-              child: Row(
-                children: [
+                    value: 'logout',
+                    child: Row(
+                      children: [
                   Icon(Icons.logout),
                   SizedBox(width: 8),
                   Text('Logout'),
+                      ],
+                    ),
+                  ),
                 ],
-              ),
-            ),
-          ],
           child: FutureBuilder<Uint8List?>(
             future: _loadAvatarBytes(_currentUser!.id),
             builder: (context, snapshot) {
@@ -445,14 +445,14 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                 child: hasImage
                     ? null
                     : Icon(
-                        _currentUser!.roleIcon,
+                    _currentUser!.roleIcon,
                         color: _currentUser!.roleColor,
-                      ),
+                  ),
               );
             },
-          ),
-        ),
-      ],
+                ),
+              ),
+            ],
     );
   }
 
@@ -565,10 +565,10 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     if (!canShow) return const SizedBox.shrink();
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        children: [
             _buildCardHeader(Icons.notifications_active, 'Approval Reminders', route: '/approval-requests'),
             const SizedBox(height: 16),
             Row(
@@ -595,9 +595,9 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
           context: context,
           builder: (context) {
             return SafeArea(
-              child: Column(
+            child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [
+              children: [
                   ListTile(
                     leading: const Icon(Icons.assignment_outlined),
                     title: const Text('Create Deliverable'),
@@ -618,9 +618,9 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                     onTap: () {
                       context.go('/role-management');
                     },
-                  ),
-                ],
-              ),
+                ),
+              ],
+            ),
             );
           },
         );
@@ -667,35 +667,35 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   Widget _buildQuickActions() {
     final canCreate = _authService.canCreateDeliverable();
     return Row(
-      children: [
-        Expanded(
+            children: [
+              Expanded(
           child: Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: _buildActionButton(
+                child: _buildActionButton(
                 icon: Icons.assignment_outlined,
-                label: 'Create Deliverable',
-                onTap: () => context.go('/deliverable-setup'),
+                  label: 'Create Deliverable',
+                  onTap: () => context.go('/deliverable-setup'),
               ),
             ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
           child: Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: _buildActionButton(
+                child: _buildActionButton(
                 icon: Icons.flag_outlined,
-                label: 'Open Sprint Console',
-                onTap: () => context.go('/sprint-console'),
+                  label: 'Open Sprint Console',
+                  onTap: () => context.go('/sprint-console'),
               ),
             ),
-          ),
-        ),
-        const SizedBox(width: 12),
+                ),
+              ),
+              const SizedBox(width: 12),
         if (canCreate)
-          Expanded(
+              Expanded(
             child: Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -718,14 +718,14 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   Widget _buildMyDeliverables() {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
         child: _isLoadingDashboardDeliverables
             ? const Center(child: CircularProgressIndicator())
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+        children: [
                   _buildCardHeader(Icons.assignment_outlined, 'My Deliverables', route: '/repository'),
-                  const SizedBox(height: 8),
+          const SizedBox(height: 8),
                   Builder(builder: (context) {
                     final uid = _currentUser?.id.toString() ?? '';
                     final my = _dashboardDeliverables.where((d) {
@@ -836,11 +836,11 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                     final id = (d['id']?.toString() ?? d['uuid']?.toString() ?? '');
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
                               const Icon(Icons.assignment_outlined, size: 18),
                               const SizedBox(width: 8),
                               Expanded(child: Text(status.isNotEmpty ? '$title • $status' : title)),
@@ -856,8 +856,8 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                             ],
                           ),
                           const SizedBox(height: 6),
-                          Row(
-                            children: [
+              Row(
+                children: [
                               TextButton.icon(
                                 onPressed: id.isEmpty ? null : () => _editDeliverable(d),
                                 icon: const Icon(Icons.edit_outlined, size: 18),
@@ -877,9 +877,9 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                                 },
                                 icon: const Icon(Icons.open_in_new),
                                 tooltip: 'Open',
-                              ),
-                            ],
-                          ),
+                  ),
+                ],
+              ),
                         ],
                       ),
                     );
@@ -943,10 +943,10 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   Widget _buildTeamMetrics() {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
             _buildCardHeader(Icons.group_outlined, 'Team Metrics', route: '/sprint-console'),
             const SizedBox(height: 12),
             if (_isLoadingTeamMetrics)
@@ -957,7 +957,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
-                children: [
+            children: [
                   _metricTile('Deliverables', _teamMetrics['deliverables'] ?? 0, Icons.assignment_outlined, Colors.blue),
                   _metricTile('In Progress', _teamMetrics['in_progress'] ?? 0, Icons.play_circle_outline, Colors.orange),
                   _metricTile('Completed', _teamMetrics['completed'] ?? 0, Icons.check_circle_outline, Colors.green),
@@ -998,10 +998,10 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                               : '/sprint-console';
                           context.go(route);
                         },
-                        child: Row(
-                          children: [
+                child: Row(
+                  children: [
                             const Icon(Icons.flag_outlined, size: 18),
-                            const SizedBox(width: 8),
+                    const SizedBox(width: 8),
                             Expanded(child: Text(status.toString().isNotEmpty ? '$name • $status' : name)),
                           ],
                         ),
@@ -1041,9 +1041,9 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                             const Icon(Icons.folder_outlined, size: 18),
                             const SizedBox(width: 8),
                             Expanded(child: Text(status.toString().isNotEmpty ? '$name • $status' : name)),
-                          ],
-                        ),
-                      ),
+                  ],
+                ),
+              ),
                     );
                   }),
                 ],
@@ -1071,8 +1071,8 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                         final id = (r['id'] ?? r['report_id'] ?? '').toString();
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            children: [
+                child: Row(
+                  children: [
                               Expanded(
                                 child: InkWell(
                                   onTap: () {
@@ -1107,7 +1107,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                                 icon: const Icon(Icons.check_circle_outline, size: 18),
                                 label: const Text('Approve'),
                               ),
-                              const SizedBox(width: 4),
+                    const SizedBox(width: 4),
                               TextButton.icon(
                                 onPressed: id.isEmpty ? null : () => _promptChangeRequest(r),
                                 icon: const Icon(Icons.edit_note, size: 18),
@@ -1144,9 +1144,9 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                     DropdownMenuItem(value: 'test_pass_rate', child: Text('Test Pass Rate')),
                   ],
                   onChanged: (v) { if (v != null) setState(() { _selectedChartType = v; }); },
-                ),
-              ],
-            ),
+              ),
+            ],
+          ),
           ),
         ),
         const SizedBox(height: 8),
@@ -1165,7 +1165,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildCardHeader(Icons.rate_review_outlined, 'Review Metrics', route: '/report-repository'),
-            const SizedBox(height: 12),
+          const SizedBox(height: 12),
             if (_isLoadingClientMetrics)
               const Center(child: CircularProgressIndicator())
             else if (_clientReviewMetrics.isEmpty)
@@ -1174,7 +1174,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
-                children: [
+            children: [
                   _metricTile('Submitted', _clientReviewMetrics['submitted'] ?? 0, Icons.upload_outlined, Colors.orange),
                   _metricTile('Approved', _clientReviewMetrics['approved'] ?? 0, Icons.check_circle_outline, Colors.green),
                   _metricTile('Changes Requested', _clientReviewMetrics['changes'] ?? 0, Icons.edit_note, Colors.blueGrey),
@@ -1217,29 +1217,29 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                                   child: Row(
                                     children: [
                                       const Icon(Icons.assignment_turned_in_outlined, size: 18),
-                                      const SizedBox(width: 8),
+              const SizedBox(width: 8),
                                       Expanded(child: Text(createdBy.isNotEmpty ? '$title • $createdBy' : title)),
                                     ],
                                   ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              TextButton.icon(
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
                                 onPressed: id.isEmpty ? null : () => _approveReport(id),
                                 icon: const Icon(Icons.check_circle_outline, size: 18),
                                 label: const Text('Approve'),
                               ),
                               const SizedBox(width: 4),
-                              TextButton.icon(
+              TextButton.icon(
                                 onPressed: id.isEmpty ? null : () => _promptChangeRequest(r),
                                 icon: const Icon(Icons.edit_note, size: 18),
                                 label: const Text('Request Changes'),
-                              ),
-                            ],
-                          ),
+              ),
+            ],
+          ),
                         );
                       }),
-                    ],
+        ],
                   )),
       ),
     );
@@ -1249,9 +1249,9 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
             _buildCardHeader(Icons.upload_outlined, 'Recent Submissions', route: '/report-repository'),
             const SizedBox(height: 8),
             if (_isLoadingPendingReports)
@@ -1333,10 +1333,10 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   Widget _metricTile(String label, dynamic value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
+          decoration: BoxDecoration(
         border: Border.all(color: Theme.of(context).dividerColor),
-        borderRadius: BorderRadius.circular(8),
-      ),
+            borderRadius: BorderRadius.circular(8),
+          ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1420,9 +1420,9 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
           title: const Text('Edit Deliverable'),
           content: SizedBox(
             width: 480,
-            child: Column(
+      child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [
+        children: [
                 TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder())),
                 const SizedBox(height: 8),
                 TextField(controller: descriptionController, maxLines: 3, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
@@ -1661,7 +1661,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
             final inner = d['reports'] ?? d['items'] ?? d['data'];
             if (inner is List) {
               items = inner;
-            } else {
+    } else {
               items = const [];
             }
           } else {
@@ -1912,7 +1912,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
             decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Details'),
             maxLines: 4,
           ),
-          actions: [
+        actions: [
             TextButton(onPressed: () => context.pop(false), child: const Text('Cancel')),
             ElevatedButton(onPressed: () => context.pop(true), child: const Text('Send')),
           ],
