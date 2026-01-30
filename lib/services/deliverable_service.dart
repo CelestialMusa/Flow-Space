@@ -75,6 +75,41 @@ class DeliverableService {
     }
   }
 
+  // Get a single deliverable by ID
+  Future<ApiResponse> getDeliverable(String id) async {
+    try {
+      final token = _authService.accessToken;
+      if (token == null) {
+        return ApiResponse.error('No access token available');
+      }
+
+      final response = await _apiClient.get('/deliverables/$id');
+      
+      if (response.isSuccess && response.data != null) {
+        try {
+          Map<String, dynamic> deliverableJson;
+          
+          if (response.data is Map<String, dynamic>) {
+            deliverableJson = response.data as Map<String, dynamic>;
+          } else if (response.data is Map) {
+            deliverableJson = Map<String, dynamic>.from(response.data as Map);
+          } else {
+            return ApiResponse.error('Unexpected response format: ${response.data.runtimeType}');
+          }
+          
+          final deliverable = Deliverable.fromJson(deliverableJson);
+          return ApiResponse.success({'deliverable': deliverable}, response.statusCode);
+        } catch (e) {
+          return ApiResponse.error('Error parsing deliverable: $e');
+        }
+      } else {
+        return ApiResponse.error(response.error ?? 'Failed to fetch deliverable');
+      }
+    } catch (e) {
+      return ApiResponse.error('Error fetching deliverable: $e');
+    }
+  }
+
   // Create a new deliverable
   Future<ApiResponse> createDeliverable({
     required String title,
@@ -87,6 +122,7 @@ class DeliverableService {
     String? sprintId,
     List<String>? sprintIds,
     List<String>? evidenceLinks,
+    String? ownerId,
   }) async {
     try {
       final token = _authService.accessToken;
@@ -112,6 +148,7 @@ class DeliverableService {
         if (sprintId != null && (sprintIds == null || sprintIds.isEmpty)) 'sprint_id': sprintId,
         if (sprintIds != null) 'sprintIds': sprintIds,
         if (evidenceLinks != null) 'evidence_links': evidenceLinks,
+        if (ownerId != null) 'owner_id': ownerId,
       };
 
       final response = await _apiClient.post('/deliverables', body: body);
@@ -155,6 +192,48 @@ class DeliverableService {
     } catch (e) {
       return ApiResponse.error('Error creating deliverable: $e');
     }
+  }
+
+  // Upload an artifact for a deliverable
+  Future<ApiResponse> uploadArtifact({
+    required String deliverableId,
+    required String filePath,
+    required String fileName,
+    String? title,
+    String? description,
+  }) async {
+    try {
+      final token = _authService.accessToken;
+      if (token == null) {
+        return ApiResponse.error('No access token available');
+      }
+
+      final fileType = fileName.split('.').last;
+      
+      final fields = <String, String>{};
+      if (title != null) fields['title'] = title;
+      if (description != null) fields['description'] = description;
+
+      final response = await _apiClient.uploadFile(
+        '/deliverables/$deliverableId/artifacts',
+        filePath,
+        fileName,
+        fileType,
+        fields: fields,
+      );
+
+      if (response.isSuccess) {
+         return response;
+      } else {
+        return ApiResponse.error(response.error ?? 'Failed to upload artifact');
+      }
+    } catch (e) {
+      return ApiResponse.error('Error uploading artifact: $e');
+    }
+  }
+
+  Future<ApiResponse> deleteArtifact(String deliverableId, String artifactId) async {
+    return await _apiClient.delete('/deliverables/$deliverableId/artifacts/$artifactId');
   }
 
   // ===== Local cache helpers =====
@@ -212,6 +291,7 @@ class DeliverableService {
     String? assignedTo,
     List<String>? sprintIds,
     List<String>? evidenceLinks,
+    String? ownerId,
   }) async {
     try {
       final token = _authService.accessToken;
@@ -229,6 +309,7 @@ class DeliverableService {
       if (assignedTo != null) body['assigned_to'] = assignedTo;
       if (sprintIds != null) body['sprintIds'] = sprintIds;
       if (evidenceLinks != null) body['evidence_links'] = evidenceLinks;
+      if (ownerId != null) body['owner_id'] = ownerId;
 
       final response = await _apiClient.put('/deliverables/$id', body: body);
       
@@ -267,14 +348,52 @@ class DeliverableService {
       }
 
       final response = await _apiClient.delete('/deliverables/$id');
-      
       if (response.isSuccess) {
-        return ApiResponse.success({'message': 'Deliverable deleted successfully'}, response.statusCode);
+        return response;
       } else {
         return ApiResponse.error(response.error ?? 'Failed to delete deliverable');
       }
     } catch (e) {
       return ApiResponse.error('Error deleting deliverable: $e');
+    }
+  }
+
+  // Update deliverable status
+  Future<ApiResponse> updateDeliverableStatus(String id, String status) async {
+    try {
+      final token = _authService.accessToken;
+      if (token == null) {
+        return ApiResponse.error('No access token available');
+      }
+
+      final response = await _apiClient.put(
+        '/deliverables/$id/updateStatus',
+        body: {'status': status},
+      );
+
+      if (response.isSuccess && response.data != null) {
+        try {
+          // ApiClient already extracts the 'data' field from backend response
+          Map<String, dynamic> deliverableJson;
+          
+          if (response.data is Map<String, dynamic>) {
+            deliverableJson = response.data as Map<String, dynamic>;
+          } else if (response.data is Map) {
+            deliverableJson = Map<String, dynamic>.from(response.data as Map);
+          } else {
+            return ApiResponse.error('Unexpected response format: ${response.data.runtimeType}');
+          }
+          
+          final deliverable = Deliverable.fromJson(deliverableJson);
+          return ApiResponse.success({'deliverable': deliverable}, response.statusCode);
+        } catch (e) {
+          return ApiResponse.error('Error parsing deliverable: $e');
+        }
+      } else {
+        return ApiResponse.error(response.error ?? 'Failed to update deliverable status');
+      }
+    } catch (e) {
+      return ApiResponse.error('Error updating deliverable status: $e');
     }
   }
 

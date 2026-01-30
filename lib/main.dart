@@ -42,6 +42,7 @@ import 'widgets/role_guard.dart';
 import 'theme/flownet_theme.dart';
 import 'screens/deadlines_screen.dart';
 import 'screens/deliverables_list_screen.dart';
+import 'screens/deliverables_overview_screen.dart';
 import 'screens/skill_assessment_screen.dart';
 import 'screens/deliverable_detail_screen.dart';
 
@@ -347,6 +348,15 @@ final GoRouter _router = GoRouter(
         route: '/deliverables',
         child: SidebarScaffold(
           child: DeliverablesListScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/deliverables-overview',
+      builder: (context, state) => const RouteGuard(
+        route: '/deliverables-overview',
+        child: SidebarScaffold(
+          child: DeliverablesOverviewScreen(),
         ),
       ),
     ),

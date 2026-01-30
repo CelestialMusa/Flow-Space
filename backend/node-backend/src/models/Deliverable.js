@@ -32,6 +32,9 @@ module.exports = (sequelize, DataTypes) => {
     assigned_to: {
       type: DataTypes.STRING(255)
     },
+    owner_id: {
+      type: DataTypes.UUID
+    },
     evidence_links: {
       type: DataTypes.JSON
     },
@@ -86,6 +89,11 @@ module.exports = (sequelize, DataTypes) => {
       as: 'contributing_sprints'
     });
 
+    Deliverable.belongsTo(models.User, {
+      foreignKey: 'owner_id',
+      as: 'owner'
+    });
+
     Deliverable.hasMany(models.Signoff, {
       foreignKey: 'entity_id',
       constraints: false,
@@ -102,6 +110,11 @@ module.exports = (sequelize, DataTypes) => {
         entity_type: 'deliverable'
       },
       as: 'audit_logs'
+    });
+
+    Deliverable.hasMany(models.DeliverableArtifact, {
+      foreignKey: 'deliverable_id',
+      as: 'artifacts'
     });
   };
 

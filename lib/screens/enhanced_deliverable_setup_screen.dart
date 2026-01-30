@@ -36,6 +36,8 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   ReadinessStatus _currentReadinessStatus = ReadinessStatus.red;
   bool _hasInternalApproval = false;
   List<Map<String, dynamic>> _availableSprints = [];
+  List<Map<String, dynamic>> _users = [];
+  String? _ownerId;
   
   bool _isSubmitting = false;
 
@@ -44,6 +46,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
     super.initState();
     _initializeReadinessItems();
     _loadSprints();
+    _loadUsers();
   }
 
   void _initializeReadinessItems() {
@@ -84,6 +87,33 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
         isCompleted: false,
       ),
     ]);
+  }
+
+  Future<void> _loadUsers() async {
+    try {
+      final backendApiService = BackendApiService();
+      final response = await backendApiService.getUsers(limit: 100);
+      
+      if (response.isSuccess && response.data != null) {
+        List<dynamic> usersList = [];
+        if (response.data is List) {
+          usersList = response.data as List;
+        } else if (response.data is Map) {
+          final data = response.data as Map<String, dynamic>;
+          usersList = data['data'] as List? ?? data['users'] as List? ?? [];
+        }
+        
+        setState(() {
+          _users = usersList
+              .where((u) => u != null)
+              .map((u) => u is Map ? Map<String, dynamic>.from(u) : <String, dynamic>{})
+              .where((m) => m.isNotEmpty)
+              .toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading users: $e');
+    }
   }
 
   Future<void> _loadSprints() async {
@@ -508,6 +538,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
         dueDate: _dueDate,
         sprintIds: _selectedSprints,
         evidenceLinks: allEvidenceLinks,
+        ownerId: _ownerId,
       );
       
       if (mounted) {
@@ -668,6 +699,52 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
                     return 'Description is required';
                   }
                   return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              DropdownButtonFormField<String>(
+                // ignore: deprecated_member_use
+                value: _ownerId,
+                decoration: const InputDecoration(
+                  labelText: 'Owner',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person),
+                  helperText: 'Select the team member responsible for this deliverable',
+                ),
+                items: [
+                  DropdownMenuItem<String>(
+                    value: null,
+                    child: Text(_users.isEmpty ? 'Unassigned (Loading...)' : 'Unassigned'),
+                  ),
+                  ..._users.map((user) {
+                    String name = user['name'] ?? '';
+                    if (name.isEmpty) {
+                      final first = user['first_name'] ?? user['firstName'] ?? '';
+                      final last = user['last_name'] ?? user['lastName'] ?? '';
+                      if (first.isNotEmpty || last.isNotEmpty) {
+                        name = '$first $last'.trim();
+                      }
+                    }
+                    if (name.isEmpty) {
+                      name = user['email'] ?? 'Unknown';
+                    }
+                    
+                    final role = user['role']?.toString() ?? '';
+                    if (role.isNotEmpty) {
+                      name = '$name ($role)';
+                    }
+                    
+                    return DropdownMenuItem<String>(
+                      value: user['id'].toString(),
+                      child: Text(name),
+                    );
+                  }),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _ownerId = value;
+                  });
                 },
               ),
               const SizedBox(height: 16),
