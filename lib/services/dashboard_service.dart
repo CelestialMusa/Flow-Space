@@ -1,3 +1,4 @@
+import '../models/deliverable.dart';
 import 'api_client.dart';
 import 'auth_service.dart';
 import 'deliverable_service.dart';

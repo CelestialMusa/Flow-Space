@@ -16,6 +16,7 @@ import '../providers/theme_provider.dart';
 import '../providers/dashboard_provider.dart';
 import '../providers/notification_provider.dart';
 import '../models/deliverable.dart';
+import '../models/user.dart';
 import '../services/api_service.dart';
 import 'sprint_report_screen.dart';
 import 'user_management_screen.dart';
@@ -31,6 +32,7 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   String? _branchName;
+  List<User> _users = [];
   
   @override
   void initState() {
@@ -42,8 +44,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     
     // Load Git branch name
     _loadBranchName();
+    _loadUsers();
   }
   
+  Future<void> _loadUsers() async {
+    try {
+      final users = await ApiService.getUsers();
+      if (mounted) {
+        setState(() {
+          _users = users;
+        });
+      }
+    } catch (_) {}
+  }
+
   Future<void> _loadBranchName() async {
     final branchName = await GitUtils.getCurrentBranchName();
     if (mounted) {
@@ -515,6 +529,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final TextEditingController descriptionController = TextEditingController();
     final TextEditingController dueDateController = TextEditingController();
     String selectedPriority = 'Medium';
+    String? selectedOwnerId;
 
     await showDialog(
       context: context,
@@ -548,6 +563,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     labelText: 'Due Date',
                     hintText: 'YYYY-MM-DD',
                   ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(
+                    labelText: 'Owner',
+                  ),
+                  value: selectedOwnerId,
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: null,
+                      child: Text('Unassigned'),
+                    ),
+                    ..._users.map((user) {
+                      return DropdownMenuItem<String>(
+                        value: user.id.toString(),
+                        child: Text('${user.firstName} ${user.lastName}'),
+                      );
+                    }),
+                  ],
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      selectedOwnerId = newValue;
+                    });
+                  },
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
@@ -588,6 +627,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       sprintIds: [],
                       definitionOfDone: [],
                       evidenceLinks: [],
+                      ownerId: selectedOwnerId,
                     ),
                   );
                   // ignore: use_build_context_synchronously

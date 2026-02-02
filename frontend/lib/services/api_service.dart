@@ -476,6 +476,7 @@ class ApiService {
       'evidence_links': deliverable.evidenceLinks,
       'sprintIds': deliverable.sprintIds,
       'status': 'draft',
+      if (deliverable.ownerId != null) 'owner_id': deliverable.ownerId,
     };
     final response = await http.post(
       Uri.parse('${Environment.apiBaseUrl}/deliverables'),

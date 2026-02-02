@@ -95,8 +95,21 @@ class FileUploadService {
         return `${this.baseUrl}/${filename}`;
     }
     
-    async deleteFile(filename) {
+    async deleteFile(filename, prefix = '') {
         try {
+            if (prefix) {
+                const fullPath = path.join(this.storageBasePath, prefix, filename);
+                try {
+                    await fs.access(fullPath);
+                    await fs.unlink(fullPath);
+                    try { await fs.unlink(`${fullPath}.meta.json`); } catch (_) {}
+                    return true;
+                } catch (error) {
+                    if (error.code === 'ENOENT') return false;
+                    throw error;
+                }
+            }
+
             // Try direct path first
             const directPath = path.join(this.storageBasePath, filename);
             const candidates = [directPath];

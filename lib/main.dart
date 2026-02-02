@@ -44,10 +44,11 @@ import 'screens/epic_management_screen.dart';
 import 'screens/epic_detail_screen.dart';
 import 'screens/deadlines_screen.dart';
 import 'screens/deliverables_list_screen.dart';
+import 'screens/deliverables_overview_screen.dart';
 import 'screens/skill_assessment_screen.dart';
+import 'screens/deliverable_detail_screen.dart';
 import 'screens/environment_management_screen.dart';
 import 'screens/project_workspace_screen.dart';
-
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -176,6 +177,18 @@ final GoRouter _router = GoRouter(
           child: EnhancedDeliverableSetupScreen(),
         ),
       ),
+    ),
+    GoRoute(
+      path: '/deliverable-detail',
+      builder: (context, state) {
+        final deliverable = state.extra as Deliverable;
+        return RouteGuard(
+          route: '/deliverable-detail',
+          child: SidebarScaffold(
+            child: DeliverableDetailScreen(deliverable: deliverable),
+          ),
+        );
+      },
     ),
     GoRoute(
       path: '/sprint-metrics/:sprintId',
@@ -331,6 +344,15 @@ final GoRouter _router = GoRouter(
         route: '/deliverables',
         child: SidebarScaffold(
           child: DeliverablesListScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/deliverables-overview',
+      builder: (context, state) => const RouteGuard(
+        route: '/deliverables-overview',
+        child: SidebarScaffold(
+          child: DeliverablesOverviewScreen(),
         ),
       ),
     ),

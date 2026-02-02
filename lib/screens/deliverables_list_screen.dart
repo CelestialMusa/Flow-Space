@@ -144,10 +144,8 @@ class _DeliverablesListScreenState extends State<DeliverablesListScreen> {
                             child: DeliverableCard(
                               deliverable: deliverable,
                               onTap: () {
-                                // Navigate to report editor or builder depending on state, 
-                                // similar to dashboard logic
-                                final route = '/report-editor/${deliverable.id}';
-                                context.go(route);
+                                // Navigate to deliverable detail for editing/viewing
+                                context.push('/deliverable-detail', extra: deliverable);
                               },
                             ),
                           );

@@ -140,6 +140,10 @@ class BackendApiService {
     return await _apiClient.put('/deliverables/$deliverableId', body: updates);
   }
 
+  Future<ApiResponse> updateDeliverableStatus(String deliverableId, String status) async {
+    return await _apiClient.put('/deliverables/$deliverableId/updateStatus', body: {'status': status});
+  }
+
   Future<ApiResponse> deleteDeliverable(String deliverableId) async {
     return await _apiClient.delete('/deliverables/$deliverableId');
   }
@@ -158,6 +162,25 @@ class BackendApiService {
     return await _apiClient.post('/deliverables/$deliverableId/request-changes', body: {
       'change_request': changeRequest,
     },);
+  }
+
+  Future<ApiResponse> uploadDeliverableArtifact(
+    String deliverableId,
+    List<int> fileBytes,
+    String filename, {
+    String? title,
+    String? description,
+  }) async {
+    final fields = <String, String>{};
+    if (title != null) fields['title'] = title;
+    if (description != null) fields['description'] = description;
+    
+    return await _apiClient.uploadFileBytes(
+      '/deliverables/$deliverableId/artifacts',
+      fileBytes: fileBytes,
+      filename: filename,
+      fields: fields,
+    );
   }
 
   // Sprint endpoints
@@ -782,9 +805,10 @@ final firstName = userData['first_name'] ?? userData['firstName'] ?? userData['f
     return await _apiClient.post('/approvals', body: requestData);
   }
 
-
-
-
+  // System endpoints
+  Future<ApiResponse> triggerEscalation({bool force = false}) async {
+    return await _apiClient.post('/system/trigger-escalation', body: {'force': force});
+  }
 }
 
 const String _reportsKey = 'cached_signoff_reports';

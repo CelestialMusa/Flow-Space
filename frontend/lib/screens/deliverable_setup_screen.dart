@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
 import '../models/sprint.dart';
 import '../models/deliverable.dart';
+import '../models/user.dart';
 
 class DeliverableSetupScreen extends ConsumerStatefulWidget {
   const DeliverableSetupScreen({super.key});
@@ -31,11 +32,23 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
   DateTime? _dueDate;
   List<Sprint> _availableSprints = [];
   String? _selectedSprintId;
+  List<User> _users = [];
+  String? _ownerId;
 
   @override
   void initState() {
     super.initState();
     _loadSprints();
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    try {
+      final users = await ApiService.getUsers();
+      setState(() {
+        _users = users;
+      });
+    } catch (_) {}
   }
 
   Future<void> _loadSprints() async {
@@ -88,6 +101,7 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
         sprintIds: contributingSprints,
         definitionOfDone: dodList,
         evidenceLinks: evidenceLinks,
+        ownerId: _ownerId,
       );
       await ApiService.createDeliverable(create);
       if (mounted) {
@@ -148,6 +162,33 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
                     return 'Please enter a description';
                   }
                   return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _ownerId,
+                decoration: const InputDecoration(
+                  labelText: 'Owner',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person),
+                  helperText: 'Select the team member responsible for this deliverable',
+                ),
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('Unassigned'),
+                  ),
+                  ..._users.map((user) {
+                    return DropdownMenuItem<String>(
+                      value: user.id.toString(),
+                      child: Text('${user.firstName} ${user.lastName}'),
+                    );
+                  }),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _ownerId = value;
+                  });
                 },
               ),
               const SizedBox(height: 16),
