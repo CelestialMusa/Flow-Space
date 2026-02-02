@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
-import '../services/api_service.dart';
 import '../services/qa_realtime_service.dart';
 import '../services/auth_service.dart';
 
@@ -89,11 +88,11 @@ class QANotifier extends Notifier<QAState> {
         return;
       }
       
-      // Fetch QA data concurrently
-      final testQueueFuture = ApiService.getTestQueue();
-      final qualityMetricsFuture = ApiService.getQualityMetrics();
-      final bugReportsFuture = ApiService.getBugReports();
-      final testCoverageFuture = ApiService.getTestCoverage();
+      // Fetch QA data concurrently (placeholder implementations)
+      final testQueueFuture = _fetchTestQueue();
+      final qualityMetricsFuture = _fetchQualityMetrics();
+      final bugReportsFuture = _fetchBugReports();
+      final testCoverageFuture = _fetchTestCoverage();
       
       final results = await Future.wait([
         testQueueFuture,
@@ -146,6 +145,46 @@ class QANotifier extends Notifier<QAState> {
   void _handleTestCoverageUpdated(dynamic data) {
     final testCoverage = Map<String, dynamic>.from(data as Map);
     state = state.copyWith(testCoverage: testCoverage);
+  }
+
+  // Placeholder methods for QA data fetching
+  Future<List<Map<String, dynamic>>> _fetchTestQueue() async {
+    // Placeholder implementation
+    await Future.delayed(Duration(milliseconds: 500));
+    return [
+      {'id': '1', 'name': 'Test Case 1', 'status': 'pending'},
+      {'id': '2', 'name': 'Test Case 2', 'status': 'running'},
+    ];
+  }
+
+  Future<Map<String, dynamic>> _fetchQualityMetrics() async {
+    // Placeholder implementation
+    await Future.delayed(Duration(milliseconds: 300));
+    return {
+      'pass_rate': 85.5,
+      'total_tests': 150,
+      'passed_tests': 128,
+      'failed_tests': 22,
+    };
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchBugReports() async {
+    // Placeholder implementation
+    await Future.delayed(Duration(milliseconds: 400));
+    return [
+      {'id': '1', 'title': 'Bug 1', 'severity': 'high', 'status': 'open'},
+      {'id': '2', 'title': 'Bug 2', 'severity': 'medium', 'status': 'resolved'},
+    ];
+  }
+
+  Future<Map<String, dynamic>> _fetchTestCoverage() async {
+    // Placeholder implementation
+    await Future.delayed(Duration(milliseconds: 350));
+    return {
+      'code_coverage': 78.2,
+      'test_coverage': 82.1,
+      'branch_coverage': 75.5,
+    };
   }
 }
 

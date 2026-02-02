@@ -182,10 +182,7 @@ class ReportExportService {
                             child: pw.ClipRRect(
                               horizontalRadius: 4,
                               verticalRadius: 4,
-                              child: pw.Image(
-                                pw.MemoryImage(base64Decode(signatureData.contains(',') ? signatureData.split(',').last : signatureData)),
-                                fit: pw.BoxFit.contain,
-                              ),
+                              child: _buildSignatureImage(signatureData),
                             ),
                           ),
                         // Signature Details
@@ -459,6 +456,54 @@ class ReportExportService {
     // On web, this will throw UnsupportedError from the stub
     // On mobile/desktop, this will use dart:io File
     return File(path);
+  }
+
+  /// Build signature image with error handling for PDF export
+  pw.Widget _buildSignatureImage(String? signatureData) {
+    if (signatureData == null || signatureData.isEmpty) {
+      return pw.Container(
+        height: 70,
+        width: 150,
+        color: PdfColors.grey200,
+        child: pw.Center(
+          child: pw.Text('No signature'),
+        ),
+      );
+    }
+
+    try {
+      // Check if signatureData looks like JSON
+      final trimmedData = signatureData.trim();
+      if (trimmedData.startsWith('{') || trimmedData.startsWith('[') || 
+          trimmedData.startsWith('"success"') || trimmedData.startsWith('"error"')) {
+        return pw.Container(
+          height: 70,
+          width: 150,
+          color: PdfColors.grey200,
+          child: pw.Center(
+            child: pw.Text('Invalid signature data'),
+          ),
+        );
+      }
+
+      final Uint8List imageBytes = base64Decode(
+        signatureData.contains(',') ? signatureData.split(',').last : signatureData
+      );
+      
+      return pw.Image(
+        pw.MemoryImage(imageBytes),
+        fit: pw.BoxFit.contain,
+      );
+    } catch (e) {
+      return pw.Container(
+        height: 70,
+        width: 150,
+        color: PdfColors.grey200,
+        child: pw.Center(
+          child: pw.Text('Invalid signature format'),
+        ),
+      );
+    }
   }
 }
 

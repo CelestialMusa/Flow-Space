@@ -145,7 +145,7 @@ class DeliverableService {
         'due_date': dueDate?.toIso8601String(),
         'created_by': _authService.currentUser?.id,
         'assigned_to': assignedTo,
-        if (sprintId != null && (sprintIds == null || sprintIds.isEmpty)) 'sprint_id': sprintId,
+if (sprintId != null && (sprintIds == null || sprintIds.isEmpty)) 'sprint_id': sprintId,
         if (sprintIds != null) 'sprintIds': sprintIds,
         if (evidenceLinks != null) 'evidence_links': evidenceLinks,
         if (ownerId != null) 'owner_id': ownerId,

@@ -7,8 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/profile_service.dart';
-import '../config/environment.dart';
 import '../services/auth_service.dart';
+import '../config/environment.dart';
 import 'package:http/http.dart' as http;
 import '../widgets/app_scaffold.dart';
 import 'package:go_router/go_router.dart';
@@ -61,7 +61,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         final uid = (profile['user_id'] ?? profile['userId'])?.toString();
         if (rawUrl != null && rawUrl.isNotEmpty && uid != null && uid.isNotEmpty) {
           final base = Uri.parse(Environment.apiBaseUrl);
-          final apiPic = '${base.scheme}://${base.host}:${base.port}/api/v1/profile/$uid/picture';
+          final apiPic = '${base.scheme}://${base.host}:${base.port.toString()}/api/v1/profile/$uid/picture';
           _profileImageUrl = apiPic;
         }
       });
@@ -83,7 +83,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _fetchProfileImageBytes(String userId) async {
     try {
       final base = Uri.parse(Environment.apiBaseUrl);
-      final url = '${base.scheme}://${base.host}:${base.port}/api/v1/profile/$userId/picture?t=${DateTime.now().millisecondsSinceEpoch}';
+      final url = '${base.scheme}://${base.host}:${base.port.toString()}/api/v1/profile/$userId/picture?t=${DateTime.now().millisecondsSinceEpoch}';
       final token = AuthService().accessToken;
       final headers = <String, String>{
         'Accept': 'image/*',
@@ -118,12 +118,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             final user = await AuthService().getCurrentUser();
             final uid = user?.id;
             if (uid != null && uid.isNotEmpty) {
-              final apiPic = '${base.scheme}://${base.host}:${base.port}/api/v1/profile/$uid/picture?t=${DateTime.now().millisecondsSinceEpoch}';
+              final apiPic = '${base.scheme}://${base.host}:${base.port.toString()}/api/v1/profile/$uid/picture?t=${DateTime.now().millisecondsSinceEpoch}';
               setState(() {
                 _profileImageUrl = apiPic;
               });
             } else {
-              final full = rawUrl.startsWith('http') ? rawUrl : '${base.scheme}://${base.host}:${base.port}$rawUrl';
+              final full = rawUrl.startsWith('http') ? rawUrl : '${base.scheme}://${base.host}:${base.port.toString()}$rawUrl';
               setState(() { _profileImageUrl = full; });
             }
           } catch (_) {}
@@ -244,12 +244,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 // Profile Picture Section
                 Stack(
                   children: [
-                    Builder(builder: (context) {
+Builder(builder: (context) {
                       ImageProvider<Object>? avatarImage;
                       if (_profileImageBytes != null) {
                         avatarImage = MemoryImage(_profileImageBytes!) as ImageProvider<Object>;
                       } else if (_profileImageUrl != null) {
-                        avatarImage = NetworkImage(_profileImageUrl!) as ImageProvider<Object>;
+                        // Only use NetworkImage if URL looks like an image and not an API endpoint
+                        if ((_profileImageUrl!.toLowerCase().contains('.jpg') || 
+                            _profileImageUrl!.toLowerCase().contains('.jpeg') || 
+                            _profileImageUrl!.toLowerCase().contains('.png') || 
+                            _profileImageUrl!.toLowerCase().contains('.gif') ||
+                            _profileImageUrl!.toLowerCase().contains('.webp')) &&
+                            !_profileImageUrl!.contains('/api/v1/profile/')) {
+                          avatarImage = NetworkImage(_profileImageUrl!) as ImageProvider<Object>;
+                        } else {
+                          avatarImage = null; // Don't try to load non-image URLs or API endpoints
+                        }
                       } else if (_profileImage != null) {
                         avatarImage = FileImage(_profileImage!) as ImageProvider<Object>;
                       } else {

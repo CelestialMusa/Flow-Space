@@ -211,6 +211,14 @@ class BackendApiService {
     return await _apiClient.delete('/sprints/$sprintId');
   }
 
+  Future<ApiResponse> updateSprintStatus(String sprintId, Map<String, dynamic> updates) async {
+    return await _apiClient.put('/sprints/$sprintId/status', body: updates);
+  }
+
+  Future<ApiResponse> runDiagnostics() async {
+    return await _apiClient.post('/diagnostics/run');
+  }
+
   // Sprint metrics endpoints
   Future<ApiResponse> getSprintMetrics(String sprintId) async {
     return await _apiClient.get('/sprints/$sprintId/metrics');
@@ -340,6 +348,37 @@ class BackendApiService {
     return await _apiClient.delete('/projects/$projectId');
   }
 
+  // Project member management
+  Future<ApiResponse> addProjectMember(String projectId, Map<String, dynamic> memberData) async {
+    return await _apiClient.post('/projects/$projectId/members', body: memberData);
+  }
+
+  Future<ApiResponse> removeProjectMember(String projectId, String userId) async {
+    return await _apiClient.delete('/projects/$projectId/members/$userId');
+  }
+
+  // Project deliverable linking
+  Future<ApiResponse> linkDeliverableToProject(String projectId, String deliverableId) async {
+    return await _apiClient.post('/projects/$projectId/deliverables', body: {
+      'deliverableId': deliverableId,
+    });
+  }
+
+  Future<ApiResponse> unlinkDeliverableFromProject(String projectId, String deliverableId) async {
+    return await _apiClient.delete('/projects/$projectId/deliverables/$deliverableId');
+  }
+
+  // Project sprint association
+  Future<ApiResponse> associateSprintWithProject(String projectId, String sprintId) async {
+    return await _apiClient.post('/projects/$projectId/sprints', body: {
+      'sprintId': sprintId,
+    });
+  }
+
+  Future<ApiResponse> dissociateSprintFromProject(String projectId, String sprintId) async {
+    return await _apiClient.delete('/projects/$projectId/sprints/$sprintId');
+  }
+
   // Release readiness endpoints
   Future<ApiResponse> getReleaseReadinessChecks(String deliverableId) async {
     return await _apiClient.get('/deliverables/$deliverableId/readiness-checks');
@@ -465,8 +504,13 @@ class BackendApiService {
     return await _apiClient.post('/system/optimize-database');
   }
 
-  Future<ApiResponse> runDiagnostics() async {
-    return await _apiClient.get('/system/diagnostics');
+  // Ticket endpoints
+  Future<ApiResponse> updateTicketStatus(String ticketId, Map<String, dynamic> updates) async {
+    return await _apiClient.put('/tickets/$ticketId/status', body: updates);
+  }
+
+  Future<ApiResponse> updateTicket(String ticketId, Map<String, dynamic> updates) async {
+    return await _apiClient.put('/tickets/$ticketId', body: updates);
   }
 
   // System statistics endpoint
@@ -547,10 +591,13 @@ class BackendApiService {
   }
 
   Future<ApiResponse> verifyEmail(String email, String verificationCode) async {
-    return await _apiClient.post('/auth/verify-email', body: {
+    debugPrint('🔍 verifyEmail called with: email=$email, code=$verificationCode');
+    final response = await _apiClient.post('/auth/verify-email', body: {
       'email': email,
-      'verificationCode': verificationCode,
+      'code': verificationCode,
     },);
+    debugPrint('📡 verifyEmail response: ${response.toString()}');
+    return response;
   }
 
   Future<ApiResponse> checkEmailVerificationStatus(String email) async {
@@ -559,7 +606,7 @@ class BackendApiService {
     },);
   }
 
-  // Approval requests endpoints
+// Approval requests endpoints
   Future<ApiResponse> getApprovalRequests({String? status, String? deliverableId, String? requestedBy, int page = 1, int limit = 100}) async {
     final queryParams = <String, String>{
       'page': page.toString(),
@@ -652,7 +699,7 @@ class BackendApiService {
           break;
       }
       
-      final firstName = userData['first_name'] ?? userData['firstName'] ?? userData['firstname'] ?? '';
+final firstName = userData['first_name'] ?? userData['firstName'] ?? userData['firstname'] ?? '';
       final lastName = userData['last_name'] ?? userData['lastName'] ?? userData['lastname'] ?? '';
       final combinedName = ('$firstName $lastName').trim();
       final rawEmail = userData['email']?.toString() ?? '';

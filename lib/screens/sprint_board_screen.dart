@@ -501,13 +501,13 @@ class _SprintBoardScreenState extends ConsumerState<SprintBoardScreen> {
       });
 
       // Create ticket via backend API
-      final response = await _databaseService.createTicket(
+      final response = await _databaseService.createTicketAlt(
         sprintId: widget.sprintId,
         title: title,
         description: description,
         assignee: assignee.isNotEmpty ? assignee : null,
         priority: priority,
-        type: type,
+        status: 'To Do',
       );
 
       if (response != null) {
@@ -638,7 +638,7 @@ class _SprintBoardScreenState extends ConsumerState<SprintBoardScreen> {
                   final totalIssues = _issues.length;
                   final completedIssues = _issues.where((issue) => issue.status == 'Done').length;
                   final progress = totalIssues > 0 ? (completedIssues / totalIssues) * 100 : 0.0;
-                  final ok = await _databaseService.updateSprintStatus(
+                  final ok = await _databaseService.updateSprintStatusHttp(
                     sprintId: widget.sprintId,
                     status: value,
                     progress: progress,

@@ -29,6 +29,7 @@ class _NotificationCenterWidgetState extends State<NotificationCenterWidget> {
   
   int _unreadCount = 0;
   bool _isLoading = true;
+  final bool _disposed = false;
 
   @override
   void initState() {
@@ -62,6 +63,8 @@ class _NotificationCenterWidgetState extends State<NotificationCenterWidget> {
   }
 
   Future<void> _loadUnreadCount() async {
+    if (_disposed) return;
+    
     try {
       String? token = _authService.accessToken;
       if (token == null) {
@@ -86,7 +89,7 @@ class _NotificationCenterWidgetState extends State<NotificationCenterWidget> {
       }
     } catch (e) {
       debugPrint('Error loading notification count: $e');
-      if (mounted) {
+      if (mounted && !_disposed) {
         setState(() {
           _isLoading = false;
         });

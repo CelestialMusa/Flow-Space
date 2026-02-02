@@ -1096,6 +1096,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                                 ),
                               ],
                             ),
+
                           ),
                         ],
                       ),
@@ -1259,7 +1260,6 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
   }
 
   // AI suggestion methods removed as they are now handled in CreateSprintScreen
-
 
   Widget _buildTicketsSection() {
     if (_tickets.isEmpty) {
@@ -1596,13 +1596,12 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                   _showSnackBar('Provide a ticket title (AI can help)', isError: true);
                   return;
                 }
-                final res = await _sprintService.createTicket(
+                final res = await _sprintService.createTicketAlt(
                   sprintId: _selectedSprintId!,
                   title: titleController.text,
                   description: descriptionController.text,
                   assignee: assigneeController.text.isNotEmpty ? assigneeController.text : null,
                   priority: selectedPriority,
-                  type: selectedType,
                 );
                 if (res != null) {
                   _showSnackBar('Ticket created');

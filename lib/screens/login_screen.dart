@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../services/auth_service.dart';
-import '../services/backend_settings_service.dart';
-import '../services/error_handler.dart';
-import '../theme/flownet_theme.dart';
-import '../widgets/app_scaffold.dart';
+import 'package:khono/services/auth_service.dart';
+import 'package:khono/services/backend_settings_service.dart';
+import 'package:khono/services/error_handler.dart';
+import 'package:khono/theme/flownet_theme.dart';
+import 'package:khono/widgets/app_scaffold.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});

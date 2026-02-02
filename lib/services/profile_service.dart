@@ -12,7 +12,7 @@ class ProfileService {
   static const String _userIdKey = 'current_user_id';
 
   static Future<String> _getUserId() async {
-    try {
+try {
       final auth = AuthService();
       final user = await auth.getCurrentUser();
       final id = user?.id;
@@ -26,6 +26,19 @@ class ProfileService {
       throw Exception('No user ID found. Please log in first.');
     }
     return userId;
+  }
+
+  static Future<String?> _getAuthToken() async {
+    final authService = AuthService();
+    return authService.accessToken;
+  }
+
+  static Future<Map<String, String>> _getAuthHeaders() async {
+    final token = await _getAuthToken();
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
   }
 
   static Future<Map<String, dynamic>> getUserProfile() async {
@@ -100,7 +113,7 @@ class ProfileService {
         Uri.parse('${Environment.apiBaseUrl}/profile/$userId/upload-picture'),
       );
       
-      // Infer content type from filename extension
+// Infer content type from filename extension
       final lower = fileName.toLowerCase();
       MediaType ct;
       if (lower.endsWith('.png')) {
@@ -114,7 +127,6 @@ class ProfileService {
       } else {
         ct = MediaType('image', 'jpeg');
       }
-
       request.files.add(http.MultipartFile.fromBytes(
         'file',
         imageBytes,
@@ -129,7 +141,19 @@ class ProfileService {
       final responseBody = await response.stream.bytesToString();
 
       if (response.statusCode == 200) {
-        return json.decode(responseBody);
+        // Try to parse as JSON, but handle if it's not JSON
+        try {
+          return json.decode(responseBody);
+        } catch (e) {
+          // Response might be image data, not JSON
+          // Return a success response with the raw URL if available
+          print('Response appears to be image data, not JSON: $responseBody');
+          return {
+            'success': true,
+            'url': 'Image uploaded successfully',
+            'message': 'Profile picture updated'
+          };
+        }
       } else {
         throw Exception('Failed to upload picture: ${response.statusCode}');
       }

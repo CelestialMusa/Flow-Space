@@ -36,6 +36,10 @@ class _SprintMetricsScreenState extends ConsumerState<SprintMetricsScreen> {
   final _risksController = TextEditingController();
   final _mitigationsController = TextEditingController();
   final _scopeChangesController = TextEditingController();
+  final _pointsAddedController = TextEditingController();
+  final _pointsRemovedController = TextEditingController();
+  final _blockersController = TextEditingController();
+  final _decisionsController = TextEditingController();
   final _uatNotesController = TextEditingController();
   
   bool _isSubmitting = false;
@@ -46,9 +50,42 @@ class _SprintMetricsScreenState extends ConsumerState<SprintMetricsScreen> {
     _loadExistingMetrics();
   }
 
-  void _loadExistingMetrics() {
+  Future<void> _loadExistingMetrics() async {
     // Load existing metrics if available
     // This would typically come from an API or local storage
+    final backendApi = ref.read(backendApiServiceProvider);
+    final response = await backendApi.getSprintMetrics(widget.sprintId);
+
+    if (!mounted) return;
+
+    if (response.isSuccess) {
+      final metricsList = backendApi.parseSprintMetricsFromResponse(response);
+      if (metricsList.isNotEmpty) {
+        final latest = metricsList.first;
+        setState(() {
+          _committedPointsController.text = latest.committedPoints.toString();
+          _completedPointsController.text = latest.completedPoints.toString();
+          _carriedOverController.text = latest.carriedOverPoints.toString();
+          _testPassRateController.text = latest.testPassRate.toString();
+          _defectsOpenedController.text = latest.defectsOpened.toString();
+          _defectsClosedController.text = latest.defectsClosed.toString();
+          _criticalDefectsController.text = latest.criticalDefects.toString();
+          _highDefectsController.text = latest.highDefects.toString();
+          _mediumDefectsController.text = latest.mediumDefects.toString();
+          _lowDefectsController.text = latest.lowDefects.toString();
+          _codeReviewCompletionController.text = latest.codeReviewCompletion.toString();
+          _documentationStatusController.text = latest.documentationStatus.toString();
+          _risksController.text = latest.risks ?? '';
+          _mitigationsController.text = latest.mitigations ?? '';
+          _scopeChangesController.text = latest.scopeChanges ?? '';
+          _pointsAddedController.text = latest.pointsAddedDuringSprint.toString();
+          _pointsRemovedController.text = latest.pointsRemovedDuringSprint.toString();
+          _blockersController.text = latest.blockers ?? '';
+          _decisionsController.text = latest.decisions ?? '';
+          _uatNotesController.text = latest.uatNotes ?? '';
+        });
+      }
+    }
   }
 
   Future<void> _submitMetrics() async {
@@ -78,12 +115,16 @@ class _SprintMetricsScreenState extends ConsumerState<SprintMetricsScreen> {
         risks: _risksController.text.isNotEmpty ? _risksController.text : null,
         mitigations: _mitigationsController.text.isNotEmpty ? _mitigationsController.text : null,
         scopeChanges: _scopeChangesController.text.isNotEmpty ? _scopeChangesController.text : null,
+        pointsAddedDuringSprint: int.tryParse(_pointsAddedController.text) ?? 0,
+        pointsRemovedDuringSprint: int.tryParse(_pointsRemovedController.text) ?? 0,
+        blockers: _blockersController.text.isNotEmpty ? _blockersController.text : null,
+        decisions: _decisionsController.text.isNotEmpty ? _decisionsController.text : null,
         uatNotes: _uatNotesController.text.isNotEmpty ? _uatNotesController.text : null,
         recordedAt: DateTime.now(),
         recordedBy: 'Current User', // This would come from auth
       );
 
-      final api = ref.read(backendApiServiceProvider);
+final api = ref.read(backendApiServiceProvider);
       final response = await api.createSprintMetrics(widget.sprintId, metrics.toJson());
       if (!response.isSuccess) {
         throw Exception(response.error ?? 'Failed to save sprint metrics');
@@ -373,9 +414,66 @@ class _SprintMetricsScreenState extends ConsumerState<SprintMetricsScreen> {
               TextFormField(
                 controller: _scopeChangesController,
                 decoration: const InputDecoration(
-                  labelText: 'Scope Changes',
+                  labelText: 'Scope Changes Description',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.edit),
+                  hintText: 'Describe any scope changes during the sprint',
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+              
+              // Scope Change Metrics
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _pointsAddedController,
+                      decoration: const InputDecoration(
+                        labelText: 'Points Added',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.add_circle, color: Colors.orange),
+                        hintText: '0',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _pointsRemovedController,
+                      decoration: const InputDecoration(
+                        labelText: 'Points Removed',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.remove_circle, color: Colors.blue),
+                        hintText: '0',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              
+              TextFormField(
+                controller: _blockersController,
+                decoration: const InputDecoration(
+                  labelText: 'Blockers',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.block),
+                  hintText: 'Any blockers encountered during the sprint',
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+              
+              TextFormField(
+                controller: _decisionsController,
+                decoration: const InputDecoration(
+                  labelText: 'Key Decisions',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.gavel),
+                  hintText: 'Important decisions made during the sprint',
                 ),
                 maxLines: 2,
               ),
@@ -443,6 +541,10 @@ class _SprintMetricsScreenState extends ConsumerState<SprintMetricsScreen> {
     _risksController.dispose();
     _mitigationsController.dispose();
     _scopeChangesController.dispose();
+    _pointsAddedController.dispose();
+    _pointsRemovedController.dispose();
+    _blockersController.dispose();
+    _decisionsController.dispose();
     _uatNotesController.dispose();
     super.dispose();
   }

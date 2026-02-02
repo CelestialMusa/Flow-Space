@@ -685,6 +685,46 @@ Future<void> _submitApproval() async {
               ),
             ],
           ),
+          if (metric.hasScopeChange) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: metric.scopeChangeColor.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: metric.scopeChangeColor),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    metric.netScopeChange > 0 ? Icons.trending_up : Icons.trending_down,
+                    color: metric.scopeChangeColor,
+                    size: 14,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Scope: ${metric.scopeChangeIndicator}',
+                    style: TextStyle(
+                      color: metric.scopeChangeColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (metric.pointsAddedDuringSprint > 0 || metric.pointsRemovedDuringSprint > 0) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      '(+${metric.pointsAddedDuringSprint} / -${metric.pointsRemovedDuringSprint})',
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

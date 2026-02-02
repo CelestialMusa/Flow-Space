@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
+import '../services/project_sprint_service.dart';
 import '../models/sprint.dart';
 
 String initialStatusValue(String display) {
@@ -14,7 +15,10 @@ String initialStatusValue(String display) {
 }
 
 class SprintConsoleScreen extends ConsumerStatefulWidget {
-  const SprintConsoleScreen({super.key});
+  final String? projectId;
+  final String? projectName;
+
+  const SprintConsoleScreen({super.key, this.projectId, this.projectName});
 
   @override
   ConsumerState<SprintConsoleScreen> createState() => _SprintConsoleScreenState();
@@ -32,7 +36,17 @@ class _SprintConsoleScreenState extends ConsumerState<SprintConsoleScreen> {
 
   Future<void> _loadSprints() async {
     try {
-      final sprints = await ApiService.getSprints(limit: 100);
+      List<Sprint> sprints;
+      
+      if (widget.projectId != null) {
+        // Load project-specific sprints
+        final projectSprintsData = await ProjectSprintService.getProjectSprints(widget.projectId!);
+        sprints = projectSprintsData.map((data) => Sprint.fromJson(data)).toList();
+      } else {
+        // Load all sprints
+        sprints = await ApiService.getSprints(limit: 100);
+      }
+      
       setState(() {
         _sprints = sprints;
         _isLoading = false;
@@ -58,7 +72,9 @@ class _SprintConsoleScreenState extends ConsumerState<SprintConsoleScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sprint Console'),
+        title: Text(widget.projectName != null 
+            ? '${widget.projectName} Sprints' 
+            : 'Sprint Console'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
         actions: [
@@ -77,14 +93,18 @@ class _SprintConsoleScreenState extends ConsumerState<SprintConsoleScreen> {
                     children: [
                       const Icon(Icons.timeline, size: 64, color: Colors.grey),
                       const SizedBox(height: 16),
-                      const Text(
-                        'No sprints found',
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                      Text(
+                        widget.projectId != null 
+                            ? 'No sprints linked to this project' 
+                            : 'No sprints found',
+                        style: const TextStyle(fontSize: 18, color: Colors.grey),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Create your first sprint to get started',
-                        style: TextStyle(color: Colors.grey),
+                      Text(
+                        widget.projectId != null 
+                            ? 'Link existing sprints or create new ones for this project'
+                            : 'Create your first sprint to get started',
+                        style: const TextStyle(color: Colors.grey),
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton.icon(

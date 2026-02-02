@@ -44,7 +44,10 @@ class ApiService {
   
   // Initialize the service
   static Future<void> initialize() async {
-    debugPrint('API Service initialized');
+    // Log environment information for debugging
+    Environment.logEnvironmentInfo();
+    debugPrint('API Service initialized with base URL: ${Environment.apiBaseUrl}');
+    
     // Load tokens from storage on initialization
     await _loadTokens();
   }
