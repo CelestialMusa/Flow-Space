@@ -7,13 +7,13 @@ class ProjectSetupScreen extends StatefulWidget {
   final String? projectName; // If provided, we're in edit mode
 
   const ProjectSetupScreen({
-    Key? key,
+    super.key,
     this.projectId,
     this.projectName,
-  }) : super(key: key);
+  });
 
   @override
-  _ProjectSetupScreenState createState() => _ProjectSetupScreenState();
+  State<ProjectSetupScreen> createState() => _ProjectSetupScreenState();
 }
 
 class _ProjectSetupScreenState extends State<ProjectSetupScreen> {
@@ -41,6 +41,9 @@ class _ProjectSetupScreenState extends State<ProjectSetupScreen> {
     'startDate': null,
     'endDate': null,
   };
+
+  // Helper getter to determine if we're in edit mode
+  bool get isEditMode => widget.projectId != null;
 
   bool _isFormValid() {
     return _nameController.text.trim().isNotEmpty &&
@@ -275,6 +278,8 @@ class _ProjectSetupScreenState extends State<ProjectSetupScreen> {
         
         savedProject = await ProjectService.updateProject(widget.projectId!, projectUpdate);
         
+        if (!mounted) return;
+        
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Project updated successfully!'),
@@ -300,6 +305,8 @@ class _ProjectSetupScreenState extends State<ProjectSetupScreen> {
         
         savedProject = await ProjectService.createProject(projectCreate);
         
+        if (!mounted) return;
+        
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Project created successfully!'),
@@ -312,6 +319,8 @@ class _ProjectSetupScreenState extends State<ProjectSetupScreen> {
         Navigator.pop(context, savedProject);
       }
     } catch (e) {
+      if (!mounted) return;
+      
       setState(() {
         _error = e.toString();
         _isSaving = false;
@@ -535,7 +544,7 @@ class _ProjectSetupScreenState extends State<ProjectSetupScreen> {
                 labelText: 'Documentation URL',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.library_books),
-                helpText: 'Link to project documentation or wiki',
+                helperText: 'Link to project documentation or wiki',
               ),
               validator: (value) {
                 if (value != null && value.isNotEmpty) {
@@ -598,7 +607,7 @@ class _ProjectSetupScreenState extends State<ProjectSetupScreen> {
             
             if (isEditMode)
               DropdownButtonFormField<String>(
-                value: _status,
+                initialValue: _status,
                 decoration: const InputDecoration(
                   labelText: 'Status',
                   border: OutlineInputBorder(),
@@ -643,7 +652,7 @@ class _ProjectSetupScreenState extends State<ProjectSetupScreen> {
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
-                        ),
+                      ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -658,8 +667,8 @@ class _ProjectSetupScreenState extends State<ProjectSetupScreen> {
                               fontSize: 12,
                             ),
                           ),
-                        ))
-                        .toList(),
+                        ),
+                      ),
                   ],
                 ),
               ),

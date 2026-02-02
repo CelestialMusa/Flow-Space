@@ -226,3 +226,59 @@ class Sprint {
     }
   }
 }
+
+class SprintCreate {
+  final String name;
+  final DateTime startDate;
+  final DateTime endDate;
+  final int committedPoints;
+  final int completedPoints;
+  final int velocity;
+  final double testPassRate;
+  final int codeCoverage;
+  final int escapedDefects;
+  final int defectsOpened;
+  final int defectsClosed;
+  final Map<String, dynamic>? defectSeverityMix;
+  final int codeReviewCompletion;
+  final String? documentationStatus;
+  final String? uatNotes;
+  final int uatPassRate;
+  final int risksIdentified;
+  final String? risks;
+  final int risksMitigated;
+  final String? blockers;
+  final String? decisions;
+  final int defectCount;
+  final int carriedOverPoints;
+  final List<String> scopeChanges;
+  final String? notes;
+
+  const SprintCreate({
+    required this.name,
+    required this.startDate,
+    required this.endDate,
+    this.committedPoints = 0,
+    this.completedPoints = 0,
+    this.velocity = 0,
+    this.testPassRate = 0,
+    this.codeCoverage = 0,
+    this.escapedDefects = 0,
+    this.defectsOpened = 0,
+    this.defectsClosed = 0,
+    this.defectSeverityMix,
+    this.codeReviewCompletion = 0,
+    this.documentationStatus,
+    this.uatNotes,
+    this.uatPassRate = 0,
+    this.risksIdentified = 0,
+    this.risks,
+    this.risksMitigated = 0,
+    this.blockers,
+    this.decisions,
+    this.defectCount = 0,
+    this.carriedOverPoints = 0,
+    this.scopeChanges = const [],
+    this.notes,
+  });
+}

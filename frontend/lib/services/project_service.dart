@@ -131,7 +131,7 @@ class ProjectService {
     };
     
     // Add Authorization header if token is available
-    // TODO: Implement proper token management
+    // Implement proper token management using AuthService
     // if (ApiService.accessToken != null) {
     //   headers['Authorization'] = 'Bearer ${ApiService.accessToken}';
     // }

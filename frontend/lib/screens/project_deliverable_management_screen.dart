@@ -9,13 +9,13 @@ class ProjectDeliverableManagementScreen extends StatefulWidget {
   final String projectName;
 
   const ProjectDeliverableManagementScreen({
-    Key? key,
+    super.key,
     required this.projectId,
     required this.projectName,
-  }) : super(key: key);
+  });
 
   @override
-  _ProjectDeliverableManagementScreenState createState() => _ProjectDeliverableManagementScreenState();
+  State<ProjectDeliverableManagementScreen> createState() => _ProjectDeliverableManagementScreenState();
 }
 
 class _ProjectDeliverableManagementScreenState extends State<ProjectDeliverableManagementScreen> {
@@ -24,6 +24,12 @@ class _ProjectDeliverableManagementScreenState extends State<ProjectDeliverableM
   bool _isLoading = true;
   String? _error;
   List<String> _selectedDeliverableIds = [];
+
+  // Helper method to convert hex color string to Color
+  Color _hexToColor(String hexString) {
+    final hexCode = hexString.replaceAll('#', '');
+    return Color(int.parse('FF$hexCode', radix: 16));
+  }
 
   @override
   void initState() {
@@ -74,6 +80,8 @@ class _ProjectDeliverableManagementScreenState extends State<ProjectDeliverableM
         _selectedDeliverableIds,
       );
 
+      if (!mounted) return;
+      
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -92,6 +100,8 @@ class _ProjectDeliverableManagementScreenState extends State<ProjectDeliverableM
       });
 
     } catch (e) {
+      if (!mounted) return;
+      
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -118,6 +128,8 @@ class _ProjectDeliverableManagementScreenState extends State<ProjectDeliverableM
         deliverableId,
       );
 
+      if (!mounted) return;
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('$deliverableTitle unlinked from project'),
@@ -128,6 +140,8 @@ class _ProjectDeliverableManagementScreenState extends State<ProjectDeliverableM
       await _loadProjectData();
 
     } catch (e) {
+      if (!mounted) return;
+      
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -363,7 +377,7 @@ class _ProjectDeliverableManagementScreenState extends State<ProjectDeliverableM
         children: [
           Row(
             children: [
-              Icon(Icons.linked_services, color: Colors.blue.shade600),
+              Icon(Icons.link, color: Colors.blue.shade600),
               const SizedBox(width: 8),
               const Text(
                 'Linked Deliverables',
@@ -419,7 +433,7 @@ class _ProjectDeliverableManagementScreenState extends State<ProjectDeliverableM
           else
             ..._linkedDeliverables.map((deliverable) {
               return _buildDeliverableCard(deliverable);
-            }).toList(),
+            }),
         ],
       ),
     );
@@ -492,7 +506,7 @@ class _ProjectDeliverableManagementScreenState extends State<ProjectDeliverableM
                         value: 'unlink',
                         child: Row(
                           children: [
-                            Icon(Icons.link_off, size: 18, color: Colors.red.shade600),
+                            Icon(Icons.link_off, size: 18, color: Colors.red),
                             SizedBox(width: 8),
                             Text('Unlink from Project'),
                           ],
@@ -508,11 +522,11 @@ class _ProjectDeliverableManagementScreenState extends State<ProjectDeliverableM
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: ProjectDeliverableService.getStatusColor(status)
+                    color: _hexToColor(ProjectDeliverableService.getStatusColor(status))
                         .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: ProjectDeliverableService.getStatusColor(status)
+                      color: _hexToColor(ProjectDeliverableService.getStatusColor(status))
                           .withValues(alpha: 0.3),
                     ),
                   ),
@@ -521,7 +535,7 @@ class _ProjectDeliverableManagementScreenState extends State<ProjectDeliverableM
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: ProjectDeliverableService.getStatusColor(status),
+                      color: _hexToColor(ProjectDeliverableService.getStatusColor(status)),
                     ),
                   ),
                 ),
@@ -530,11 +544,11 @@ class _ProjectDeliverableManagementScreenState extends State<ProjectDeliverableM
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: ProjectDeliverableService.getPriorityColor(priority)
+                      color: _hexToColor(ProjectDeliverableService.getPriorityColor(priority))
                           .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: ProjectDeliverableService.getPriorityColor(priority)
+                        color: _hexToColor(ProjectDeliverableService.getPriorityColor(priority))
                             .withValues(alpha: 0.3),
                       ),
                     ),
@@ -543,7 +557,7 @@ class _ProjectDeliverableManagementScreenState extends State<ProjectDeliverableM
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: ProjectDeliverableService.getPriorityColor(priority),
+                        color: _hexToColor(ProjectDeliverableService.getPriorityColor(priority)),
                       ),
                     ),
                   ),

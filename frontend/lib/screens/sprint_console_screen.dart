@@ -122,7 +122,7 @@ class _SprintConsoleScreenState extends ConsumerState<SprintConsoleScreen> {
                     final sprint = _sprints[index];
                     final name = sprint.name;
                     final status = sprint.statusText.toLowerCase();
-                    final planned = sprint.plannedPoints;
+                    final planned = sprint.committedPoints;
                     final completed = sprint.completedPoints;
                     return Card(
                       margin: const EdgeInsets.only(bottom: 16),
@@ -271,29 +271,20 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
         name: _nameController.text,
         startDate: _startDate!,
         endDate: _endDate!,
-        plannedPoints: int.tryParse(_plannedPointsController.text) ?? 0,
         committedPoints: int.tryParse(_plannedPointsController.text) ?? 0,
         completedPoints: int.tryParse(_completedPointsController.text) ?? 0,
         velocity: 0,
         testPassRate: double.tryParse(_testPassRateController.text) ?? 0.0,
-        codeCoverage: double.tryParse(_codeCoverageController.text) ?? 0.0,
+        codeCoverage: int.tryParse(_codeCoverageController.text) ?? 0,
         defectCount: int.tryParse(_defectsOpenedController.text) ?? 0,
         escapedDefects: int.tryParse(_escapedDefectsController.text) ?? 0,
         defectsClosed: int.tryParse(_defectsClosedController.text) ?? 0,
         carriedOverPoints: int.tryParse(_carriedOverPointsController.text) ?? 0,
-        addedDuringSprint: int.tryParse(_addedDuringSprintController.text) ?? 0,
-        removedDuringSprint: int.tryParse(_removedDuringSprintController.text) ?? 0,
-        scopeChanges: const [],
-        notes: _descriptionController.text.isEmpty ? null : _descriptionController.text,
-        codeReviewCompletion: double.tryParse(_codeReviewCompletionController.text) ?? 0.0,
-        documentationStatus: _documentationStatusController.text,
-        uatNotes: _uatNotesController.text,
-        uatPassRate: double.tryParse(_uatPassRateController.text) ?? 0.0,
+        scopeChanges: [],
         risksIdentified: int.tryParse(_risksIdentifiedController.text) ?? 0,
         risksMitigated: int.tryParse(_risksMitigatedController.text) ?? 0,
         blockers: _blockersController.text,
         decisions: _decisionsController.text,
-        isActive: true,
       );
       await ApiService.createSprint(create);
       if (mounted) {

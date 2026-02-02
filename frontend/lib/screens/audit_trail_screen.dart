@@ -276,7 +276,7 @@ class _AuditTrailScreenState extends ConsumerState<AuditTrailScreen> {
     }
 
     if (dateTime != null) {
-      return DateUtils.formatDateTime(dateTime);
+      return du.DateUtils.formatDateTime(dateTime);
     }
     return timestamp?.toString() ?? 'Unknown time';
   }

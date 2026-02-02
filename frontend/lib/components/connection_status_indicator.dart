@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/realtime_service.dart';
+import '../services/api_service.dart';
 
 class ConnectionStatusIndicator extends ConsumerStatefulWidget {
   final double size;
@@ -56,7 +57,7 @@ class _ConnectionStatusIndicatorState
       });
 
       // Try to initialize connection
-      realtimeService.initialize().then((_) {
+      realtimeService.initialize(authToken: ApiService.accessToken).then((_) {
         if (mounted) {
           setState(() {
             _isConnecting = false;

@@ -94,6 +94,7 @@ flutter:
     - assets/Icons/khono_bg.png  # Background image
     - assets/Icons/khono.png
     - assets/Icons/logo.png
+    - assets/logo.png
     - assets/fonts/
     - assets/Icons/Red_Khono_Discs.png
 
