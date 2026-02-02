@@ -7,9 +7,9 @@ class Environment {
   // Environment URLs
   static const Map<String, String> _environmentUrls = {
     'PROD': 'https://flow-space.onrender.com/api/v1',
-    'SIT': 'http://localhost:3001/api/v1', // Using localhost for SIT testing
-    'DEV': 'http://localhost:3001/api/v1',
-    'LOCAL': 'http://localhost:3001/api/v1',
+    'SIT': 'http://localhost:8000/api/v1', // Using localhost for SIT testing
+    'DEV': 'http://localhost:8000/api/v1',
+    'LOCAL': 'http://localhost:8000/api/v1',
   };
   
   static String get apiBaseUrl => _environmentUrls[_currentEnvironment] ?? _environmentUrls['DEV']!;
