@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../models/user_role.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/realtime_service.dart';
@@ -12,16 +13,11 @@ import '../services/notification_service.dart';
 import '../models/notification_item.dart';
 import '../models/deliverable.dart';
 import '../widgets/sprint_performance_chart.dart';
-import '../services/approval_service.dart';
-import '../services/dashboard_service.dart';
-import '../models/approval_request.dart';
-import '../theme/flownet_theme.dart';
 import '../widgets/background_image.dart';
-import '../widgets/sprint_performance_chart.dart';
+import '../widgets/notification_center_widget.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 import 'deliverables_metrics/deliverables_metrics_screen.dart';
-import '../services/mock_data_service.dart';
 
 class RoleDashboardScreen extends ConsumerStatefulWidget {
   const RoleDashboardScreen({super.key});
@@ -44,6 +40,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   List<Map<String, dynamic>> _auditLogs = [];
   List<Map<String, dynamic>> _filteredAuditLogs = [];
   final BackendApiService _backendService = BackendApiService();
+  final BackendApiService _backendApiService = BackendApiService();
   List<Map<String, dynamic>> _pendingReports = [];
   bool _isLoadingPendingReports = false;
   String? _pendingReportsError;
@@ -56,27 +53,19 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   Map<String, dynamic> _clientReviewMetrics = {};
 
   bool _isLoadingAuditLogs = false;
-  String _searchQuery = '';
-  String _sortField = 'timestamp';
-  bool _sortAscending = false;
   String? _auditLogsError;
   bool _isLoadingMoreAuditLogs = false;
-  final bool _hasMoreAuditLogs = true;
+  int _auditLogsPage = 1;
+  final int _auditLogsPerPage = 20;
+  bool _hasMoreAuditLogs = true;
+  String? _selectedActionFilter;
+  String? _selectedUserFilter;
+  DateTime? _selectedStartDate;
+  DateTime? _selectedEndDate;
+  final String _searchQuery = '';
+  final String _sortField = 'created_at';
+  final bool _sortAscending = false;
   
-  // Additional fields for approval functionality
-  String? _errorMessage;
-  final ApprovalService _approvalService = ApprovalService(AuthService());
-  final DashboardService _dashboardService = DashboardService();
-  List<ApprovalRequest> _requests = [];
-  
-  Future<void> _loadData() async {
-    // Placeholder implementation
-  }
-
-  Future<void> _refreshData() async {
-    await _loadData();
-  }
-
   @override
   void initState() {
     super.initState();
@@ -113,215 +102,6 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     super.dispose();
   }
 
-  void _handleRoleChanged(dynamic data) {
-    _loadCurrentUser();
-  }
-
-  void _computeTeamMetrics() {
-    if (!mounted) return;
-    setState(() => _isLoadingTeamMetrics = true);
-    try {
-      final int totalDeliverables = _dashboardDeliverables.length;
-      int completed = 0;
-      int inProgress = 0;
-      int overdue = 0;
-      for (final d in _dashboardDeliverables) {
-        final status = (d['status'] ?? d['state'] ?? '').toString().toLowerCase();
-        if (status == 'completed' || status == 'done' || status == 'approved') completed++;
-        if (status == 'in_progress' || status == 'in-progress' || status == 'progress') inProgress++;
-        final dueStr = (d['due_date'] ?? d['dueDate'] ?? d['deadline'] ?? '').toString();
-        final due = DateTime.tryParse(dueStr);
-        if (due != null && due.isBefore(DateTime.now()) && status != 'completed' && status != 'done' && status != 'approved') {
-          overdue++;
-        }
-      }
-      int activeSprints = 0;
-      for (final s in _dashboardSprints) {
-        final status = (s['status'] ?? s['state'] ?? '').toString().toLowerCase();
-        if (status == 'active' || status == 'in_progress' || status == 'in-progress') activeSprints++;
-      }
-      final pendingReviews = _pendingReports.length;
-      String completionRateStr;
-      if (totalDeliverables > 0) {
-        final rate = (completed / totalDeliverables * 100).toStringAsFixed(1);
-        completionRateStr = '$rate%';
-      } else {
-        completionRateStr = '-';
-      }
-      final m = <String, dynamic>{
-        'deliverables': totalDeliverables,
-        'completed': completed,
-        'in_progress': inProgress,
-        'overdue': overdue,
-        'active_sprints': activeSprints,
-        'pending_reviews': pendingReviews,
-        'completion_rate': completionRateStr,
-      };
-      if (mounted) {
-        setState(() {
-          _teamMetrics = m;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _teamMetrics = {});
-    } finally {
-      if (mounted) setState(() => _isLoadingTeamMetrics = false);
-    }
-  }
-
-  Future<void> _loadPendingReports() async {
-    if (!mounted) return;
-    setState(() => _isLoadingPendingReports = true);
-    try {
-      final resp = await _reportService.getSignOffReports(status: 'submitted');
-      if (resp.isSuccess && resp.data != null) {
-        final raw = resp.data;
-        final List<dynamic> items = raw is Map ? (raw['data'] ?? raw['reports'] ?? raw['items'] ?? []) : (raw is List ? raw : []);
-        final list = items.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
-        setState(() {
-          _pendingReports = list;
-        });
-        
-        // Update team metrics with real data
-        _updateTeamMetricsFromReports(list);
-      } else {
-        setState(() {
-          _pendingReports = [];
-          _pendingReportsError = resp.error ?? 'Failed to load pending reports';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _pendingReports = [];
-        _pendingReportsError = 'Error loading pending reports: $e';
-      });
-    } finally {
-      if (mounted) setState(() => _isLoadingPendingReports = false);
-    }
-  }
-
-  Future<void> _loadClientReviewMetrics() async {
-    if (!mounted) return;
-    setState(() => _isLoadingClientMetrics = true);
-    try {
-      final resp = await _reportService.getSignOffReports();
-      if (resp.isSuccess && resp.data != null) {
-        final raw = resp.data;
-        final List<dynamic> items = raw is Map ? (raw['data'] ?? raw['reports'] ?? raw['items'] ?? []) : (raw is List ? raw : []);
-        final list = items.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
-        
-        // Calculate metrics from real data
-        _calculateClientMetricsFromReports(list);
-      } else {
-        setState(() {
-          _clientReviewMetrics = {};
-          _pendingReportsError = resp.error ?? 'Failed to load client metrics';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _clientReviewMetrics = {};
-        _pendingReportsError = 'Error loading client metrics: $e';
-      });
-    } finally {
-      if (mounted) setState(() => _isLoadingClientMetrics = false);
-    }
-  }
-
-  void _setupRealtimeListeners() {
-    // Placeholder implementation for setting up realtime listeners
-  }
-
-  void _updateTeamMetricsFromReports(List<Map<String, dynamic>> reports) {
-    if (!mounted) return;
-    
-    int draftCount = 0;
-    int submittedCount = 0;
-    int approvedCount = 0;
-    int changeRequestedCount = 0;
-    double totalSignoffTime = 0;
-    int signoffTimeCount = 0;
-    
-    for (final report in reports) {
-      final status = (report['status'] ?? '').toString().toLowerCase();
-      switch (status) {
-        case 'draft':
-          draftCount++;
-          break;
-        case 'submitted':
-          submittedCount++;
-          break;
-        case 'approved':
-          approvedCount++;
-          break;
-        case 'change_requested':
-        case 'change-requested':
-          changeRequestedCount++;
-          break;
-      }
-      
-      // Calculate sign-off time
-      final createdAt = DateTime.tryParse(report['created_at'] ?? '');
-      final updatedAt = DateTime.tryParse(report['updated_at'] ?? '');
-      if (createdAt != null && updatedAt != null && createdAt.isBefore(updatedAt)) {
-        totalSignoffTime += updatedAt.difference(createdAt).inDays.toDouble();
-        signoffTimeCount++;
-      }
-    }
-    
-    final averageSignoffTime = signoffTimeCount > 0 ? totalSignoffTime / signoffTimeCount : 0.0;
-    
-    setState(() {
-      _teamMetrics.update('draftSignoffs', (_) => draftCount, ifAbsent: () => draftCount);
-      _teamMetrics.update('submittedSignoffs', (_) => submittedCount, ifAbsent: () => submittedCount);
-      _teamMetrics.update('approvedSignoffs', (_) => approvedCount, ifAbsent: () => approvedCount);
-      _teamMetrics.update('changeRequestedSignoffs', (_) => changeRequestedCount, ifAbsent: () => changeRequestedCount);
-      _teamMetrics.update('averageSignoffTime', (_) => averageSignoffTime, ifAbsent: () => averageSignoffTime);
-    });
-  }
-
-  void _calculateClientMetricsFromReports(List<Map<String, dynamic>> reports) {
-    if (!mounted) return;
-    
-    int onTimeCount = 0;
-    int totalCount = 0;
-    double satisfactionSum = 0;
-    int satisfactionCount = 0;
-    
-    for (final report in reports) {
-      totalCount++;
-      
-      // Check if delivered on time
-      final dueDate = DateTime.tryParse(report['due_date'] ?? '');
-      final completedAt = DateTime.tryParse(report['completed_at'] ?? report['updated_at'] ?? '');
-      if (dueDate != null && completedAt != null && completedAt.isBefore(dueDate)) {
-        onTimeCount++;
-      }
-      
-      // Get satisfaction score if available
-      final satisfaction = double.tryParse(report['satisfaction_score'] ?? '') ?? 0.0;
-      if (satisfaction > 0) {
-        satisfactionSum += satisfaction;
-        satisfactionCount++;
-      }
-    }
-    
-    final onTimeDelivery = totalCount > 0 ? '${(onTimeCount / totalCount * 100).toStringAsFixed(1)}%' : '0%';
-    final clientSatisfaction = satisfactionCount > 0 ? '${(satisfactionSum / satisfactionCount).toStringAsFixed(1)}/5.0' : 'N/A';
-    const qualityScore = '92%'; // Placeholder - calculate from actual data
-    const reworkRate = '8%'; // Placeholder - calculate from actual data
-    
-    setState(() {
-      _clientReviewMetrics = {
-        'onTimeDelivery': onTimeDelivery,
-        'clientSatisfaction': clientSatisfaction,
-        'qualityScore': qualityScore,
-        'reworkRate': reworkRate,
-      };
-    });
-  }
-
-
   Future<void> _loadDashboardSprints() async {
     setState(() => _isLoadingDashboardSprints = true);
     try {
@@ -334,18 +114,13 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   }
   
   Future<void> _loadDashboardDeliverables() async {
-    if (!mounted) return;
     setState(() => _isLoadingDashboardDeliverables = true);
     try {
-      // Try to fetch from API first
       final items = await ApiService.getDeliverables();
       _dashboardDeliverables = items;
-    } catch (e) {
-      // Fallback to mock data if API fails
-      debugPrint('API failed, using mock data: $e');
-      _dashboardDeliverables = MockDataService.getRecentDeliverables();
-    } finally {
+      
       _computeTeamMetrics();
+    } finally {
       if (mounted) setState(() => _isLoadingDashboardDeliverables = false);
     }
   }
@@ -453,42 +228,87 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     if (_isLoadingMoreAuditLogs && loadMore) return;
     if (!loadMore && !_hasMoreAuditLogs) return;
     
+    final int page = loadMore ? _auditLogsPage + 1 : 1;
+    final int skip = (page - 1) * _auditLogsPerPage;
+    
     setState(() {
-      _errorMessage = null;
+      if (loadMore) {
+        _isLoadingMoreAuditLogs = true;
+      } else {
+        _isLoadingAuditLogs = true;
+        _auditLogsError = null;
+      }
     });
 
     try {
-      final approvalsResponse = await _approvalService.getApprovalRequests();
-      final dashboardResponse = await _dashboardService.getDashboardData();
-
-      if (approvalsResponse.isSuccess && approvalsResponse.data != null) {
+      final response = await _backendApiService.getAuditLogs(
+        skip: skip,
+        limit: _auditLogsPerPage,
+        action: _selectedActionFilter,
+        userId: _selectedUserFilter,
+      );
+      
+      if (response.isSuccess) {
+        final data = response.data;
+        final logs = data?['audit_logs'] ?? data?['items'] ?? data?['logs'] ?? [];
+        final totalCount = data?['total'] ?? data?['total_count'] ?? logs.length;
+        
+        // Apply date filtering if dates are selected
+        List<Map<String, dynamic>> filteredLogs = List<Map<String, dynamic>>.from(logs);
+        
+        if (_selectedStartDate != null || _selectedEndDate != null) {
+          filteredLogs = filteredLogs.where((log) {
+            final createdAt = log['created_at'] as String?;
+            if (createdAt == null) return false;
+            
+            try {
+              final logDate = DateTime.parse(createdAt);
+              
+              if (_selectedStartDate != null && logDate.isBefore(_selectedStartDate!)) {
+                return false;
+              }
+              if (_selectedEndDate != null && logDate.isAfter(_selectedEndDate!)) {
+                return false;
+              }
+              
+              return true;
+            } catch (e) {
+              return false;
+            }
+          }).toList();
+        }
+        
         setState(() {
-          _requests =
-              (approvalsResponse.data!['requests'] as List<dynamic>).cast<ApprovalRequest>();
+          if (loadMore) {
+            _auditLogs.addAll(filteredLogs);
+            _auditLogsPage = page;
+            _hasMoreAuditLogs = _auditLogs.length < totalCount;
+          } else {
+            _auditLogs = filteredLogs;
+            _auditLogsPage = 1;
+            _hasMoreAuditLogs = _auditLogs.length < totalCount && filteredLogs.length == _auditLogsPerPage;
+          }
         });
+        
+        // Apply search and sort after loading data
+        _applySearchAndSort();
+        
+        debugPrint('✅ Loaded ${filteredLogs.length} audit logs (page $page, total ${_auditLogs.length}, has more: $_hasMoreAuditLogs)');
       } else {
         setState(() {
-          _errorMessage =
-              approvalsResponse.error ?? 'Failed to load approval data for dashboard';
+          _auditLogsError = response.error ?? 'Failed to load audit logs';
         });
-      }
-
-      if (dashboardResponse.isSuccess && dashboardResponse.data != null) {
-        // Dashboard data loaded successfully
-      } else {
-        setState(() {
-          _errorMessage = _errorMessage ??
-              (dashboardResponse.error ?? 'Failed to load dashboard stats');
-        });
+        debugPrint('❌ Error loading audit logs: \${_auditLogsError}');
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error loading dashboard data: $e';
+        _auditLogsError = 'Failed to load audit logs: \$e';
       });
+      debugPrint('❌ Exception loading audit logs: \$e');
     } finally {
       if (mounted) {
         setState(() {
-_isLoadingAuditLogs = false;
+          _isLoadingAuditLogs = false;
           _isLoadingMoreAuditLogs = false;
         });
       }
@@ -583,548 +403,108 @@ _isLoadingAuditLogs = false;
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = _authService.currentUser;
-    final rawName = currentUser?.name ?? '';
-    final firstName = rawName.contains(' ')
-        ? rawName.split(' ').first
-        : rawName;
-
-    final recentRequests = _requests.take(5).toList();
+    if (_currentUser == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
-      backgroundColor: FlownetColors.charcoalBlack,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: Text(
-          currentUser != null
-              ? '${currentUser.roleDisplayName} dashboard'
-              : 'Dashboard',
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
+      backgroundColor: Colors.transparent,
+      appBar: _buildAppBar(),
       body: BackgroundImage(
+        imagePath: 'assets/Icons/khono_bg.png',
         withGlassEffect: false,
-        overlayOpacity: 0.5,
-        child: SafeArea(
-          child: RefreshIndicator(
-            onRefresh: _refreshData,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        overlayOpacity: 0.25,
+        child: _buildRoleSpecificContent(),
+      ),
+      floatingActionButton: _buildRoleSpecificFAB(),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: Text('${_currentUser!.roleDisplayName} Dashboard'),
+      backgroundColor: _currentUser!.roleColor,
+      foregroundColor: Colors.white,
+      actions: [
+        const NotificationCenterWidget(showLabel: false, showBackground: false),
+        IconButton(
+          icon: const Icon(Icons.settings_outlined),
+          onPressed: () => _showSettingsDialog(),
+        ),
+        PopupMenuButton<String>(
+          onSelected: (value) {
+            if (value == 'logout') {
+              _handleLogout();
+            } else if (value == 'profile') {
+              _showProfileDialog();
+            }
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 'profile',
+              child: Row(
                 children: [
-                  if (currentUser != null) ...[
-                    _buildWelcomeSection(firstName, currentUser.roleDescription),
-                    const SizedBox(height: 24),
-                  ],
-                  _buildMetricsCards(
-                    _teamMetrics['totalRequests'] ?? 0,
-                    _teamMetrics['pendingApproval'] ?? 0,
-                    _teamMetrics['approved'] ?? 0,
-                    _teamMetrics['rejected'] ?? 0,
-                  ),
-                  const SizedBox(height: 24),
-                  _buildPerformanceSection(),
-                  const SizedBox(height: 24),
-                  _buildSignoffReportsSection(),
-                  const SizedBox(height: 24),
-                  _buildDeliverablesTable(recentRequests),
+                  Icon(_currentUser!.roleIcon),
+                  const SizedBox(width: 8),
+                  const Text('Profile'),
                 ],
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWelcomeSection(String firstName, String roleDescription) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: FlownetColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: FlownetColors.surfaceHighlight),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const CircleAvatar(
-                radius: 28,
-                backgroundColor: FlownetColors.surfaceHighlight,
-                child: Icon(Icons.person, color: FlownetColors.textSecondary, size: 28),
+            const PopupMenuItem(
+              value: 'logout',
+              child: Row(
+                children: [
+                  Icon(Icons.logout),
+                  SizedBox(width: 8),
+                  Text('Logout'),
+                ],
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Welcome back, $firstName!',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: FlownetColors.textPrimary,
+            ),
+          ],
+          child: FutureBuilder<Uint8List?>(
+            future: _loadAvatarBytes(_currentUser!.id),
+            builder: (context, snapshot) {
+              final hasImage = snapshot.hasData && (snapshot.data?.isNotEmpty ?? false);
+              return CircleAvatar(
+                backgroundColor: Colors.white,
+                backgroundImage: hasImage ? MemoryImage(snapshot.data!) : null,
+                child: hasImage
+                    ? null
+                    : Icon(
+                        _currentUser!.roleIcon,
+                        color: _currentUser!.roleColor,
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      roleDescription,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: FlownetColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMetricsCards(int total, int pending, int approved, int rejected) {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: FlownetColors.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: FlownetColors.blue.withValues(alpha: 0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Total',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: FlownetColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  total.toString(),
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: FlownetColors.pureWhite,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: FlownetColors.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Pending',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: FlownetColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  pending.toString(),
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: FlownetColors.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Approved',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: FlownetColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  approved.toString(),
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: FlownetColors.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Rejected',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: FlownetColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  rejected.toString(),
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red,
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSignoffReportsSection() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: FlownetColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: FlownetColors.surfaceHighlight),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Sign-off Reports by Status',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: FlownetColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: _buildSignoffReportCard('Draft', _teamMetrics['draftSignoffs'] ?? 0, Colors.orange),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildSignoffReportCard('Submitted', _teamMetrics['submittedSignoffs'] ?? 0, Colors.blue),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildSignoffReportCard('Approved', _teamMetrics['approvedSignoffs'] ?? 0, Colors.green),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildSignoffReportCard('Change Requested', _teamMetrics['changeRequestedSignoffs'] ?? 0, Colors.red),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Average Sign-off Time',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: FlownetColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: FlownetColors.surfaceHighlight,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: FlownetColors.surfaceHighlight),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.timer, color: FlownetColors.textPrimary),
-                const SizedBox(width: 8),
-                Text(
-                  '${(_teamMetrics['averageSignoffTime'] ?? 0.0).toStringAsFixed(1)} days',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: FlownetColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSignoffReportCard(String title, int value, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value.toString(),
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPerformanceSection() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: FlownetColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: FlownetColors.surfaceHighlight),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Performance Overview',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: FlownetColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 200,
-            child: SprintPerformanceChart(sprints: _dashboardSprints.map((sprint) {
-              return {
-                'id': sprint['id'] ?? '',
-                'name': sprint['name'] ?? 'Sprint',
-                'start_date': sprint['start_date'] ?? DateTime.now().toIso8601String(),
-                'end_date': sprint['end_date'] ?? DateTime.now().toIso8601String(),
-                'planned_points': sprint['planned_points'] ?? 0,
-                'completed_points': sprint['completed_points'] ?? 0,
-                'status': sprint['status'] ?? 'active',
-              };
-            }).toList()),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDeliverablesTable(List<ApprovalRequest> requests) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: FlownetColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: FlownetColors.surfaceHighlight),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Recent Approval Requests',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: FlownetColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 20),
-          if (requests.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(32),
-              child: const Center(
-                child: Column(
-                  children: [
-                    Icon(Icons.inbox_outlined, size: 48, color: FlownetColors.textSecondary),
-                    SizedBox(height: 16),
-                    Text(
-                      'No approval requests found',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: FlownetColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            Column(
-              children: [
-                Container(
-                  decoration: const BoxDecoration(
-                    border: Border(bottom: BorderSide(color: FlownetColors.surfaceHighlight)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Expanded(flex: 3, child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Text('Title', style: TextStyle(fontWeight: FontWeight.w600, color: FlownetColors.textPrimary)),
-                      )),
-                      Expanded(flex: 2, child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Text('Status', style: TextStyle(fontWeight: FontWeight.w600, color: FlownetColors.textPrimary)),
-                      )),
-                      Expanded(flex: 2, child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Text('Priority', style: TextStyle(fontWeight: FontWeight.w600, color: FlownetColors.textPrimary)),
-                      )),
-                      Expanded(flex: 2, child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Text('Date', style: TextStyle(fontWeight: FontWeight.w600, color: FlownetColors.textPrimary)),
-                      )),
-                    ],
-                  ),
-                ),
-                ...requests.map((request) => Container(
-                  decoration: const BoxDecoration(
-                    border: Border(bottom: BorderSide(color: FlownetColors.surfaceHighlight)),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(flex: 3, child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Text(
-                          request.title,
-                          style: const TextStyle(fontSize: 14, color: FlownetColors.textPrimary),
-                        ),
-                      )),
-                      Expanded(flex: 2, child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(request.status).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            request.status,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _getStatusColor(request.status),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      )),
-                      Expanded(flex: 2, child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Text(
-                          request.priority,
-                          style: const TextStyle(fontSize: 14, color: FlownetColors.textPrimary),
-                        ),
-                      )),
-                      Expanded(flex: 2, child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Text(
-                          _formatDate(request.requestedAt),
-                          style: const TextStyle(fontSize: 14, color: FlownetColors.textPrimary),
-                        ),
-                      )),
-                    ],
-                  ),
-                )),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return Colors.orange;
-      case 'approved':
-        return Colors.green;
-      case 'rejected':
-        return Colors.red;
-      default:
-        return Colors.grey;
+  Widget _buildRoleSpecificContent() {
+    switch (_currentUser!.role) {
+      case UserRole.teamMember:
+        return _buildTeamMemberDashboard();
+      case UserRole.deliveryLead:
+        return _buildDeliveryLeadDashboard();
+      case UserRole.clientReviewer:
+        return _buildClientReviewerDashboard();
+      case UserRole.systemAdmin:
+        return _buildSystemAdminDashboard();
+      case UserRole.developer:
+        return _buildDeveloperDashboard();
+      case UserRole.projectManager:
+        return _buildProjectManagerDashboard();
+      case UserRole.scrumMaster:
+        return _buildScrumMasterDashboard();
+      case UserRole.qaEngineer:
+        return _buildQAEngineerDashboard();
+      case UserRole.stakeholder:
+        return _buildStakeholderDashboard();
     }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-  }
-
-  Widget _buildQuickLinkChip({required IconData icon, required String label, required VoidCallback onTap}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ActionChip(
-        avatar: Icon(icon, size: 18),
-        label: Text(label),
-        onPressed: onTap,
-        backgroundColor: FlownetColors.surfaceLight,
-                side: const BorderSide(color: FlownetColors.surfaceHighlight),
-      ),
-    );
   }
 
   Widget _buildTeamMemberDashboard() {
@@ -1133,11 +513,10 @@ _isLoadingAuditLogs = false;
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          buildWelcomeCard(),
+          _buildWelcomeCard(),
           const SizedBox(height: 24),
-          buildQuickActions(),
+          _buildQuickActions(),
           const SizedBox(height: 24),
-<<<<<<< HEAD
           _buildKanbanLinkCard(),
           const SizedBox(height: 24),
           _buildMyDeliverables(),
@@ -1145,29 +524,23 @@ _isLoadingAuditLogs = false;
           _buildReviewMetrics(),
           const SizedBox(height: 24),
           _buildRecentActivity(),
-=======
-          buildMyDeliverables(),
-          const SizedBox(height: 24),
-          buildRecentActivity(),
->>>>>>> origin/Busisiwe
         ],
       ),
     );
   }
 
-Widget buildDeliveryLeadDashboard() {
+  Widget _buildDeliveryLeadDashboard() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          buildWelcomeCard(),
+          _buildWelcomeCard(),
           const SizedBox(height: 24),
-          buildReminderQuickActions(),
+          _buildReminderQuickActions(),
           const SizedBox(height: 24),
-          buildTeamMetrics(),
+          _buildTeamMetrics(),
           const SizedBox(height: 24),
-<<<<<<< HEAD
           _buildReviewMetrics(),
           const SizedBox(height: 24),
           _buildSprintOverview(),
@@ -1175,60 +548,55 @@ Widget buildDeliveryLeadDashboard() {
           _buildKanbanLinkCard(),
           const SizedBox(height: 24),
           _buildDeliverablesOverview(),
-=======
-          buildSprintOverview(),
           const SizedBox(height: 24),
-          buildDeliverablesOverview(),
->>>>>>> origin/Busisiwe
+          _buildProjectsOverview(),
           const SizedBox(height: 24),
-          buildProjectsOverview(),
+          _buildPendingReviews(),
           const SizedBox(height: 24),
-          buildPendingReviews(),
-          const SizedBox(height: 24),
-          buildTeamPerformance(),
+          _buildTeamPerformance(),
         ],
       ),
     );
   }
 
-  Widget buildClientReviewerDashboard() {
+  Widget _buildClientReviewerDashboard() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          buildWelcomeCard(),
+          _buildWelcomeCard(),
           const SizedBox(height: 24),
-          buildReviewMetrics(),
+          _buildReviewMetrics(),
           const SizedBox(height: 24),
-          buildPendingApprovals(),
+          _buildPendingApprovals(),
           const SizedBox(height: 24),
-          buildRecentSubmissions(),
+          _buildRecentSubmissions(),
           const SizedBox(height: 24),
-          buildReviewHistory(),
+          _buildReviewHistory(),
         ],
       ),
     );
   }
 
-  Widget buildSystemAdminDashboard() {
+  Widget _buildSystemAdminDashboard() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          buildWelcomeCard(),
+          _buildWelcomeCard(),
           const SizedBox(height: 24),
-          buildAdminFeatures(),
+          _buildAdminFeatures(),
           const SizedBox(height: 24),
-          buildReminderQuickActions(),
+          _buildReminderQuickActions(),
         ],
       ),
     );
   }
 
 
-  Widget buildReminderQuickActions() {
+  Widget _buildReminderQuickActions() {
     final canShow = _currentUser != null && (_currentUser!.isDeliveryLead || _currentUser!.isSystemAdmin);
     if (!canShow) return const SizedBox.shrink();
     return Card(
@@ -1237,7 +605,6 @@ Widget buildDeliveryLeadDashboard() {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-<<<<<<< HEAD
             _buildCardHeader(Icons.notifications_active, 'Quick Actions', route: '/approval-requests'),
             const SizedBox(height: 16),
             Wrap(
@@ -1260,35 +627,7 @@ Widget buildDeliveryLeadDashboard() {
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const DeliverablesMetricsScreen()),
-=======
-buildCardHeader(Icons.notifications_active, 'Approval Reminders', route: '/approval-requests'),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-Expanded(
-                  child: buildActionButton(
-                    icon: Icons.assignment,
-                    label: 'Send Reminder For Report',
-                    onTap: () => context.push('/send-reminder'),
->>>>>>> origin/Busisiwe
                   ),
-                ),
-                _buildQuickLinkChip(
-                  icon: Icons.folder_outlined,
-                  label: 'Repository',
-                  onTap: () => context.go('/repository'),
-                ),
-                _buildQuickLinkChip(
-                  icon: Icons.timer_outlined,
-                  label: 'Sprint console',
-                  onTap: () => context.go('/sprint-console'),
-                ),
-                _buildQuickLinkChip(
-                  icon: Icons.assessment_outlined,
-                  label: 'Reports',
-                  onTap: () => context.go('/report-repository'),
                 ),
               ],
             ),
@@ -1298,7 +637,6 @@ Expanded(
     );
   }
 
-<<<<<<< HEAD
   Future<void> _triggerEscalation() async {
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -1334,41 +672,40 @@ Expanded(
   }
 
   Widget _buildRoleSpecificFAB() {
-=======
-Widget buildRoleSpecificFAB() {
->>>>>>> origin/Busisiwe
     return FloatingActionButton(
       onPressed: () {
         showModalBottomSheet(
           context: context,
-          builder: (context) => SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.assignment_outlined),
-                  title: const Text('Create Deliverable'),
-                  onTap: () {
-                    context.go('/deliverable-setup');
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.flag),
-                  title: const Text('Open Sprint Console'),
-                  onTap: () {
-                    context.go('/sprint-console');
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.admin_panel_settings),
-                  title: const Text('Role Management'),
-                  onTap: () {
-                    context.go('/role-management');
-                  },
-                ),
-              ],
-            ),
-          ),
+          builder: (context) {
+            return SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.assignment_outlined),
+                    title: const Text('Create Deliverable'),
+                    onTap: () {
+                      context.go('/deliverable-setup');
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.flag),
+                    title: const Text('Open Sprint Console'),
+                    onTap: () {
+                      context.go('/sprint-console');
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.admin_panel_settings),
+                    title: const Text('Role Management'),
+                    onTap: () {
+                      context.go('/role-management');
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
       backgroundColor: _currentUser?.roleColor ?? Theme.of(context).colorScheme.primary,
@@ -1376,11 +713,11 @@ Widget buildRoleSpecificFAB() {
     );
   }
 
-  Widget buildWelcomeCard() {
+  Widget _buildWelcomeCard() {
     return Card(
       child: ListTile(
         leading: FutureBuilder<Uint8List?>(
-          future: loadAvatarBytes(_currentUser!.id),
+          future: _loadAvatarBytes(_currentUser!.id),
           builder: (context, snapshot) {
             final hasImage = snapshot.hasData && (snapshot.data?.isNotEmpty ?? false);
             return CircleAvatar(
@@ -1395,32 +732,14 @@ Widget buildRoleSpecificFAB() {
     );
   }
 
-Future<Uint8List?> loadAvatarBytes(String userId) async {
+  Future<Uint8List?> _loadAvatarBytes(String userId) async {
     try {
       final base = Uri.parse(ApiService.baseUrl);
-      final url = '${base.scheme}://${base.host}:${base.port.toString()}/api/v1/profile/$userId/picture?t=${DateTime.now().millisecondsSinceEpoch}';
+      final url = '${base.scheme}://${base.host}:${base.port}/api/v1/profile/$userId/picture?t=${DateTime.now().millisecondsSinceEpoch}';
       final headers = await ApiService.getAuthHeaders();
       final resp = await http.get(Uri.parse(url), headers: headers);
-      
       if (resp.statusCode == 200) {
-        final bodyBytes = resp.bodyBytes;
-        
-        // Check if response is actually image data (not JSON)
-        if (bodyBytes.isNotEmpty) {
-          // Check file header to detect if it's an image
-          final header = bodyBytes.take(4).toList();
-          // Common image file signatures: PNG (0x89 0x50 0x4E 0x47), JPEG (0xFF 0xD8 0xFF 0xE0)
-          final isImage = (header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47) ||
-                          (header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF && header[3] == 0xE0);
-          
-          if (isImage) {
-            return bodyBytes;
-          } else {
-            // Response is likely JSON, not an image
-            debugPrint('⚠️ Avatar endpoint returned non-image data for user $userId');
-            return null;
-          }
-        }
+        return resp.bodyBytes;
       }
       return null;
     } catch (_) {
@@ -1428,9 +747,8 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     }
   }
 
-  Widget buildQuickActions() {
+  Widget _buildQuickActions() {
     final canCreate = _authService.canCreateDeliverable();
-<<<<<<< HEAD
 
     // Helper for cards
     Widget buildCard(IconData icon, String label, VoidCallback onTap) {
@@ -1486,58 +804,10 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
           children: actions.map((w) => SizedBox(width: width, child: w)).toList(),
         );
       },
-=======
-    return Row(
-      children: [
-        Expanded(
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: buildActionButton(
-                icon: Icons.assignment_outlined,
-                label: 'Create Deliverable',
-                onTap: () => context.go('/deliverable-setup'),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: buildActionButton(
-                icon: Icons.flag_outlined,
-                label: 'Open Sprint Console',
-                onTap: () => context.go('/sprint-console'),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        if (canCreate)
-          Expanded(
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: buildActionButton(
-                  icon: Icons.description_outlined,
-                  label: 'Build Report',
-                  onTap: () {
-                    final first = _dashboardDeliverables.isNotEmpty ? _dashboardDeliverables.first : null;
-                    final id = first != null ? (first['id']?.toString() ?? first['uuid']?.toString() ?? '') : '';
-                    if (id.isNotEmpty) context.go('/report-builder/$id');
-                  },
-                ),
-              ),
-            ),
-          ),
-      ],
->>>>>>> origin/Busisiwe
     );
   }
 
-  Widget buildMyDeliverables() {
+  Widget _buildMyDeliverables() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1546,7 +816,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  buildCardHeader(Icons.assignment_outlined, 'My Deliverables', route: '/repository'),
+                  _buildCardHeader(Icons.assignment_outlined, 'My Deliverables', route: '/repository'),
                   const SizedBox(height: 8),
                   Builder(builder: (context) {
                     final uid = _currentUser?.id.toString() ?? '';
@@ -1580,27 +850,22 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
                                 spacing: 8,
                                 runSpacing: 4,
                                 children: [
-<<<<<<< HEAD
                                   _priorityChip((d['priority'] ?? '').toString()),
                                   _dueDateChip(d['due_date'] ?? d['dueDate'] ?? d['deadline']),
                                   _ownerChip(_getOwnerName(d), _getOwnerId(d)),
-=======
-                                  priorityChip((d['priority'] ?? '').toString()),
-                                  dueDateChip(d['due_date'] ?? d['dueDate'] ?? d['deadline']),
->>>>>>> origin/Busisiwe
                                 ],
                               ),
                               const SizedBox(height: 6),
                               Row(
                                 children: [
                                   TextButton.icon(
-                                    onPressed: id.isEmpty ? null : () => updateDeliverableStatus(id, 'in_progress'),
+                                    onPressed: id.isEmpty ? null : () => _updateDeliverableStatus(id, 'in_progress'),
                                     icon: const Icon(Icons.play_circle_outline, size: 18),
                                     label: const Text('Start'),
                                   ),
                                   const SizedBox(width: 4),
                                   TextButton.icon(
-                                    onPressed: id.isEmpty ? null : () => updateDeliverableStatus(id, 'completed'),
+                                    onPressed: id.isEmpty ? null : () => _updateDeliverableStatus(id, 'completed'),
                                     icon: const Icon(Icons.check_circle_outline, size: 18),
                                     label: const Text('Complete'),
                                   ),
@@ -1612,7 +877,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
                                   ),
                                   const SizedBox(width: 4),
                                   TextButton.icon(
-                                    onPressed: id.isEmpty ? null : () => editDeliverable(d),
+                                    onPressed: id.isEmpty ? null : () => _editDeliverable(d),
                                     icon: const Icon(Icons.edit_outlined, size: 18),
                                     label: const Text('Edit'),
                                   ),
@@ -1648,7 +913,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-  Widget buildDeliverablesOverview() {
+  Widget _buildDeliverablesOverview() {
     // Filter out completed deliverables for the overview
     final overviewDeliverables = _dashboardDeliverables.where((d) {
       final status = (d['status'] ?? d['reviewStatus'] ?? '').toString().toLowerCase();
@@ -1663,7 +928,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  buildCardHeader(Icons.assignment_outlined, 'Deliverables Overview (${overviewDeliverables.length})', route: '/deliverables'),
+                  _buildCardHeader(Icons.assignment_outlined, 'Deliverables Overview (${overviewDeliverables.length})', route: '/deliverables'),
                   const SizedBox(height: 8),
                   if (overviewDeliverables.isEmpty)
                     const Text('No active deliverables'),
@@ -1673,7 +938,6 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
                     final id = (d['id']?.toString() ?? d['uuid']?.toString() ?? '');
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
-<<<<<<< HEAD
                       child: InkWell(
                         onTap: () {
                           if (id.isNotEmpty) {
@@ -1741,53 +1005,6 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
                             ),
                           ],
                         ),
-=======
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.assignment_outlined, size: 18),
-                              const SizedBox(width: 8),
-                              Expanded(child: Text(status.isNotEmpty ? '$title • $status' : title)),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 4,
-                            children: [
-                              priorityChip((d['priority'] ?? '').toString()),
-                              dueDateChip(d['due_date'] ?? d['dueDate'] ?? d['deadline']),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              TextButton.icon(
-                                onPressed: id.isEmpty ? null : () => editDeliverable(d),
-                                icon: const Icon(Icons.edit_outlined, size: 18),
-                                label: const Text('Edit'),
-                              ),
-                              const SizedBox(width: 4),
-                              TextButton.icon(
-                                onPressed: id.isEmpty ? null : () => updateDeliverableStatus(id, 'completed'),
-                                icon: const Icon(Icons.check_circle_outline, size: 18),
-                                label: const Text('Complete'),
-                              ),
-                              const Spacer(),
-                              IconButton(
-                                onPressed: () {
-                                  final route = id.isNotEmpty ? '/report-editor/$id' : '/deliverables';
-                                  context.go(route);
-                                },
-                                icon: const Icon(Icons.open_in_new),
-                                tooltip: 'Open',
-                              ),
-                            ],
-                          ),
-                        ],
->>>>>>> origin/Busisiwe
                       ),
                     );
                   }),
@@ -1797,7 +1014,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-  Widget buildRecentActivity() {
+  Widget _buildRecentActivity() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1808,7 +1025,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      buildCardHeader(Icons.history, 'Recent Activity', route: '/notifications'),
+                      _buildCardHeader(Icons.history, 'Recent Activity', route: '/notifications'),
                       const SizedBox(height: 8),
                       Builder(builder: (context) {
                         final userId = _currentUser?.id.toString() ?? '';
@@ -1847,14 +1064,14 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-  Widget buildTeamMetrics() {
+  Widget _buildTeamMetrics() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            buildCardHeader(Icons.group_outlined, 'Team Metrics', route: '/sprint-console'),
+            _buildCardHeader(Icons.group_outlined, 'Team Metrics', route: '/sprint-console'),
             const SizedBox(height: 12),
             if (_isLoadingTeamMetrics)
               const Center(child: CircularProgressIndicator())
@@ -1865,7 +1082,6 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
                 spacing: 12,
                 runSpacing: 12,
                 children: [
-<<<<<<< HEAD
                   _metricTile('Deliverables', _teamMetrics['deliverables'] ?? 0, Icons.assignment_outlined, Colors.blue),
                   _metricTile('In Progress', _teamMetrics['in_progress'] ?? 0, Icons.play_circle_outline, Colors.orange),
                   _metricTile('Completed', _teamMetrics['completed'] ?? 0, Icons.check_circle_outline, Colors.green),
@@ -1874,24 +1090,15 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
                   _metricTile('Active Projects', _teamMetrics['active_projects'] ?? 0, Icons.folder_open_outlined, Colors.indigo),
                   _metricTile('Pending Reviews', _teamMetrics['pending_reviews'] ?? 0, Icons.rule_folder_outlined, Colors.blueGrey),
                   _metricTile('Completion Rate', _teamMetrics['completion_rate'] ?? '-', Icons.pie_chart_outline, Colors.teal),
-=======
-                  metricTile('Deliverables', _teamMetrics['deliverables'] ?? 0, Icons.assignment_outlined, Colors.blue),
-                  metricTile('In Progress', _teamMetrics['in_progress'] ?? 0, Icons.play_circle_outline, Colors.orange),
-                  metricTile('Completed', _teamMetrics['completed'] ?? 0, Icons.check_circle_outline, Colors.green),
-                  metricTile('Overdue', _teamMetrics['overdue'] ?? 0, Icons.warning_amber_outlined, Colors.red),
-                  metricTile('Active Sprints', _teamMetrics['active_sprints'] ?? 0, Icons.flag_outlined, Colors.purple),
-                  metricTile('Pending Reviews', _teamMetrics['pending_reviews'] ?? 0, Icons.rule_folder_outlined, Colors.blueGrey),
-                  metricTile('Completion Rate', _teamMetrics['completion_rate'] ?? '-', Icons.pie_chart_outline, Colors.teal),
->>>>>>> origin/Busisiwe
                 ],
               ),
           ],
         ),
       ),
     );
-}
+  }
 
-  Widget buildSprintOverview() {
+  Widget _buildSprintOverview() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1900,7 +1107,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  buildCardHeader(Icons.flag_outlined, 'Sprint Overview (${_dashboardSprints.length})', route: '/sprint-console'),
+                  _buildCardHeader(Icons.flag_outlined, 'Sprint Overview (${_dashboardSprints.length})', route: '/sprint-console'),
                   const SizedBox(height: 8),
                   ..._dashboardSprints.take(5).map((s) {
                     final name = s['name'] ?? s['title'] ?? s['sprintName'] ?? 'Sprint';
@@ -1932,120 +1139,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-<<<<<<< HEAD
-  Widget buildTeamPerformance() {
-=======
-  Widget buildProjectsOverview() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: _isLoadingDashboardProjects
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  buildCardHeader(Icons.folder_outlined, 'Projects (${_dashboardProjects.length})', route: '/sprint-console'),
-                  const SizedBox(height: 8),
-                  ..._dashboardProjects.take(5).map((p) {
-                    final name = p['name'] ?? p['title'] ?? p['projectName'] ?? 'Untitled Project';
-                    final status = p['status'] ?? '';
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: InkWell(
-                        onTap: () {
-                          final projectKey = p['projectKey']?.toString() ?? p['key']?.toString() ?? p['slug']?.toString() ?? '';
-                          final route = projectKey.isNotEmpty ? '/sprint-console?projectKey=${Uri.encodeComponent(projectKey)}' : '/sprint-console';
-                          context.go(route);
-                        },
-                        child: Row(
-                          children: [
-                            const Icon(Icons.folder_outlined, size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(child: Text(status.toString().isNotEmpty ? '$name • $status' : name)),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                ],
-              ),
-      ),
-    );
-  }
-
-  Widget buildPendingReviews() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: _isLoadingPendingReports
-            ? const Center(child: CircularProgressIndicator())
-            : (_pendingReportsError != null
-                ? Text(_pendingReportsError!)
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      buildCardHeader(Icons.fact_check_outlined, 'Pending Reviews (${_pendingReports.length})', route: '/approval-requests'),
-                      const SizedBox(height: 8),
-                      ..._pendingReports.take(5).map((r) {
-                        final title = (r['reportTitle'] ?? r['report_title'] ?? (r['content'] is Map ? (r['content']['reportTitle'] ?? r['content']['title']) : null) ?? r['title'] ?? 'Sign-Off Report').toString();
-                        final createdBy = (r['createdBy'] ?? r['created_by_name'] ?? r['created_by'] ?? '').toString();
-                        final id = (r['id'] ?? r['report_id'] ?? '').toString();
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: InkWell(
-                                  onTap: () {
-                                    if (id.isEmpty) return;
-                                    final titleText = title.isNotEmpty ? title : 'Sign-Off Report';
-                                    final createdByName = createdBy.isNotEmpty ? createdBy : 'Unknown';
-                                    final deliverableId = (r['deliverableId']?.toString() ?? r['deliverable_id']?.toString() ?? '').toString();
-                                    final report = SignOffReport(
-                                      id: id,
-                                      deliverableId: deliverableId,
-                                      reportTitle: titleText,
-                                      reportContent: '',
-                                      sprintIds: const [],
-                                      status: ReportStatus.submitted,
-                                      createdAt: DateTime.now(),
-                                      createdBy: createdByName,
-                                    );
-                                    GoRouter.of(context).push('/client-review/$id', extra: {'report': report});
-                                  },
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.description_outlined, size: 18),
-                                      const SizedBox(width: 8),
-                                      Expanded(child: Text(createdBy.isNotEmpty ? '$title • $createdBy' : title)),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              TextButton.icon(
-                                onPressed: id.isEmpty ? null : () => approveReport(id),
-                                icon: const Icon(Icons.check_circle_outline, size: 18),
-                                label: const Text('Approve'),
-                              ),
-                              const SizedBox(width: 4),
-                              TextButton.icon(
-                                onPressed: id.isEmpty ? null : () => promptChangeRequest(r),
-                                icon: const Icon(Icons.edit_note, size: 18),
-                                label: const Text('Request Changes'),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
-                  )),
-      ),
-    );
-  }
-
-  Widget buildTeamPerformance() {
->>>>>>> origin/Busisiwe
+  Widget _buildTeamPerformance() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2054,7 +1148,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Expanded(child: buildCardHeader(Icons.insights_outlined, 'Team Performance', route: '/sprint-console')),
+                Expanded(child: _buildCardHeader(Icons.insights_outlined, 'Team Performance', route: '/sprint-console')),
                 const SizedBox(width: 12),
                 DropdownButton<String>(
                   value: _selectedChartType,
@@ -2074,23 +1168,19 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
         const SizedBox(height: 8),
         SprintPerformanceChart(sprints: _dashboardSprints, chartType: _selectedChartType),
         const SizedBox(height: 12),
-        teamPerformanceSummary(),
+        _teamPerformanceSummary(),
       ],
     );
   }
 
-  Widget buildReviewMetrics() {
+  Widget _buildReviewMetrics() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-<<<<<<< HEAD
             _buildCardHeader(Icons.analytics_outlined, 'Review Metrics', route: '/report-repository'),
-=======
-            buildCardHeader(Icons.rate_review_outlined, 'Review Metrics', route: '/report-repository'),
->>>>>>> origin/Busisiwe
             const SizedBox(height: 12),
             if (_isLoadingClientMetrics)
               const Center(child: CircularProgressIndicator())
@@ -2099,20 +1189,12 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
                 spacing: 12,
                 runSpacing: 12,
                 children: [
-<<<<<<< HEAD
                   _metricTile('Draft', _clientReviewMetrics['draft'] ?? 0, Icons.edit_note, Colors.grey),
                   _metricTile('Submitted', _clientReviewMetrics['submitted'] ?? 0, Icons.send, Colors.blue),
                   _metricTile('Approved', _clientReviewMetrics['approved'] ?? 0, Icons.check_circle, Colors.green),
                   _metricTile('Changes', _clientReviewMetrics['changes'] ?? 0, Icons.change_circle, Colors.orange),
                   _metricTile('Rejected', _clientReviewMetrics['rejected'] ?? 0, Icons.cancel, Colors.red),
                   _metricTile('Avg Time', _clientReviewMetrics['avg_review_time'] ?? '-', Icons.timer, Colors.purple),
-=======
-                  metricTile('Submitted', _clientReviewMetrics['submitted'] ?? 0, Icons.upload_outlined, Colors.orange),
-                  metricTile('Approved', _clientReviewMetrics['approved'] ?? 0, Icons.check_circle_outline, Colors.green),
-                  metricTile('Changes Requested', _clientReviewMetrics['changes'] ?? 0, Icons.edit_note, Colors.blueGrey),
-                  metricTile('Rejected', _clientReviewMetrics['rejected'] ?? 0, Icons.cancel_outlined, Colors.red),
-                  metricTile('Avg Review Time', _clientReviewMetrics['avg_review_time'] ?? '-', Icons.schedule_outlined, Colors.blue),
->>>>>>> origin/Busisiwe
                 ],
               ),
           ],
@@ -2121,8 +1203,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-<<<<<<< HEAD
-  Widget buildProjectsOverview() {
+  Widget _buildProjectsOverview() {
     if (_isLoadingDashboardProjects) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -2156,14 +1237,11 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-  Widget buildPendingReviews() {
-    return buildPendingApprovals();
+  Widget _buildPendingReviews() {
+    return _buildPendingApprovals();
   }
 
-  Widget buildPendingApprovals() {
-=======
-  Widget buildPendingApprovals() {
->>>>>>> origin/Busisiwe
+  Widget _buildPendingApprovals() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -2174,7 +1252,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      buildCardHeader(Icons.rule_folder_outlined, 'Pending Approvals (${_pendingReports.length})', route: '/report-repository'),
+                      _buildCardHeader(Icons.rule_folder_outlined, 'Pending Approvals (${_pendingReports.length})', route: '/report-repository'),
                       const SizedBox(height: 8),
                       ..._pendingReports.take(5).map((r) {
                         final title = (r['reportTitle'] ?? r['report_title'] ?? (r['content'] is Map ? (r['content']['reportTitle'] ?? r['content']['title']) : null) ?? r['title'] ?? 'Sign-Off Report').toString();
@@ -2200,13 +1278,13 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
                               ),
                               const SizedBox(width: 8),
                               TextButton.icon(
-                                onPressed: id.isEmpty ? null : () => approveReport(id),
+                                onPressed: id.isEmpty ? null : () => _approveReport(id),
                                 icon: const Icon(Icons.check_circle_outline, size: 18),
                                 label: const Text('Approve'),
                               ),
                               const SizedBox(width: 4),
                               TextButton.icon(
-                                onPressed: id.isEmpty ? null : () => promptChangeRequest(r),
+                                onPressed: id.isEmpty ? null : () => _promptChangeRequest(r),
                                 icon: const Icon(Icons.edit_note, size: 18),
                                 label: const Text('Request Changes'),
                               ),
@@ -2220,14 +1298,14 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-  Widget buildRecentSubmissions() {
+  Widget _buildRecentSubmissions() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            buildCardHeader(Icons.upload_outlined, 'Recent Submissions', route: '/report-repository'),
+            _buildCardHeader(Icons.upload_outlined, 'Recent Submissions', route: '/report-repository'),
             const SizedBox(height: 8),
             if (_isLoadingPendingReports)
               const Center(child: CircularProgressIndicator())
@@ -2259,7 +1337,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-  Widget buildReviewHistory() {
+  Widget _buildReviewHistory() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -2270,7 +1348,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      buildCardHeader(Icons.rate_review_outlined, 'Review History (${_filteredAuditLogs.length})', route: '/report-repository'),
+                      _buildCardHeader(Icons.rate_review_outlined, 'Review History (${_filteredAuditLogs.length})', route: '/report-repository'),
                       const SizedBox(height: 8),
                       ..._filteredAuditLogs.take(5).map((a) {
                         final action = a['action'] ?? a['event'] ?? a['type'] ?? 'Review';
@@ -2305,7 +1383,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
 
 
 
-  Widget metricTile(String label, dynamic value, IconData icon, Color color) {
+  Widget _metricTile(String label, dynamic value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -2329,7 +1407,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-  Widget priorityChip(String priority) {
+  Widget _priorityChip(String priority) {
     final p = priority.toLowerCase();
     Color c;
     if (p == 'high') { c = Colors.red; }
@@ -2354,7 +1432,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-  Widget dueDateChip(dynamic dueRaw) {
+  Widget _dueDateChip(dynamic dueRaw) {
     String label = '';
     if (dueRaw != null) {
       final s = dueRaw.toString();
@@ -2380,8 +1458,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-<<<<<<< HEAD
-  Widget ownerChip(String? ownerName, String? ownerId) {
+  Widget _ownerChip(String? ownerName, String? ownerId) {
     // If no owner, show "Unassigned" to make the field visible
     if ((ownerName == null || ownerName.isEmpty) && (ownerId == null || ownerId.isEmpty)) {
       return Container(
@@ -2434,7 +1511,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-  Future<void> editDeliverable(Map<String, dynamic> d) async {
+  Future<void> _editDeliverable(Map<String, dynamic> d) async {
     final id = (d['id']?.toString() ?? d['uuid']?.toString() ?? '');
     if (id.isEmpty) return;
     
@@ -2449,93 +1526,10 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error opening deliverable: $e')),
       );
-=======
-  Future<void> editDeliverable(Map<String, dynamic> d) async {
-    final id = (d['id']?.toString() ?? d['uuid']?.toString() ?? '');
-    if (id.isEmpty) return;
-    final titleController = TextEditingController(text: (d['title'] ?? d['name'] ?? '').toString());
-    final descriptionController = TextEditingController(text: (d['description'] ?? '').toString());
-    final dodController = TextEditingController(text: (d['definition_of_done'] ?? d['definitionOfDone'] ?? '').toString());
-    String priority = (d['priority'] ?? '').toString().toLowerCase();
-    final dueController = TextEditingController(text: (d['due_date'] ?? d['dueDate'] ?? d['deadline'] ?? '').toString());
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Deliverable'),
-        content: SizedBox(
-          width: 480,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder())),
-              const SizedBox(height: 8),
-              TextField(controller: descriptionController, maxLines: 3, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
-              const SizedBox(height: 8),
-              TextField(controller: dodController, maxLines: 2, decoration: const InputDecoration(labelText: 'Definition of Done', border: OutlineInputBorder())),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: priority.isNotEmpty ? priority : null,
-                items: const [
-                  DropdownMenuItem(value: 'low', child: Text('Low')),
-                  DropdownMenuItem(value: 'medium', child: Text('Medium')),
-                  DropdownMenuItem(value: 'high', child: Text('High')),
-                ],
-                onChanged: (v) { if (v != null) priority = v; },
-                decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: dueController,
-                readOnly: true,
-                decoration: const InputDecoration(labelText: 'Due Date', border: OutlineInputBorder(), suffixIcon: Icon(Icons.calendar_today)),
-                onTap: () async {
-                  final now = DateTime.now();
-                  final initial = dueController.text.isNotEmpty ? (DateTime.tryParse(dueController.text) ?? now) : now;
-                  final date = await showDatePicker(context: context, initialDate: initial, firstDate: now.subtract(const Duration(days: 365)), lastDate: now.add(const Duration(days: 365 * 3)),);
-                  if (date != null) dueController.text = date.toIso8601String();
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => context.pop(false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Save')),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    final updates = <String, dynamic>{};
-    if (titleController.text.trim().isNotEmpty) updates['title'] = titleController.text.trim();
-    if (descriptionController.text.trim().isNotEmpty) updates['description'] = descriptionController.text.trim();
-    if (dodController.text.trim().isNotEmpty) updates['definition_of_done'] = dodController.text.trim();
-    if (priority.isNotEmpty) updates['priority'] = priority;
-    if (dueController.text.trim().isNotEmpty) updates['due_date'] = dueController.text.trim();
-    if (updates.isEmpty) return;
-    final resp = await _backendService.updateDeliverable(id, updates);
-    if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    if (resp.isSuccess) {
-      setState(() {
-        _dashboardDeliverables = _dashboardDeliverables.map((e) {
-          final eId = (e['id']?.toString() ?? e['uuid']?.toString() ?? '');
-          if (eId == id) {
-            final m = Map<String, dynamic>.from(e);
-            updates.forEach((k, v) { m[k] = v; });
-            return m;
-          }
-          return e;
-        }).toList();
-      });
-      messenger.showSnackBar(const SnackBar(content: Text('Deliverable updated')));
-      computeTeamMetrics();
-    } else {
-      messenger.showSnackBar(SnackBar(content: Text(resp.error ?? 'Failed to update deliverable')));
->>>>>>> origin/Busisiwe
     }
   }
 
-  Future<void> updateDeliverableStatus(String id, String status) async {
+  Future<void> _updateDeliverableStatus(String id, String status) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await ApiService.updateDeliverableStatus(id: id, status: status);
@@ -2551,13 +1545,13 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
         }).toList();
       });
       messenger.showSnackBar(SnackBar(content: Text('Status updated to $status')));
-      computeTeamMetrics();
+      _computeTeamMetrics();
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Failed to update: $e')));
     }
   }
 
-  void computeTeamMetrics() {
+  void _computeTeamMetrics() {
     if (!mounted) return;
     setState(() => _isLoadingTeamMetrics = true);
     try {
@@ -2615,7 +1609,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     }
   }
 
-  Future<void> loadPendingReports() async {
+  Future<void> _loadPendingReports() async {
     setState(() {
       _isLoadingPendingReports = true;
       _pendingReportsError = null;
@@ -2635,8 +1629,6 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
             final inner = d['reports'] ?? d['items'] ?? d['data'];
             if (inner is List) {
               items = inner;
-            } else {
-              items = const [];
             }
           } else {
             final r = raw['reports'];
@@ -2670,7 +1662,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
             return statusRaw == 'submitted' || statusRaw == 'under_review' || statusRaw == 'underreview';
           }).toList();
         });
-        computeTeamMetrics();
+        _computeTeamMetrics();
       } else {
         setState(() {
           _pendingReports = [];
@@ -2687,7 +1679,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     }
   }
 
-  Future<void> loadClientReviewMetrics() async {
+  Future<void> _loadClientReviewMetrics() async {
     setState(() {
     });
     try {
@@ -2742,7 +1734,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
           if (s == 'approved') approved++;
           if (s.contains('change')) changes++;
           if (s == 'rejected' || s == 'declined') rejected++;
-          final createdStr = (r['created_at'] ?? r['createdAt'] ?? r['created'] ?? '').toString();
+          final createdStr = (r['created_at'] ?? r['createdAt'] ?? '').toString();
           final approvedStr = (r['approved_at'] ?? r['approvedAt'] ?? r['reviewed_at'] ?? '').toString();
           final created = DateTime.tryParse(createdStr);
           final approvedDt = DateTime.tryParse(approvedStr);
@@ -2769,12 +1761,8 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     }
   }
 
-<<<<<<< HEAD
 
-  Widget teamPerformanceSummary() {
-=======
-  Widget teamPerformanceSummary() {
->>>>>>> origin/Busisiwe
+  Widget _teamPerformanceSummary() {
     double planned = 0;
     double completed = 0;
     double defects = 0;
@@ -2794,41 +1782,34 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
         spacing: 12,
         runSpacing: 12,
         children: [
-          metricTile('Avg Velocity', avgVelocity.toStringAsFixed(1), Icons.speed, Colors.blue),
-          metricTile('Planned', planned.toStringAsFixed(1), Icons.trending_up, Colors.orange),
-          metricTile('Completed', completed.toStringAsFixed(1), Icons.check_circle_outline, Colors.green),
-          metricTile('Carryover', carryover.toStringAsFixed(1), Icons.sync_problem, Colors.red),
-          metricTile('Defects', defects.toStringAsFixed(0), Icons.bug_report, Colors.purple),
+          _metricTile('Avg Velocity', avgVelocity.toStringAsFixed(1), Icons.speed, Colors.blue),
+          _metricTile('Planned', planned.toStringAsFixed(1), Icons.trending_up, Colors.orange),
+          _metricTile('Completed', completed.toStringAsFixed(1), Icons.check_circle_outline, Colors.green),
+          _metricTile('Carryover', carryover.toStringAsFixed(1), Icons.sync_problem, Colors.red),
+          _metricTile('Defects', defects.toStringAsFixed(0), Icons.bug_report, Colors.purple),
         ],
       ),
     );
   }
 
-  Widget buildAdminFeatures() {
+  Widget _buildAdminFeatures() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            buildCardHeader(Icons.settings_applications, 'Admin Features', route: '/settings'),
+            _buildCardHeader(Icons.settings_applications, 'Admin Features', route: '/settings'),
             const SizedBox(height: 12),
             Wrap(
               spacing: 12,
               runSpacing: 12,
               children: [
-<<<<<<< HEAD
                 _featureTile(Icons.dashboard_outlined, 'System Metrics', () => context.go('/system-metrics')),
                 _featureTile(Icons.security, 'Role Management', () => context.go('/role-management')),
                 _featureTile(Icons.health_and_safety, 'System Health', () => context.go('/system-health')),
                 _featureTile(Icons.receipt_long, 'Audit Logs', () => context.go('/audit-logs')),
                 _featureTile(Icons.assignment, 'Deliverables Overview', () => context.go('/deliverables-overview')),
-=======
-                featureTile(Icons.dashboard_outlined, 'System Metrics', () => context.go('/system-metrics')),
-                featureTile(Icons.security, 'Role Management', () => context.go('/role-management')),
-                featureTile(Icons.health_and_safety, 'System Health', () => context.go('/system-health')),
-                featureTile(Icons.receipt_long, 'Audit Logs', () => context.go('/audit-logs')),
->>>>>>> origin/Busisiwe
               ],
             ),
           ],
@@ -2837,7 +1818,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-  Widget featureTile(IconData icon, String label, VoidCallback onTap) {
+  Widget _featureTile(IconData icon, String label, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -2858,7 +1839,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-  Future<void> approveReport(String reportId) async {
+  Future<void> _approveReport(String reportId) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final resp = await _reportService.approveReport(reportId);
@@ -2866,9 +1847,9 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
         setState(() {
           _pendingReports = _pendingReports.where((e) => (e['id']?.toString() ?? e['report_id']?.toString() ?? '') != reportId).toList();
         });
-        await notifyReportSender(reportId, approved: true);
+        await _notifyReportSender(reportId, approved: true);
         messenger.showSnackBar(const SnackBar(content: Text('Report approved')));
-        loadClientReviewMetrics();
+        _loadClientReviewMetrics();
       } else {
         messenger.showSnackBar(SnackBar(content: Text(resp.error ?? 'Failed to approve report')));
       }
@@ -2877,7 +1858,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     }
   }
 
-  Future<void> requestChanges(String reportId, String details) async {
+  Future<void> _requestChanges(String reportId, String details) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final resp = await _reportService.requestChanges(reportId, details);
@@ -2885,9 +1866,9 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
         setState(() {
           _pendingReports = _pendingReports.where((e) => (e['id']?.toString() ?? e['report_id']?.toString() ?? '') != reportId).toList();
         });
-        await notifyReportSender(reportId, approved: false, details: details);
+        await _notifyReportSender(reportId, approved: false, details: details);
         messenger.showSnackBar(const SnackBar(content: Text('Change request sent')));
-        loadClientReviewMetrics();
+        _loadClientReviewMetrics();
       } else {
         messenger.showSnackBar(SnackBar(content: Text(resp.error ?? 'Failed to request changes')));
       }
@@ -2896,7 +1877,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     }
   }
 
-  Future<void> notifyReportSender(String reportId, {required bool approved, String? details}) async {
+  Future<void> _notifyReportSender(String reportId, {required bool approved, String? details}) async {
     try {
       final token = _authService.accessToken;
       final ns = NotificationService();
@@ -2962,41 +1943,39 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     } catch (_) {}
   }
 
-  Future<void> promptChangeRequest(Map<String, dynamic> report) async {
+  Future<void> _promptChangeRequest(Map<String, dynamic> report) async {
     final id = (report['id'] ?? report['report_id'] ?? '').toString();
     if (id.isEmpty) return;
     String details = '';
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Request Changes'),
-        content: TextField(
-          onChanged: (v) => details = v,
-          decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Details'),
-          maxLines: 4,
-        ),
-        actions: [
-          TextButton(onPressed: () => context.pop(false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Send')),
-        ],
-      ),
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Request Changes'),
+          content: TextField(
+            onChanged: (v) => details = v,
+            decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Details'),
+            maxLines: 4,
+          ),
+          actions: [
+            TextButton(onPressed: () => context.pop(false), child: const Text('Cancel')),
+            ElevatedButton(onPressed: () => context.pop(true), child: const Text('Send')),
+          ],
+        );
+      },
     );
     if (confirmed == true && details.trim().isNotEmpty) {
-      await requestChanges(id, details.trim());
+      await _requestChanges(id, details.trim());
     }
   }
 
-  Widget buildTeamMemberDashboard() {
-    return _buildTeamMemberDashboard();
-  }
+  Widget _buildDeveloperDashboard() => _buildTeamMemberDashboard();
+  Widget _buildProjectManagerDashboard() => _buildDeliveryLeadDashboard();
+  Widget _buildScrumMasterDashboard() => _buildDeliveryLeadDashboard();
+  Widget _buildQAEngineerDashboard() => _buildTeamMemberDashboard();
+  Widget _buildStakeholderDashboard() => _buildClientReviewerDashboard();
 
-  Widget buildDeveloperDashboard() => buildTeamMemberDashboard();
-  Widget buildProjectManagerDashboard() => buildDeliveryLeadDashboard();
-  Widget buildScrumMasterDashboard() => buildDeliveryLeadDashboard();
-  Widget buildQAEngineerDashboard() => buildTeamMemberDashboard();
-  Widget buildStakeholderDashboard() => buildClientReviewerDashboard();
-
-  Widget buildActionButton({required IconData icon, required String label, required VoidCallback onTap}) {
+  Widget _buildActionButton({required IconData icon, required String label, required VoidCallback onTap}) {
     return ElevatedButton.icon(
       onPressed: onTap,
       icon: Icon(
@@ -3007,7 +1986,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-  Widget buildCardHeader(IconData icon, String label, {String? route}) {
+  Widget _buildCardHeader(IconData icon, String label, {String? route}) {
     final row = Row(
       children: [
         Icon(
@@ -3026,7 +2005,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
 
   
 
-  void showProfileDialog() {
+  void _showProfileDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -3037,7 +2016,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-  void showSettingsDialog() {
+  void _showSettingsDialog() {
     showDialog(
       context: context,
       builder: (context) => const AlertDialog(
@@ -3047,13 +2026,12 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-  Future<void> handleLogout() async {
+  Future<void> _handleLogout() async {
     await _authService.signOut();
     if (mounted) context.go('/');
   }
-<<<<<<< HEAD
 
-  void setupRealtimeListeners() {
+  void _setupRealtimeListeners() {
     // Clear existing listeners to prevent duplicates
     realtimeService.offAll('user_role_changed');
     realtimeService.offAll('sprint_created');
@@ -3069,7 +2047,7 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     realtimeService.offAll('project_updated');
     // Note: notifications listeners are handled by NotificationCenterWidget, do not offAll here
 
-    realtimeService.on('user_role_changed', handleRoleChanged);
+    realtimeService.on('user_role_changed', _handleRoleChanged);
     realtimeService.on('sprint_created', (_) => _loadDashboardSprints());
     realtimeService.on('sprint_updated', (_) => _loadDashboardSprints());
     realtimeService.on('deliverable_created', (_) => _loadDashboardDeliverables());
@@ -3097,11 +2075,11 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     });
   }
 
-  void handleRoleChanged(dynamic _) {
+  void _handleRoleChanged(dynamic _) {
     _loadCurrentUser();
   }
   
-  Widget buildKanbanLinkCard() {
+  Widget _buildKanbanLinkCard() {
     return InkWell(
       onTap: () => context.push('/deliverables-overview'),
       borderRadius: BorderRadius.circular(12),
@@ -3150,6 +2128,4 @@ Future<Uint8List?> loadAvatarBytes(String userId) async {
     );
   }
 
-=======
->>>>>>> origin/Busisiwe
 }
