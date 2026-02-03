@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'providers/theme_provider.dart';
 import 'services/api_service.dart';
 import 'screens/login_screen.dart';
-import 'screens/register_screen.dart';
+import 'package:khono/screens/register_screen.dart';
 import 'screens/email_verification_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/deliverable_setup_screen.dart';
