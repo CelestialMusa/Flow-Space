@@ -1,6 +1,9 @@
 class ApiConfig {
   // Base API configuration
-  static const String baseUrl = 'http://localhost:8000/api';
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:8000/api',
+  );
   static const String apiVersion = '/v1';
   static const Duration requestTimeout = Duration(seconds: 30);
   static const Duration tokenRefreshBuffer = Duration(minutes: 5);
@@ -8,7 +11,7 @@ class ApiConfig {
   // Environment-specific URLs
   static const String developmentUrl = 'http://localhost:8000/api';
   static const String stagingUrl = 'https://staging-api.flownet.works';
-  static const String productionUrl = 'https://api.flownet.works';
+  static const String productionUrl = 'https://flow-space.onrender.com/api';
 
   // API Endpoints
   static const String authLogin = '/auth/login';

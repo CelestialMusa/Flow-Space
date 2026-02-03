@@ -96,7 +96,6 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
 
       await _sprintService.createSprint(
         name: _nameController.text,
-        description: _descriptionController.text,
         startDate: _startDate!,
         endDate: _endDate!,
         projectId: widget.projectId,

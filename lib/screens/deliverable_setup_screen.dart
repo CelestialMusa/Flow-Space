@@ -239,7 +239,7 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
         priority: _priority,
         status: _status,
         dueDate: _dueDate,
-        sprintIds: _selectedSprints,
+sprintIds: _selectedSprints,
         ownerId: _ownerId,
         evidenceLinks: _evidenceLinksController.text
             .split(RegExp(r'[,\n]'))

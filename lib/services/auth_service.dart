@@ -249,6 +249,7 @@ class AuthService {
     return PermissionManager.getPermissionNamesForRole(_currentUser!.role);
   }
 
+
   Future<ApiResponse> resendVerificationEmail(String email) async {
     try {
       return await _apiService.resendVerificationEmail(email);

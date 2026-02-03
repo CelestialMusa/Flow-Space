@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import '../models/approval_request.dart';
 import '../services/api_client.dart';
@@ -9,6 +10,7 @@ import 'realtime_service.dart';
 
 class ApprovalService {
   final AuthService _authService;
+  final ApiClient _apiClient = ApiClient();
   final String _baseUrl = Environment.apiBaseUrl;
   RealtimeService? _realtime;
   StreamController<List<ApprovalRequest>>? _requestsController;
@@ -77,25 +79,20 @@ class ApprovalService {
         return ApiResponse.error('No authentication token available');
       }
 
-      final uri = Uri.parse('$_baseUrl/approvals').replace(
-        queryParameters: {
-          if (status != null) 'status': status,
-          if (priority != null) 'priority': priority,
-          if (category != null) 'category': category,
-          if (deliverableId != null && deliverableId.isNotEmpty) 'deliverable_id': deliverableId,
-        },
-      );
+      final queryParams = {
+        if (status != null) 'status': status,
+        if (priority != null) 'priority': priority,
+        if (category != null) 'category': category,
+        if (deliverableId != null && deliverableId.isNotEmpty) 'deliverable_id': deliverableId,
+      };
 
-      final response = await http.get(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      debugPrint('🔍 Fetching approval requests with params: $queryParams');
+      final response = await _apiClient.get('/approval-requests', queryParams: queryParams);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      debugPrint('📡 Approval requests response: ${response.statusCode} - ${response.isSuccess}');
+      
+      if (response.isSuccess) {
+        final data = response.data;
         final list = data is List ? data : (data['data'] as List? ?? []);
         final requests = list.map((e) {
           final deliverable = e['deliverable'] as Map<String, dynamic>? ?? {};
@@ -122,9 +119,9 @@ class ApprovalService {
             deliverableId: deliverable['id']?.toString() ?? e['deliverable_id']?.toString(),
           );
         }).toList();
-        return ApiResponse.success({'requests': requests}, response.statusCode);
+        return ApiResponse.success({'requests': requests}, 200);
       } else {
-        return ApiResponse.error('Failed to fetch approval requests: ${response.statusCode}');
+        return ApiResponse.error('Failed to fetch approval requests');
       }
     } catch (e) {
       return ApiResponse.error('Error fetching approval requests: $e');
@@ -144,7 +141,7 @@ class ApprovalService {
       if (token == null) {
         return ApiResponse.error('No authentication token available');
       }
-      final uri = Uri.parse('$_baseUrl/approvals');
+      final uri = Uri.parse('$_baseUrl/approval-requests');
       final response = await http.post(
         uri,
         headers: {
@@ -202,7 +199,7 @@ class ApprovalService {
         return ApiResponse.error('No authentication token available');
       }
 
-      final uri = Uri.parse('$_baseUrl/approvals/$requestId');
+final uri = Uri.parse('$_baseUrl/approval-requests/$requestId');
       final response = await http.get(
         uri,
         headers: {
@@ -238,15 +235,51 @@ class ApprovalService {
             category: e['category']?.toString() ?? '',
             deliverableId: deliverable['id']?.toString() ?? e['deliverable_id']?.toString(),
           );
-          return ApiResponse.success({'request': request}, response.statusCode);
+          return ApiResponse.success({'request': request}, 200);
         } else {
           return ApiResponse.error(data['error'] ?? 'Failed to fetch approval request');
         }
       } else {
-        return ApiResponse.error('Failed to fetch approval request: ${response.statusCode}');
+        return ApiResponse.error('Failed to fetch approval request');
       }
     } catch (e) {
       return ApiResponse.error('Error fetching approval request: $e');
+    }
+  }
+
+  // Create a new approval request (e.g. when a deliverable/report is submitted)
+  Future<ApiResponse> createGeneralApprovalRequest({
+    required String title,
+    required String description,
+    String priority = 'medium',
+    String category = 'general',
+    String? deliverableId,
+    List<String>? evidenceLinks,
+    List<String>? definitionOfDone,
+  }) async {
+    try {
+      final token = _authService.accessToken;
+      if (token == null) {
+        return ApiResponse.error('No authentication token available');
+      }
+
+      final response = await _apiClient.post('/approval-requests', body: {
+        'title': title,
+        'description': description,
+        'priority': priority,
+        'category': category,
+        'deliverable_id': deliverableId,
+        'evidence_links': evidenceLinks,
+        'definition_of_done': definitionOfDone,
+      });
+
+      if (response.isSuccess && response.data != null) {
+        final request = ApprovalRequest.fromJson(response.data as Map<String, dynamic>);
+        return ApiResponse.success({'request': request}, response.statusCode);
+      }
+      return ApiResponse.error(response.error ?? 'Failed to create approval request', response.statusCode);
+    } catch (e) {
+      return ApiResponse.error('Error creating approval request: $e');
     }
   }
 
@@ -258,27 +291,16 @@ class ApprovalService {
         return ApiResponse.error('No authentication token available');
       }
 
-      final uri = Uri.parse('$_baseUrl/approvals/$requestId/approve');
-      final approvedBy = _authService.currentUser?.id.toString() ?? '';
-      final response = await http.put(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({'comments': reason, 'approved_by': approvedBy}),
-      );
+final approvedBy = _authService.currentUser?.id.toString() ?? '';
+final response = await _apiClient.put('/approval-requests/$requestId/approve', body: {
+        'comments': reason,
+        'approved_by': approvedBy,
+      });
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          final request = ApprovalRequest.fromJson(data['data'] ?? {});
-          return ApiResponse.success({'request': request}, response.statusCode);
-        } else {
-          return ApiResponse.error(data['error'] ?? 'Failed to approve request');
-        }
+      if (response.isSuccess) {
+        return response;
       } else {
-        return ApiResponse.error('Failed to approve request: ${response.statusCode}');
+        return response;
       }
     } catch (e) {
       return ApiResponse.error('Error approving request: $e');
@@ -293,34 +315,22 @@ class ApprovalService {
         return ApiResponse.error('No authentication token available');
       }
 
-      final uri = Uri.parse('$_baseUrl/approvals/$requestId/reject');
-      final approvedBy = _authService.currentUser?.id.toString() ?? '';
-      final response = await http.put(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({'comments': reason, 'approved_by': approvedBy}),
-      );
+final approvedBy = _authService.currentUser?.id.toString() ?? '';
+final response = await _apiClient.put('/approval-requests/$requestId/reject', body: {
+        'comments': reason,
+        'approved_by': approvedBy,
+      });
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          final request = ApprovalRequest.fromJson(data['data']);
-          return ApiResponse.success({'request': request}, response.statusCode);
-        } else {
-          return ApiResponse.error(data['error'] ?? 'Failed to reject request');
-        }
+      if (response.isSuccess) {
+        return response;
       } else {
-        return ApiResponse.error('Failed to reject request: ${response.statusCode}');
+        return response;
       }
     } catch (e) {
       return ApiResponse.error('Error rejecting request: $e');
     }
   }
-  
-  DateTime? _parseDateTime(dynamic input) {
+DateTime? _parseDateTime(dynamic input) {
     if (input == null) return null;
     if (input is DateTime) return input;
     if (input is String) {

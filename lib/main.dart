@@ -14,11 +14,11 @@ import 'screens/enhanced_deliverable_setup_screen.dart';
 import 'screens/sprint_console_screen.dart';
 import 'screens/sprint_metrics_screen.dart';
 import 'screens/report_builder_screen.dart';
+import 'screens/client_review_workflow_screen.dart';
 import 'screens/report_editor_screen.dart';
 import 'screens/client_review_screen.dart';
 import 'models/sign_off_report.dart';
 import 'models/deliverable.dart';
-import 'screens/enhanced_client_review_screen.dart';
 import 'screens/report_repository_screen.dart';
 // Approvals unified: use ApprovalRequestsScreen
 import 'screens/approval_requests_screen.dart';
@@ -41,11 +41,15 @@ import 'widgets/sidebar_scaffold.dart';
 //
 import 'widgets/role_guard.dart';
 import 'theme/flownet_theme.dart';
+import 'screens/epic_management_screen.dart';
+import 'screens/epic_detail_screen.dart';
 import 'screens/deadlines_screen.dart';
 import 'screens/deliverables_list_screen.dart';
 import 'screens/deliverables_overview_screen.dart';
 import 'screens/skill_assessment_screen.dart';
 import 'screens/deliverable_detail_screen.dart';
+import 'screens/environment_management_screen.dart';
+import 'screens/project_workspace_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -108,30 +112,21 @@ final GoRouter _router = GoRouter(
       path: '/register',
       builder: (context, state) => const RegisterScreen(),
     ),
+    // Email verification via extra payload (used in-app)
     GoRoute(
       path: '/verify-email',
       builder: (context, state) {
-        final extra = state.extra;
-        final emailFromExtra = extra is Map<String, dynamic> ? (extra['email'] as String?) : null;
-        final emailFromQuery = state.uri.queryParameters['email'];
-        final codeFromQuery = state.uri.queryParameters['code'];
-        return EmailVerificationScreen(
-          email: emailFromExtra ?? emailFromQuery ?? '',
-          verificationCode: codeFromQuery,
-        );
+        final extra = state.extra as Map<String, dynamic>?;
+        final email = extra?['email'] as String? ?? '';
+        return EmailVerificationScreen(email: email);
       },
     ),
+    // Email verification via direct URL (used from email links)
     GoRoute(
       path: '/email-verification',
       builder: (context, state) {
-        final extra = state.extra;
-        final emailFromExtra = extra is Map<String, dynamic> ? (extra['email'] as String?) : null;
-        final emailFromQuery = state.uri.queryParameters['email'];
-        final codeFromQuery = state.uri.queryParameters['code'];
-        return EmailVerificationScreen(
-          email: emailFromExtra ?? emailFromQuery ?? '',
-          verificationCode: codeFromQuery,
-        );
+        final email = state.uri.queryParameters['email'] ?? '';
+        return EmailVerificationScreen(email: email);
       },
     ),
     GoRoute(
@@ -154,6 +149,7 @@ final GoRouter _router = GoRouter(
           email: emailFromQuery,
           verificationCode: code,
         );
+
       },
     ),
     GoRoute(
@@ -270,7 +266,7 @@ final GoRouter _router = GoRouter(
         return RouteGuard(
           route: '/enhanced-client-review',
           child: SidebarScaffold(
-            child: EnhancedClientReviewScreen(reportId: reportId),
+            child: ClientReviewWorkflowScreen(reportId: reportId),
           ),
         );
       },
@@ -371,6 +367,27 @@ final GoRouter _router = GoRouter(
       ),
     ),
     GoRoute(
+      path: '/epics',
+      builder: (context, state) => const RouteGuard(
+        route: '/epics',
+        child: SidebarScaffold(
+          child: EpicManagementScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/epics/:epicId',
+      builder: (context, state) {
+        final epicId = state.pathParameters['epicId']!;
+        return RouteGuard(
+          route: '/epics',
+          child: SidebarScaffold(
+            child: EpicDetailScreen(epicId: epicId),
+          ),
+        );
+      },
+    ),
+    GoRoute(
       path: '/repository',
       builder: (context, state) => const RouteGuard(
         route: '/repository',
@@ -399,7 +416,9 @@ final GoRouter _router = GoRouter(
     ),
     GoRoute(
       path: '/smtp-config',
-      builder: (context, state) => const SmtpConfigScreen(),
+      builder: (context, state) => const SidebarScaffold(
+        child: SmtpConfigScreen(),
+      ),
     ),
     GoRoute(
       path: '/role-management',
@@ -467,8 +486,39 @@ final GoRouter _router = GoRouter(
       ),
     ),
     GoRoute(
+      path: '/environment-management',
+      builder: (context, state) => const RouteGuard(
+        route: '/environment-management',
+        child: SidebarScaffold(
+          child: EnvironmentManagementScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/project-workspace',
+      builder: (context, state) => const RouteGuard(
+        route: '/project-workspace',
+        child: SidebarScaffold(
+          child: ProjectWorkspaceScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/project-workspace/:projectId',
+      builder: (context, state) {
+        final projectId = state.pathParameters['projectId'];
+        return RouteGuard(
+          route: '/project-workspace',
+          child: SidebarScaffold(
+            child: ProjectWorkspaceScreen(projectId: projectId),
+          ),
+        );
+      },
+    ),
+    GoRoute(
       path: '/account',
       redirect: (context, state) => '/profile',
     ),
   ],
 );
+

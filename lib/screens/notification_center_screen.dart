@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/realtime_service.dart';
-import '../services/auth_service.dart';
 import '../providers/service_providers.dart';
 import '../theme/flownet_theme.dart';
 import '../widgets/flownet_logo.dart';
@@ -25,9 +24,6 @@ class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScr
   void initState() {
     super.initState();
     _realtime = RealtimeService();
-    _realtime.initialize(authToken: AuthService().accessToken);
-    _realtime.on('notification_received', (_) => _loadNotifications());
-    _realtime.on('notifications_updated', (_) => _loadNotifications());
     _loadNotifications();
   }
 
@@ -121,9 +117,6 @@ class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScr
     setState(() {
       notification.isRead = true;
     });
-    try {
-      _realtime.emitLocal('notifications_updated', {'id': notification.id});
-    } catch (_) {}
   }
 
   Future<void> _markAllAsRead() async {
@@ -136,9 +129,6 @@ class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScr
         notification.isRead = true;
       }
     });
-    try {
-      _realtime.emitLocal('notifications_updated', {'all': true});
-    } catch (_) {}
   }
 
   void _handleNotificationTap(NotificationItem notification) {

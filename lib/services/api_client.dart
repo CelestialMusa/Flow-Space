@@ -5,14 +5,16 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/environment.dart';
 import 'package:flutter/foundation.dart';
+import '../models/user.dart';
+import '../utils/debug_helper.dart';
 
 class ApiClient {
   static final ApiClient _instance = ApiClient._internal();
   factory ApiClient() => _instance;
   ApiClient._internal();
 
-  static String get _baseUrlWithVersion => Environment.apiBaseUrl;
-  static const Duration _timeout = Duration(seconds: 30);
+static String get _baseUrlWithVersion => Environment.apiBaseUrl;
+  static const Duration _timeout = Duration(seconds: 15);
 
   String? _accessToken;
   String? _refreshToken;
@@ -24,10 +26,21 @@ class ApiClient {
   
   // Get auth token for API calls
   String? getAuthToken() => _accessToken;
+  
+  // Get current user (cached)
+  User? _currentUser;
+  
+  User? get currentUser => _currentUser;
+  
+  // Set current user
+  void setCurrentUser(User user) {
+    _currentUser = user;
+  }
 
   // Initialize API client
   Future<void> initialize() async {
     await _loadStoredTokens();
+    DebugHelper.logEnvironmentInfo();
     debugPrint('API Client initialized with base URL: $_baseUrlWithVersion');
   }
 
@@ -227,6 +240,8 @@ class ApiClient {
           response = await http.get(Uri.parse(url), headers: headers).timeout(_timeout);
           break;
         case 'POST':
+          debugPrint('🌐 API POST to: $url');
+          debugPrint('📤 POST body: ${body != null ? jsonEncode(body) : 'null'}');
           response = await http.post(
             Uri.parse(url),
             headers: headers,

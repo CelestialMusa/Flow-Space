@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'version_display.dart';
 
 class AppContainer extends StatelessWidget {
   final Widget child;
@@ -16,18 +17,30 @@ class AppContainer extends StatelessWidget {
       return child;
     }
 
-    return Stack(
-      children: [
-        // Background image
-        Positioned.fill(
-          child: Image.asset(
-            'assets/Icons/khono_bg.png',
-            fit: BoxFit.cover,
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Background image
+          if (showBackground)
+            Positioned.fill(
+              child: Image.asset(
+                'assets/Icons/khono_bg.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+          // Content
+          child,
+          // Version control in bottom left corner with proper z-index
+          const Positioned(
+            left: 16,
+            bottom: 16,
+            child: Material(
+              color: Colors.transparent,
+              child: VersionDisplay(),
+            ),
           ),
-        ),
-        // Content
-        child,
-      ],
+        ],
+      ),
     );
   }
 }

@@ -45,7 +45,8 @@ class _SystemMetricsScreenState extends State<SystemMetricsScreen> {
 
   Future<void> _loadMetrics() async {
     try {
-      final metrics = await ApiService.getSystemMetrics();
+      final metricsData = await ApiService.getSystemMetrics();
+      final metrics = _toSystemMetrics(metricsData);
       if (mounted) {
         setState(() {
           _metrics = metrics;
@@ -60,7 +61,7 @@ class _SystemMetricsScreenState extends State<SystemMetricsScreen> {
           _hasError = true;
         });
       }
-      debugPrint('Error loading system metrics: \$error');
+      debugPrint('Error loading system metrics: $error');
     }
   }
 

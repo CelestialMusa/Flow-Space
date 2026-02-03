@@ -2,6 +2,7 @@ name: khono
 description: A social learning platform built with Flutter
 publish_to: 'none'
 version: 1.0.0+1
+version_control: SIT-2026-01-20-01
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

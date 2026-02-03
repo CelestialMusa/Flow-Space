@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'dart:typed_data';
 import '../theme/flownet_theme.dart';
 
 /// Widget to display digital signatures with signer information
@@ -23,6 +24,64 @@ class SignatureDisplayWidget extends StatelessWidget {
     this.isVerified = true,
     this.signatureType = 'manual',
   });
+
+  /// Build signature image with error handling
+  Widget _buildSignatureImage() {
+    if (signatureData == null || signatureData!.isEmpty) {
+      return Container(
+        height: 120,
+        width: double.infinity,
+        color: Colors.grey[200],
+        child: const Center(
+          child: Text('No signature'),
+        ),
+      );
+    }
+
+    try {
+      // Check if signatureData looks like JSON (starts with { or [)
+      final trimmedData = signatureData!.trim();
+      if (trimmedData.startsWith('{') || trimmedData.startsWith('[') || 
+          trimmedData.startsWith('"success"') || trimmedData.startsWith('"error"')) {
+        return Container(
+          height: 120,
+          width: double.infinity,
+          color: Colors.grey[200],
+          child: const Center(
+            child: Text('Invalid signature data'),
+          ),
+        );
+      }
+
+      final Uint8List imageBytes = base64Decode(
+        signatureData!.contains(',') ? signatureData!.split(',').last : signatureData!
+      );
+      
+      return Image.memory(
+        imageBytes,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            height: 120,
+            width: double.infinity,
+            color: Colors.grey[200],
+            child: const Center(
+              child: Text('Failed to load signature'),
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      return Container(
+        height: 120,
+        width: double.infinity,
+        color: Colors.grey[200],
+        child: const Center(
+          child: Text('Invalid signature format'),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,10 +157,7 @@ class SignatureDisplayWidget extends StatelessWidget {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(4),
-              child: Image.memory(
-                base64Decode(signatureData!),
-                fit: BoxFit.contain,
-              ),
+              child: _buildSignatureImage(),
             ),
           ),
           

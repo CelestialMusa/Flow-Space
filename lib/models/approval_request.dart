@@ -13,6 +13,10 @@ class ApprovalRequest {
   final String priority;
   final String category;
   final String? deliverableId;
+  final List<String>? evidenceLinks;
+  final List<String>? definitionOfDone;
+  final String? deliverableTitle;
+  final String? deliverableDescription;
 
   ApprovalRequest({
     required this.id,
@@ -29,6 +33,10 @@ class ApprovalRequest {
     required this.priority,
     required this.category,
     this.deliverableId,
+    this.evidenceLinks,
+    this.definitionOfDone,
+    this.deliverableTitle,
+    this.deliverableDescription,
   });
 
   factory ApprovalRequest.fromJson(Map<String, dynamic> json) {
@@ -46,7 +54,11 @@ class ApprovalRequest {
       reviewReason: json['review_reason'],
       priority: json['priority'] ?? 'medium',
       category: json['category'] ?? '',
-      deliverableId: json['deliverableId']?.toString() ?? json['deliverable_id']?.toString(),
+      deliverableId: json['deliverable_id'],
+      evidenceLinks: List<String>.from(json['evidence_links'] ?? []),
+      definitionOfDone: List<String>.from(json['definition_of_done'] ?? []),
+      deliverableTitle: json['deliverable_title'],
+      deliverableDescription: json['deliverable_description'],
     );
   }
 
@@ -66,6 +78,10 @@ class ApprovalRequest {
       'priority': priority,
       'category': category,
       'deliverable_id': deliverableId,
+      'evidence_links': evidenceLinks,
+      'definition_of_done': definitionOfDone,
+      'deliverable_title': deliverableTitle,
+      'deliverable_description': deliverableDescription,
     };
   }
 
@@ -84,6 +100,10 @@ class ApprovalRequest {
     String? priority,
     String? category,
     String? deliverableId,
+    List<String>? evidenceLinks,
+    List<String>? definitionOfDone,
+    String? deliverableTitle,
+    String? deliverableDescription,
   }) {
     return ApprovalRequest(
       id: id ?? this.id,
@@ -100,6 +120,10 @@ class ApprovalRequest {
       priority: priority ?? this.priority,
       category: category ?? this.category,
       deliverableId: deliverableId ?? this.deliverableId,
+      evidenceLinks: evidenceLinks ?? this.evidenceLinks,
+      definitionOfDone: definitionOfDone ?? this.definitionOfDone,
+      deliverableTitle: deliverableTitle ?? this.deliverableTitle,
+      deliverableDescription: deliverableDescription ?? this.deliverableDescription,
     );
   }
 

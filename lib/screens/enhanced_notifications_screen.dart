@@ -286,15 +286,14 @@ class _EnhancedNotificationsScreenState extends ConsumerState<EnhancedNotificati
   }
 
   Future<void> _markAsRead(String id) async {
-    // Optimistic update
+// Optimistic update
     setState(() {
       final index = _notifications.indexWhere((n) => n.id == id);
       if (index != -1) {
         _notifications[index] = _notifications[index].copyWith(isRead: true);
       }
     });
-
-    try {
+try {
       final token = _authService.accessToken;
       if (token != null) {
         _notificationService.setAuthToken(token);

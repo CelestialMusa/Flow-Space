@@ -51,19 +51,30 @@ class RealtimeService {
       // Disconnect existing socket if any
       _socket?.disconnect();
       _socket?.dispose();
+      _socket = null;
+      _isConnected = false;
 
       final baseHost = Environment.apiBaseUrl.replaceAll('/api/v1', '');
+      
+      // Create socket with better configuration
       _socket = io.io(
         baseHost,
         io.OptionBuilder()
           .setTransports(['websocket'])
-          .enableAutoConnect()
+          .disableAutoConnect() // Don't auto-connect, we'll connect manually
           .setAuth({'token': token})
           .setExtraHeaders({'Authorization': 'Bearer $token'})
+          .setTimeout(20000) // 20 second timeout
+          .setReconnectionAttempts(5)
+          .setReconnectionDelay(1000)
+          .setReconnectionDelayMax(5000)
           .build(),
       );
 
       _setupSocketEvents();
+      
+      // Connect manually after setting up events
+      await Future.delayed(const Duration(milliseconds: 100));
       _socket!.connect();
 
     } catch (e) {
@@ -197,6 +208,25 @@ class RealtimeService {
     _boundEvents.remove(eventName);
   }
 
+  /// Remove all event listeners
+  void clearAllListeners() {
+    for (final eventName in List<String>.from(_eventListeners.keys)) {
+      _eventListeners.remove(eventName);
+      _onceListeners.remove(eventName);
+      _socket?.off(eventName);
+      _boundEvents.remove(eventName);
+    }
+    for (final eventName in List<String>.from(_onceListeners.keys)) {
+      _eventListeners.remove(eventName);
+      _onceListeners.remove(eventName);
+      _socket?.off(eventName);
+      _boundEvents.remove(eventName);
+    }
+    _eventListeners.clear();
+    _onceListeners.clear();
+    _boundEvents.clear();
+  }
+
   /// Emit custom event to server
   void emit(String eventName, dynamic data) {
     _socket?.emit(eventName, data);
@@ -230,7 +260,6 @@ class RealtimeService {
   void dispose() {
     disconnect();
     _connectionController.close();
-    _eventListeners.clear();
-    _onceListeners.clear();
+    clearAllListeners();
   }
 }

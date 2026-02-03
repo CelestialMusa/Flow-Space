@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/service_providers.dart';
-import '../models/user_role.dart';
+import '../services/api_service.dart';
 
 // Simple auth state for demo purposes
 class AuthState {
@@ -29,7 +29,9 @@ class AuthState {
 
 class SimpleAuthNotifier extends Notifier<AuthState> {
   @override
-  AuthState build() => AuthState();
+  AuthState build() {
+    return AuthState();
+  }
 
   Future<void> signInWithEmailAndPassword({
     required String email,
@@ -69,12 +71,15 @@ class SimpleAuthNotifier extends Notifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final auth = ref.read(authServiceProvider);
-      final roleEnum = UserRole.values.firstWhere(
-        (e) => e.name.toLowerCase() == role.toLowerCase(),
-        orElse: () => UserRole.teamMember,
+      final result = await ApiService.signUp(
+        email: email,
+        password: password,
+        firstName: firstName,
+        lastName: lastName,
+        company: company,
+        role: role,
       );
-      final result = await auth.signUp(email, password, '$firstName $lastName', roleEnum);
-      if (result['success'] == true) {
+      if (result?['success'] == true) {
         state = state.copyWith(
           isLoading: false,
           userEmail: auth.currentUser?.email ?? email,
@@ -82,7 +87,7 @@ class SimpleAuthNotifier extends Notifier<AuthState> {
       } else {
         state = state.copyWith(
           isLoading: false,
-          error: (result['error']?.toString() ?? 'Registration failed. Please check your details.'),
+          error: (result?['error']?.toString() ?? 'Registration failed. Please check your details.'),
         );
       }
     } catch (e) {
