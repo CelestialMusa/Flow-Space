@@ -153,8 +153,8 @@ final GoRouter _router = GoRouter(
     ),
     GoRoute(
       path: '/dashboard',
-      builder: (context, state) => const RouteGuard(
-        route: '/dashboard',
+      builder: (context, state) => const RoleGuard(
+        requiredPermission: 'authenticated',
         child: SidebarScaffold(
           child: RoleDashboardScreen(),
         ),

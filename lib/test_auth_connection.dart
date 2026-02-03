@@ -26,7 +26,7 @@ void main() async {
     final signUpResult =
         await authService.signUp(email, password, name, role);
 
-    if (signUpResult['success'] == true) {
+    if (signUpResult['success'] is bool && signUpResult['success'] == true) {
       debugPrint('✅ User registration successful');
     } else {
       debugPrint('❌ User registration failed: ${signUpResult['error']}');
