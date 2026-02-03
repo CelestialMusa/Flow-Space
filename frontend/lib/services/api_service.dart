@@ -23,15 +23,6 @@ class ApiService {
   // Base URL for the backend API
   static String baseUrl = Environment.apiBaseUrl;
   
-  // Retry options for network requests
-  static const RetryOptions _retryOptions = RetryOptions(
-    maxRetries: 3,
-    maxDelay: Duration(seconds: 10),
-    retryOnNetworkErrors: true,
-    retryOnServerErrors: true,
-    retryOnClientErrors: false,
-  );
-  
   // Token storage keys
   static const String _accessTokenKey = 'access_token';
   static const String _refreshTokenKey = 'refresh_token';
@@ -44,8 +35,6 @@ class ApiService {
   
   // Initialize the service
   static Future<void> initialize() async {
-    // Log environment information for debugging
-    Environment.logEnvironmentInfo();
     debugPrint('API Service initialized with base URL: ${Environment.apiBaseUrl}');
     
     // Load tokens from storage on initialization
@@ -173,11 +162,33 @@ class ApiService {
     return null;
   }
   
+  // Helper method to make HTTP requests with error handling
+  static Future<http.Response> _makeRequest(Future<http.Response> Function() requestFunction) async {
+    try {
+      return await requestFunction();
+    } catch (e) {
+      debugPrint('Request failed: $e');
+      rethrow;
+    }
+  }
+  
+  // Helper method to parse response and handle errors
+  static dynamic _parseResponse(http.Response response) {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (response.body.isNotEmpty) {
+        return jsonDecode(response.body);
+      }
+      return {'success': true};
+    } else {
+      throw Exception('Request failed with status: ${response.statusCode}');
+    }
+  }
+  
   // Health checks
   static Future<bool> health() async {
     try {
-      final response = await http.get(Uri.parse('${Environment.apiBaseUrl}/health'));
-      return response.statusCode == 200;
+      final response = await _makeRequest(() => http.get(Uri.parse('${Environment.apiBaseUrl}/health')));
+      return _parseResponse(response)['success'] == true;
     } catch (e) {
       debugPrint('Health check failed: \$e');
       return false;
@@ -319,6 +330,21 @@ class ApiService {
       return false;
     }
   }
+
+  static Future<bool> updateApprovalRequest(String id, String status) async {
+    try {
+      final response = await http.put(
+        Uri.parse('${Environment.apiBaseUrl}/approvals/$id'),
+        headers: _getHeaders(),
+        body: jsonEncode({'status': status}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Error updating approval request: $e');
+      return false;
+    }
+  }
+
   // Authentication methods
   static Future<TokenResponse> signUp(UserCreate userData) async {
     final requestBody = jsonEncode(userData.toJson());
@@ -580,9 +606,7 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
     ));
     
-    final responseData = jsonDecode(response.body);
-    final List<dynamic> data = responseData['data'] as List<dynamic>;
-    return data.map((json) => Sprint.fromJson(json)).toList();
+    return response.statusCode >= 200 && response.statusCode < 300;
   }
   
   static Future<void> addDeliverableToSprint(int deliverableId, int sprintId) async {
@@ -618,7 +642,9 @@ class ApiService {
     );
     
     final responseData = jsonDecode(response.body);
-    final List<dynamic> data = responseData['data'] as List<dynamic>;
+    final List<dynamic> data = responseData is List
+        ? responseData
+        : (responseData['data'] ?? responseData['items'] ?? responseData['sprints'] ?? []);
     return data.map((json) => Sprint.fromJson(json)).toList();
   }
   
@@ -629,43 +655,9 @@ class ApiService {
       body: jsonEncode(sprint.toJson()),
     );
     
-    final responseData = jsonDecode(response.body);
-    return Sprint.fromJson(responseData);
-  }
-  
-  static Future<Sprint> updateSprint(int id, SprintUpdate sprint) async {
-    final response = await http.put(
-      Uri.parse('${Environment.apiBaseUrl}/sprints/$id'),
-      headers: _getHeaders(),
-      body: jsonEncode(sprint.toJson()),
-    );
-    
-    final responseData = jsonDecode(response.body);
-    return Sprint.fromJson(responseData);
-  }
-
-  static Future<bool> updateSprintStatus(String sprintId, String status) async {
-    final response = await http.put(
-      Uri.parse('${Environment.apiBaseUrl}/sprints/$sprintId'),
-      headers: _getHeaders(),
-      body: jsonEncode({'status': status}),
-    );
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      if (data is Map) {
-        final success = data['success'];
-        if (success is bool) return success;
-      }
-      return true;
-    }
-    return false;
-  }
-  
-  static Future<void> deleteSprint(int id) async {
-    await http.delete(
-      Uri.parse('${Environment.apiBaseUrl}/sprints/$id'),
-      headers: _getHeaders(),
-    );
+    final dynamic responseData = jsonDecode(response.body);
+    final dynamic item = responseData is Map ? (responseData['data'] ?? responseData['sprint'] ?? responseData) : responseData;
+    return Sprint.fromJson(item);
   }
   
   // Signoff methods

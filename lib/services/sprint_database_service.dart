@@ -43,7 +43,7 @@ class SprintDatabaseService {
       final uri = Uri.parse('$_baseUrl/sprints').replace(queryParameters: {
         if (projectId != null && projectId.isNotEmpty) 'project_id': projectId,
         if (projectKey != null && projectKey.isNotEmpty) 'project_key': projectKey,
-      });
+      },);
       final response = await http.get(uri, headers: _headers);
 
       if (response.statusCode == 200) {

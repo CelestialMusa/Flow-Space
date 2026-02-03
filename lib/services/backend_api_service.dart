@@ -113,7 +113,7 @@ class BackendApiService {
     },);
   }
 
-  // Deliverable endpoints
+  // Deliverable endpoints - Updated for integration
   Future<ApiResponse> getDeliverables({int page = 1, int limit = 20, String? status, String? search}) async {
     final queryParams = <String, String>{
       'page': page.toString(),

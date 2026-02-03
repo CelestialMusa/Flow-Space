@@ -166,7 +166,7 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _ownerId,
+                initialValue: _ownerId,
                 decoration: const InputDecoration(
                   labelText: 'Owner',
                   border: OutlineInputBorder(),

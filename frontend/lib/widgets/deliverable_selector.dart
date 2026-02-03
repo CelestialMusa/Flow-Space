@@ -8,15 +8,15 @@ class DeliverableSelector extends StatefulWidget {
   final bool enabled;
 
   const DeliverableSelector({
-    Key? key,
+    super.key,
     required this.projectId,
     this.initiallySelectedIds = const [],
     required this.onSelectionChanged,
     this.enabled = true,
-  }) : super(key: key);
+  });
 
   @override
-  _DeliverableSelectorState createState() => _DeliverableSelectorState();
+  State<DeliverableSelector> createState() => _DeliverableSelectorState();
 }
 
 class _DeliverableSelectorState extends State<DeliverableSelector> {
@@ -27,6 +27,12 @@ class _DeliverableSelectorState extends State<DeliverableSelector> {
   String _searchQuery = '';
   String? _error;
   bool _showSearchResults = false;
+
+  // Helper method to convert hex color string to Color
+  Color _hexToColor(String hexString) {
+    final hexCode = hexString.replaceAll('#', '');
+    return Color(int.parse('FF$hexCode', radix: 16));
+  }
 
   @override
   void initState() {
@@ -52,7 +58,7 @@ class _DeliverableSelectorState extends State<DeliverableSelector> {
       setState(() {
         _availableDeliverables = deliverables;
         _isLoading = false;
-        _showSearchResults = search != null && search!.isNotEmpty;
+        _showSearchResults = search != null && search.isNotEmpty;
       });
     } catch (e) {
       setState(() {
@@ -347,11 +353,11 @@ class _DeliverableSelectorState extends State<DeliverableSelector> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: ProjectDeliverableService.getStatusColor(status)
+                        color: _hexToColor(ProjectDeliverableService.getStatusColor(status))
                             .withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(
-                          color: ProjectDeliverableService.getStatusColor(status)
+                          color: _hexToColor(ProjectDeliverableService.getStatusColor(status))
                               .withValues(alpha: 0.3),
                         ),
                       ),
@@ -360,7 +366,7 @@ class _DeliverableSelectorState extends State<DeliverableSelector> {
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
-                          color: ProjectDeliverableService.getStatusColor(status),
+                          color: _hexToColor(ProjectDeliverableService.getStatusColor(status)),
                         ),
                       ),
                     ),
@@ -372,12 +378,12 @@ class _DeliverableSelectorState extends State<DeliverableSelector> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: ProjectDeliverableService.getPriorityColor(priority)
-                              .withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: ProjectDeliverableService.getPriorityColor(priority)
-                                .withValues(alpha: 0.3),
+                          color: _hexToColor(ProjectDeliverableService.getPriorityColor(priority))
+                            .withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: _hexToColor(ProjectDeliverableService.getPriorityColor(priority))
+                              .withValues(alpha: 0.3),
                           ),
                         ),
                         child: Text(
@@ -385,7 +391,7 @@ class _DeliverableSelectorState extends State<DeliverableSelector> {
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w500,
-                            color: ProjectDeliverableService.getPriorityColor(priority),
+                            color: _hexToColor(ProjectDeliverableService.getPriorityColor(priority)),
                           ),
                         ),
                       ),
@@ -470,11 +476,11 @@ class _DeliverableSelectorState extends State<DeliverableSelector> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: ProjectDeliverableService.getStatusColor(status)
+                          color: _hexToColor(ProjectDeliverableService.getStatusColor(status))
                               .withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(
-                            color: ProjectDeliverableService.getStatusColor(status)
+                            color: _hexToColor(ProjectDeliverableService.getStatusColor(status))
                                 .withValues(alpha: 0.3),
                           ),
                         ),
@@ -483,7 +489,7 @@ class _DeliverableSelectorState extends State<DeliverableSelector> {
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w500,
-                            color: ProjectDeliverableService.getStatusColor(status),
+                            color: _hexToColor(ProjectDeliverableService.getStatusColor(status)),
                           ),
                         ),
                       ),
@@ -495,11 +501,11 @@ class _DeliverableSelectorState extends State<DeliverableSelector> {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: ProjectDeliverableService.getPriorityColor(priority)
+                            color: _hexToColor(ProjectDeliverableService.getPriorityColor(priority))
                                 .withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(
-                              color: ProjectDeliverableService.getPriorityColor(priority)
+                              color: _hexToColor(ProjectDeliverableService.getPriorityColor(priority))
                                   .withValues(alpha: 0.3),
                             ),
                           ),
@@ -508,7 +514,7 @@ class _DeliverableSelectorState extends State<DeliverableSelector> {
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w500,
-                              color: ProjectDeliverableService.getPriorityColor(priority),
+                              color: _hexToColor(ProjectDeliverableService.getPriorityColor(priority)),
                             ),
                           ),
                         ),

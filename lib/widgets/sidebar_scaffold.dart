@@ -27,6 +27,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
   List<_NavItem> get _navItems {
     final authService = AuthService();
     final allItems = [
+      // Work-focused items only
       const _NavItem(
         label: 'Dashboard',
         icon: Icons.dashboard_outlined,
@@ -290,20 +291,21 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                   color: Colors.transparent,
                   child: Column(
                     children: [
-                      // Top navigation bar with back/forward buttons
-                      if (routeLocation != '/dashboard')
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8,),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withAlpha((0.08 * 255).round()),
-                            border: const Border(
-                              bottom: BorderSide(
-                                  color: FlownetColors.slate, width: 1,),
-                            ),
+                      // Top navigation bar with user menu
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8,),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withAlpha((0.08 * 255).round()),
+                          border: const Border(
+                            bottom: BorderSide(
+                                color: FlownetColors.slate, width: 1,),
                           ),
-                          child: Row(
-                            children: [
+                        ),
+                        child: Row(
+                          children: [
+                            // Only show back/forward buttons on non-dashboard pages
+                            if (routeLocation != '/dashboard') ...[
                               IconButton(
                                 icon: const Icon(Icons.arrow_back),
                                 onPressed: () {
@@ -333,18 +335,22 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                                 tooltip: 'Forward',
                                 color: FlownetColors.pureWhite,
                               ),
-                              const Spacer(),
-                              // Current page indicator
-                              Text(
-                                _getPageTitle(routeLocation),
-                                style: const TextStyle(
-                                  color: FlownetColors.coolGray,
-                                  fontSize: 14,
-                                ),
-                              ),
                             ],
-                          ),
+                            const Spacer(),
+                            // User menu icons (always visible)
+                            _buildTopNavIcons(),
+                            const SizedBox(width: 16),
+                            // Current page indicator
+                            Text(
+                              _getPageTitle(routeLocation),
+                              style: const TextStyle(
+                                color: FlownetColors.coolGray,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
+                      ),
                       Expanded(child: widget.child),
                     ],
                   ),
@@ -373,6 +379,22 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                 onPressed: () => Navigator.of(context).pop(),
                 tooltip: 'Back',
               ),
+            // Profile Icon
+            IconButton(
+              onPressed: () => context.go('/profile'),
+              icon: const Icon(Icons.person_outline),
+              tooltip: 'Profile',
+              color: FlownetColors.pureWhite,
+              iconSize: 20,
+            ),
+            // Settings Icon
+            IconButton(
+              onPressed: () => context.go('/settings'),
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Settings',
+              color: FlownetColors.pureWhite,
+              iconSize: 20,
+            ),
             const NotificationCenterWidget(),
             const SizedBox(width: 8),
             const _UserAvatarButton(),
@@ -559,6 +581,64 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         ),
       ),
+    );
+  }
+
+  Widget _buildTopNavIcons() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Burger Menu with Dropdown
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert, color: FlownetColors.pureWhite),
+          tooltip: 'Menu',
+          onSelected: (String value) {
+            switch (value) {
+              case 'profile':
+                context.go('/profile');
+                break;
+              case 'settings':
+                context.go('/settings');
+                break;
+              case 'notifications':
+                context.go('/notifications');
+                break;
+            }
+          },
+          itemBuilder: (BuildContext context) => [
+            const PopupMenuItem<String>(
+              value: 'profile',
+              child: Row(
+                children: [
+                  Icon(Icons.person_outline, size: 20),
+                  SizedBox(width: 8),
+                  Text('Profile'),
+                ],
+              ),
+            ),
+            const PopupMenuItem<String>(
+              value: 'settings',
+              child: Row(
+                children: [
+                  Icon(Icons.settings_outlined, size: 20),
+                  SizedBox(width: 8),
+                  Text('Settings'),
+                ],
+              ),
+            ),
+            const PopupMenuItem<String>(
+              value: 'notifications',
+              child: Row(
+                children: [
+                  Icon(Icons.notifications_outlined, size: 20),
+                  SizedBox(width: 8),
+                  Text('Notifications'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

@@ -29,12 +29,12 @@ class RealtimeService {
   static const Duration _reconnectDelay = Duration(seconds: 5);
 
   /// Initialize the real-time service connection
-  Future<void> initialize() async {
+  Future<void> initialize({String? authToken}) async {
     if (_socket != null && _isConnected) {
       return;
     }
 
-    final token = ApiService.accessToken;
+    final token = authToken ?? ApiService.accessToken;
     if (token == null) {
       return;
     }

@@ -403,3 +403,21 @@ class Deliverable {
     }
   }
 }
+
+class DeliverableCreate {
+  final String title;
+  final String description;
+  final DateTime dueDate;
+  final List<String> definitionOfDone;
+  final List<String> evidenceLinks;
+  final List<String> sprintIds;
+
+  const DeliverableCreate({
+    required this.title,
+    required this.description,
+    required this.dueDate,
+    this.definitionOfDone = const [],
+    this.evidenceLinks = const [],
+    this.sprintIds = const [],
+  });
+}

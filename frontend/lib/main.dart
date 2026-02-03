@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'providers/theme_provider.dart';
 import 'services/api_service.dart';
 import 'screens/login_screen.dart';
-import 'screens/register_screen.dart';
+import 'package:khono/screens/register_screen.dart';
 import 'screens/email_verification_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/deliverable_setup_screen.dart';
@@ -15,6 +15,8 @@ import 'screens/approval_requests_screen.dart';
 import 'screens/audit_trail_screen.dart';
 import 'screens/repository_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/notifications_screen.dart';
 import 'components/main_layout.dart';
 import 'screens/client_reviewer_dashboard.dart';
 import 'screens/qa_engineer_dashboard.dart';
@@ -131,6 +133,14 @@ class KhonoApp extends ConsumerWidget {
         GoRoute(
           path: '/profile',
           builder: (context, state) => wrapWithLayout(const ProfileScreen(), '/profile'),
+        ),
+        GoRoute(
+          path: '/settings',
+          builder: (context, state) => wrapWithLayout(const SettingsScreen(), '/settings'),
+        ),
+        GoRoute(
+          path: '/notifications',
+          builder: (context, state) => wrapWithLayout(const NotificationsScreen(), '/notifications'),
         ),
       ],
     );

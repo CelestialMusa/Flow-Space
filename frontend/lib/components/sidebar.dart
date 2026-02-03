@@ -20,7 +20,26 @@ class Sidebar extends StatefulWidget {
 }
 
 class _SidebarState extends State<Sidebar> {
-  final List<SidebarItem> _sidebarItems = [
+  final List<dynamic> _sidebarItems = [
+    SidebarItem(
+      title: 'Profile',
+      icon: Icons.person,
+      route: '/profile',
+      tooltip: 'User Profile',
+    ),
+    SidebarItem(
+      title: 'Settings',
+      icon: Icons.settings,
+      route: '/settings',
+      tooltip: 'App Settings',
+    ),
+    SidebarItem(
+      title: 'Notifications',
+      icon: Icons.notifications,
+      route: '/notifications',
+      tooltip: 'Notifications',
+    ),
+    const SidebarDivider(),
     SidebarItem(
       title: 'Dashboard',
       icon: Icons.dashboard,
@@ -63,12 +82,6 @@ class _SidebarState extends State<Sidebar> {
       route: '/repository',
       tooltip: 'Signed Reports Repository',
     ),
-    SidebarItem(
-      title: 'Profile',
-      icon: Icons.person,
-      route: '/profile',
-      tooltip: 'User Profile',
-    ),
   ];
 
   @override
@@ -89,7 +102,14 @@ class _SidebarState extends State<Sidebar> {
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              children: _sidebarItems.map((item) => _buildNavItem(item)).toList(),
+              children: _sidebarItems.map((item) {
+                if (item is SidebarDivider) {
+                  // Don't show divider when sidebar is collapsed
+                  return widget.isCollapsed ? const SizedBox.shrink() : const Divider(height: 1, indent: 16, endIndent: 16);
+                } else {
+                  return _buildNavItem(item);
+                }
+              }).toList(),
             ),
           ),
         ],
@@ -132,12 +152,13 @@ class _SidebarState extends State<Sidebar> {
     );
   }
 
-  Widget _buildNavItem(SidebarItem item) {
-    final isActive = widget.currentRoute == item.route;
+  Widget _buildNavItem(dynamic item) {
+    final sidebarItem = item as SidebarItem;
+    final isActive = widget.currentRoute == sidebarItem.route;
     final colorScheme = Theme.of(context).colorScheme;
 
     return Tooltip(
-      message: item.tooltip,
+      message: sidebarItem.tooltip,
       preferBelow: false,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -155,13 +176,13 @@ class _SidebarState extends State<Sidebar> {
         ),
         child: ListTile(
           leading: Icon(
-            item.icon,
+            sidebarItem.icon,
             color: isActive ? colorScheme.primary : colorScheme.onSurface,
             size: 20,
           ),
           title: !widget.isCollapsed
               ? Text(
-                  item.title,
+                  sidebarItem.title,
                   style: TextStyle(
                     color: isActive ? colorScheme.primary : colorScheme.onSurface,
                     fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
@@ -173,8 +194,8 @@ class _SidebarState extends State<Sidebar> {
             horizontal: widget.isCollapsed ? 16 : 12,
           ),
           onTap: () {
-            if (widget.currentRoute != item.route) {
-              context.go(item.route);
+            if (widget.currentRoute != sidebarItem.route) {
+              context.go(sidebarItem.route);
             }
           },
         ),
@@ -195,4 +216,8 @@ class SidebarItem {
     required this.route,
     required this.tooltip,
   });
+}
+
+class SidebarDivider {
+  const SidebarDivider();
 }

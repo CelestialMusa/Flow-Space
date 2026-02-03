@@ -7,13 +7,13 @@ class AddMemberDialog extends StatefulWidget {
   final VoidCallback onMemberAdded;
 
   const AddMemberDialog({
-    Key? key,
+    super.key,
     required this.projectId,
     required this.onMemberAdded,
-  }) : super(key: key);
+  });
 
   @override
-  _AddMemberDialogState createState() => _AddMemberDialogState();
+  State<AddMemberDialog> createState() => _AddMemberDialogState();
 }
 
 class _AddMemberDialogState extends State<AddMemberDialog> {
@@ -40,7 +40,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<ProjectRole>(
-            value: _selectedRole,
+            initialValue: _selectedRole,
             decoration: const InputDecoration(
               labelText: 'Role',
               prefixIcon: Icon(Icons.assignment_ind),
@@ -140,15 +140,17 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
         _selectedRole,
       );
 
-      Navigator.of(context).pop();
-      widget.onMemberAdded();
+      if (mounted) {
+        Navigator.of(context).pop();
+        widget.onMemberAdded();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${_selectedRole.displayName} added successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_selectedRole.displayName} added successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -170,14 +172,14 @@ class ChangeRoleDialog extends StatefulWidget {
   final VoidCallback onRoleChanged;
 
   const ChangeRoleDialog({
-    Key? key,
+    super.key,
     required this.projectId,
     required this.member,
     required this.onRoleChanged,
-  }) : super(key: key);
+  });
 
   @override
-  _ChangeRoleDialogState createState() => _ChangeRoleDialogState();
+  State<ChangeRoleDialog> createState() => _ChangeRoleDialogState();
 }
 
 class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
@@ -204,7 +206,7 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<ProjectRole>(
-            value: _selectedRole,
+            initialValue: _selectedRole,
             decoration: const InputDecoration(
               labelText: 'New Role',
               prefixIcon: Icon(Icons.assignment_ind),
@@ -299,15 +301,17 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
         _selectedRole!,
       );
 
-      Navigator.of(context).pop();
-      widget.onRoleChanged();
+      if (mounted) {
+        Navigator.of(context).pop();
+        widget.onRoleChanged();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Role changed to ${_selectedRole!.displayName}'),
-          backgroundColor: Colors.green,
-        ),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Role changed to ${_selectedRole!.displayName}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -323,14 +327,14 @@ class RemoveMemberDialog extends StatefulWidget {
   final VoidCallback onMemberRemoved;
 
   const RemoveMemberDialog({
-    Key? key,
+    super.key,
     required this.projectId,
     required this.member,
     required this.onMemberRemoved,
-  }) : super(key: key);
+  });
 
   @override
-  _RemoveMemberDialogState createState() => _RemoveMemberDialogState();
+  State<RemoveMemberDialog> createState() => _RemoveMemberDialogState();
 }
 
 class _RemoveMemberDialogState extends State<RemoveMemberDialog> {
@@ -405,23 +409,27 @@ class _RemoveMemberDialogState extends State<RemoveMemberDialog> {
         widget.member.id,
       );
 
-      Navigator.of(context).pop();
-      widget.onMemberRemoved();
+      if (mounted) {
+        Navigator.of(context).pop();
+        widget.onMemberRemoved();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Team member removed successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Team member removed successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error removing member: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to remove member: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }
