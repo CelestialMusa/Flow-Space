@@ -7,16 +7,16 @@ class AddMemberDialog extends StatefulWidget {
   final VoidCallback onMemberAdded;
 
   const AddMemberDialog({
-    Key? key,
+    super.key,
     required this.projectId,
     required this.onMemberAdded,
-  }) : super(key: key);
+  });
 
   @override
-  _AddMemberDialogState createState() => _AddMemberDialogState();
+  AddMemberDialogState createState() => AddMemberDialogState();
 }
 
-class _AddMemberDialogState extends State<AddMemberDialog> {
+class AddMemberDialogState extends State<AddMemberDialog> {
   final _emailController = TextEditingController();
   ProjectRole _selectedRole = ProjectRole.contributor;
   bool _isLoading = false;
@@ -40,7 +40,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<ProjectRole>(
-            value: _selectedRole,
+            initialValue: _selectedRole,
             decoration: const InputDecoration(
               labelText: 'Role',
               prefixIcon: Icon(Icons.assignment_ind),
@@ -61,7 +61,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                           role.description,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey.shade600,
+                            color: Colors.grey[600],
                           ),
                         ),
                       ],
@@ -87,7 +87,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error, color: Colors.red.shade600, size: 16),
+                  Icon(Icons.error, color: Colors.red[600], size: 16),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -140,15 +140,16 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
         _selectedRole,
       );
 
-      Navigator.of(context).pop();
-      widget.onMemberAdded();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${_selectedRole.displayName} added successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        Navigator.of(context).pop();
+        widget.onMemberAdded();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_selectedRole.displayName} added successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -170,17 +171,17 @@ class ChangeRoleDialog extends StatefulWidget {
   final VoidCallback onRoleChanged;
 
   const ChangeRoleDialog({
-    Key? key,
+    super.key,
     required this.projectId,
     required this.member,
     required this.onRoleChanged,
-  }) : super(key: key);
+  });
 
   @override
-  _ChangeRoleDialogState createState() => _ChangeRoleDialogState();
+  ChangeRoleDialogState createState() => ChangeRoleDialogState();
 }
 
-class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
+class ChangeRoleDialogState extends State<ChangeRoleDialog> {
   ProjectRole? _selectedRole;
   bool _isLoading = false;
   String? _error;
@@ -200,11 +201,11 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
         children: [
           Text(
             'Current role: ${widget.member.role.displayName}',
-            style: TextStyle(color: Colors.grey.shade600),
+            style: TextStyle(color: Colors.grey[600]),
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<ProjectRole>(
-            value: _selectedRole,
+            initialValue: _selectedRole,
             decoration: const InputDecoration(
               labelText: 'New Role',
               prefixIcon: Icon(Icons.assignment_ind),
@@ -225,7 +226,7 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
                           role.description,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey.shade600,
+                            color: Colors.grey[600],
                           ),
                         ),
                       ],
@@ -251,7 +252,7 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error, color: Colors.red.shade600, size: 16),
+                  Icon(Icons.error, color: Colors.red[600], size: 16),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -299,15 +300,16 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
         _selectedRole!,
       );
 
-      Navigator.of(context).pop();
-      widget.onRoleChanged();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Role changed to ${_selectedRole!.displayName}'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        Navigator.of(context).pop();
+        widget.onRoleChanged();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Role changed to ${_selectedRole!.displayName}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -323,17 +325,17 @@ class RemoveMemberDialog extends StatefulWidget {
   final VoidCallback onMemberRemoved;
 
   const RemoveMemberDialog({
-    Key? key,
+    super.key,
     required this.projectId,
     required this.member,
     required this.onMemberRemoved,
-  }) : super(key: key);
+  });
 
   @override
-  _RemoveMemberDialogState createState() => _RemoveMemberDialogState();
+  RemoveMemberDialogState createState() => RemoveMemberDialogState();
 }
 
-class _RemoveMemberDialogState extends State<RemoveMemberDialog> {
+class RemoveMemberDialogState extends State<RemoveMemberDialog> {
   bool _isLoading = false;
 
   @override
@@ -355,7 +357,7 @@ class _RemoveMemberDialogState extends State<RemoveMemberDialog> {
             ),
             child: Row(
               children: [
-                Icon(Icons.warning, color: Colors.orange.shade600, size: 20),
+                Icon(Icons.warning, color: Colors.orange[600], size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -376,7 +378,7 @@ class _RemoveMemberDialogState extends State<RemoveMemberDialog> {
         ElevatedButton(
           onPressed: _isLoading ? null : _removeMember,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red.shade600,
+            backgroundColor: Colors.red[600],
             foregroundColor: Colors.white,
           ),
           child: _isLoading
@@ -405,23 +407,26 @@ class _RemoveMemberDialogState extends State<RemoveMemberDialog> {
         widget.member.id,
       );
 
-      Navigator.of(context).pop();
-      widget.onMemberRemoved();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Team member removed successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        Navigator.of(context).pop();
+        widget.onMemberRemoved();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Team member removed successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error removing member: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error removing member: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }
