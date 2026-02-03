@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
-import '../models/sprint.dart';
 import 'client_review_screen.dart';
 
 class ClientReviewerDashboard extends StatefulWidget {
@@ -11,7 +10,7 @@ class ClientReviewerDashboard extends StatefulWidget {
 }
 
 class _ClientReviewerDashboardState extends State<ClientReviewerDashboard> {
-  List<Sprint> _sprints = [];
+  List<dynamic> _sprints = [];
   bool _isLoading = false;
   String? _selectedSprintId;
 
@@ -120,8 +119,8 @@ class _ClientReviewerDashboardState extends State<ClientReviewerDashboard> {
                     ),
                     items: _sprints.map((sprint) {
                       return DropdownMenuItem<String?>(
-                        value: sprint.id,
-                        child: Text(sprint.name),
+                        value: sprint['id']?.toString(),
+                        child: Text(sprint['name']?.toString() ?? 'Unknown Sprint'),
                       );
                     }).toList(),
                     onChanged: (value) {

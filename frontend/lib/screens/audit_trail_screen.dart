@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
-import '../utils/date_utils.dart' as du;
 
 // Provider for audit trail state
 final auditTrailProvider = StateNotifierProvider<AuditTrailNotifier, AuditTrailState>((ref) {
@@ -276,7 +275,7 @@ class _AuditTrailScreenState extends ConsumerState<AuditTrailScreen> {
     }
 
     if (dateTime != null) {
-      return DateUtils.formatDateTime(dateTime);
+      return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
     }
     return timestamp?.toString() ?? 'Unknown time';
   }
