@@ -39,6 +39,7 @@ class AuthService {
   UserRole? get currentUserRole => _currentUser?.role;
   String? get accessToken => _apiService.accessToken;
   String? get lastAuthError => _lastAuthError;
+  bool get isClientUser => _currentUser != null && _isClientRole(_currentUser!.role);
 
   // Initialize the service
   Future<void> initialize() async {
@@ -183,6 +184,11 @@ class AuthService {
   bool get isDeliveryLead => _currentUser?.isDeliveryLead ?? false;
   bool get isClientReviewer => _currentUser?.isClientReviewer ?? false;
   bool get isSystemAdmin => _currentUser?.isSystemAdmin ?? false;
+  bool get isClient => _currentUser?.role == UserRole.client;
+
+  bool _isClientRole(UserRole role) {
+    return role == UserRole.client || role == UserRole.clientReviewer;
+  }
 
   // ignore: strict_top_level_inference
   get token => null;
@@ -280,7 +286,7 @@ class AuthService {
         return hasPermission('submit_for_review');
       case '/client-review':
       case '/enhanced-client-review':
-        return hasPermission('view_client_review');
+        return _isAuthenticated;
       case '/report-repository':
         return hasPermission('view_all_deliverables');
       case '/repository':

@@ -23,12 +23,15 @@ class SignOffReport {
   final String createdBy;
   final DateTime? submittedAt;
   final String? submittedBy;
+  final String? submittedByName;
   final DateTime? reviewedAt;
   final String? reviewedBy;
+  final String? reviewedByName;
   final String? clientComment;
   final String? changeRequestDetails;
   final DateTime? approvedAt;
   final String? approvedBy;
+  final String? approvedByName;
   final String? digitalSignature;
 
   const SignOffReport({
@@ -45,12 +48,15 @@ class SignOffReport {
     required this.createdBy,
     this.submittedAt,
     this.submittedBy,
+    this.submittedByName,
     this.reviewedAt,
     this.reviewedBy,
+    this.reviewedByName,
     this.clientComment,
     this.changeRequestDetails,
     this.approvedAt,
     this.approvedBy,
+    this.approvedByName,
     this.digitalSignature,
   });
 
@@ -68,12 +74,15 @@ class SignOffReport {
     String? createdBy,
     DateTime? submittedAt,
     String? submittedBy,
+    String? submittedByName,
     DateTime? reviewedAt,
     String? reviewedBy,
+    String? reviewedByName,
     String? clientComment,
     String? changeRequestDetails,
     DateTime? approvedAt,
     String? approvedBy,
+    String? approvedByName,
     String? digitalSignature,
   }) {
     return SignOffReport(
@@ -90,12 +99,15 @@ class SignOffReport {
       createdBy: createdBy ?? this.createdBy,
       submittedAt: submittedAt ?? this.submittedAt,
       submittedBy: submittedBy ?? this.submittedBy,
+      submittedByName: submittedByName ?? this.submittedByName,
       reviewedAt: reviewedAt ?? this.reviewedAt,
       reviewedBy: reviewedBy ?? this.reviewedBy,
+      reviewedByName: reviewedByName ?? this.reviewedByName,
       clientComment: clientComment ?? this.clientComment,
       changeRequestDetails: changeRequestDetails ?? this.changeRequestDetails,
       approvedAt: approvedAt ?? this.approvedAt,
       approvedBy: approvedBy ?? this.approvedBy,
+      approvedByName: approvedByName ?? this.approvedByName,
       digitalSignature: digitalSignature ?? this.digitalSignature,
     );
   }
@@ -115,12 +127,15 @@ class SignOffReport {
       'createdBy': createdBy,
       'submittedAt': submittedAt?.toIso8601String(),
       'submittedBy': submittedBy,
+      'submittedByName': submittedByName,
       'reviewedAt': reviewedAt?.toIso8601String(),
       'reviewedBy': reviewedBy,
+      'reviewedByName': reviewedByName,
       'clientComment': clientComment,
       'changeRequestDetails': changeRequestDetails,
       'approvedAt': approvedAt?.toIso8601String(),
       'approvedBy': approvedBy,
+      'approvedByName': approvedByName,
       'digitalSignature': digitalSignature,
     };
   }
@@ -146,10 +161,7 @@ class SignOffReport {
     final String? nextSteps = (json['nextSteps'] ?? content['nextSteps'])?.toString();
 
     final String statusStr = (json['status'] ?? json['review_status'] ?? content['status'] ?? '').toString();
-    final ReportStatus status = ReportStatus.values.firstWhere(
-      (e) => e.name == statusStr,
-      orElse: () => ReportStatus.draft,
-    );
+    final ReportStatus status = _parseStatus(statusStr);
 
     final String createdAtStr = (json['createdAt'] ?? json['created_at'] ?? '').toString();
     final DateTime createdAt = createdAtStr.isNotEmpty ? DateTime.parse(createdAtStr) : DateTime.now();
@@ -159,10 +171,12 @@ class SignOffReport {
     final String submittedAtStr = (json['submittedAt'] ?? json['submitted_at'] ?? '').toString();
     final DateTime? submittedAt = submittedAtStr.isNotEmpty ? DateTime.parse(submittedAtStr) : null;
     final String? submittedBy = (json['submittedBy'] ?? json['submitted_by'] ?? content['submittedBy'])?.toString();
+    final String? submittedByName = (json['submittedByName'] ?? json['submitted_by_name'] ?? content['submittedByName'])?.toString();
 
     final String reviewedAtStr = (json['reviewedAt'] ?? json['approved_at'] ?? json['rejected_at'] ?? '').toString();
     final DateTime? reviewedAt = reviewedAtStr.isNotEmpty ? DateTime.parse(reviewedAtStr) : null;
     final String? reviewedBy = (json['reviewedBy'] ?? json['approved_by'] ?? json['rejected_by'] ?? content['reviewedBy'])?.toString();
+    final String? reviewedByName = (json['reviewedByName'] ?? json['reviewed_by_name'] ?? content['reviewedByName'])?.toString();
 
     final String? clientComment = (json['clientComment'] ?? content['clientComment'] ?? json['comments'])?.toString();
     final String? changeRequestDetails = (json['changeRequestDetails'] ?? content['changeRequestDetails'])?.toString();
@@ -170,6 +184,7 @@ class SignOffReport {
     final String approvedAtStr = (json['approvedAt'] ?? json['approved_at'] ?? '').toString();
     final DateTime? approvedAt = approvedAtStr.isNotEmpty ? DateTime.parse(approvedAtStr) : null;
     final String? approvedBy = (json['approvedBy'] ?? json['approved_by'] ?? content['approvedBy'])?.toString();
+    final String? approvedByName = (json['approvedByName'] ?? json['approved_by_name'] ?? content['approvedByName'])?.toString();
     final String? digitalSignature = (json['digitalSignature'] ?? json['signature'] ?? content['digitalSignature'])?.toString();
 
     return SignOffReport(
@@ -186,12 +201,15 @@ class SignOffReport {
       createdBy: createdBy,
       submittedAt: submittedAt,
       submittedBy: submittedBy,
+      submittedByName: submittedByName,
       reviewedAt: reviewedAt,
       reviewedBy: reviewedBy,
+      reviewedByName: reviewedByName,
       clientComment: clientComment,
       changeRequestDetails: changeRequestDetails,
       approvedAt: approvedAt,
       approvedBy: approvedBy,
+      approvedByName: approvedByName,
       digitalSignature: digitalSignature,
     );
   }
@@ -233,4 +251,25 @@ class SignOffReport {
   bool get isApproved => status == ReportStatus.approved;
   bool get isPendingReview => status == ReportStatus.submitted || status == ReportStatus.underReview;
   bool get needsChanges => status == ReportStatus.changeRequested;
+
+  static ReportStatus _parseStatus(String raw) {
+    final normalized = raw.trim().toLowerCase();
+    switch (normalized) {
+      case 'submitted':
+        return ReportStatus.submitted;
+      case 'under_review':
+      case 'underreview':
+        return ReportStatus.underReview;
+      case 'approved':
+        return ReportStatus.approved;
+      case 'change_requested':
+      case 'changerequested':
+        return ReportStatus.changeRequested;
+      case 'rejected':
+        return ReportStatus.rejected;
+      case 'draft':
+      default:
+        return ReportStatus.draft;
+    }
+  }
 }

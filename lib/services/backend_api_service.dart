@@ -610,6 +610,9 @@ class BackendApiService {
       String userRoleForParsing;
       
       switch (backendRole.toLowerCase()) {
+        case 'client':
+          userRoleForParsing = 'client';
+          break;
         case 'clientreviewer':
         case 'client_reviewer':
           userRoleForParsing = 'clientReviewer';

@@ -99,10 +99,7 @@ class Deliverable {
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
-      status: DeliverableStatus.values.firstWhere(
-        (e) => e.name == json['status']?.toString(),
-        orElse: () => DeliverableStatus.draft,
-      ),
+      status: _parseStatus(json['status']?.toString() ?? ''),
       createdAt: DateTime.parse(json['createdAt']?.toString() ?? DateTime.now().toIso8601String()),
       dueDate: DateTime.parse(json['dueDate']?.toString() ?? DateTime.now().toIso8601String()),
       sprintIds: List<String>.from(json['sprintIds'] ?? []),
@@ -152,5 +149,23 @@ class Deliverable {
 
   int get daysUntilDue {
     return dueDate.difference(DateTime.now()).inDays;
+  }
+
+  static DeliverableStatus _parseStatus(String raw) {
+    final normalized = raw.trim().toLowerCase();
+    switch (normalized) {
+      case 'submitted':
+        return DeliverableStatus.submitted;
+      case 'approved':
+        return DeliverableStatus.approved;
+      case 'change_requested':
+      case 'changerequested':
+        return DeliverableStatus.changeRequested;
+      case 'rejected':
+        return DeliverableStatus.rejected;
+      case 'draft':
+      default:
+        return DeliverableStatus.draft;
+    }
   }
 }

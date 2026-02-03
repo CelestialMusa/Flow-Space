@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../models/deliverable.dart';
 import '../models/sign_off_report.dart';
 import '../services/backend_api_service.dart';
+import '../services/auth_service.dart';
 import '../theme/flownet_theme.dart';
 import '../widgets/flownet_logo.dart';
 import '../widgets/signature_capture_widget.dart';
@@ -104,6 +105,17 @@ class _ClientReviewScreenState extends ConsumerState<ClientReviewScreen> {
   }
 
   Future<void> _submitApproval() async {
+    if (!_canClientAct) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Only client users can review submitted reports.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
     if (_selectedAction.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -156,10 +168,10 @@ class _ClientReviewScreenState extends ConsumerState<ClientReviewScreen> {
               backgroundColor: Colors.green,
             ),
           );
-          setState(() {
-            _report = _report?.copyWith(status: ReportStatus.approved);
-          });
-          context.go('/enhanced-client-review/${widget.reportId}');
+          await _loadReportData();
+          if (mounted) {
+            context.go('/enhanced-client-review/${widget.reportId}');
+          }
         } else if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -180,9 +192,7 @@ class _ClientReviewScreenState extends ConsumerState<ClientReviewScreen> {
               backgroundColor: Colors.green,
             ),
           );
-          setState(() {
-            _report = _report?.copyWith(status: ReportStatus.changeRequested);
-          });
+          await _loadReportData();
         } else if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -341,6 +351,9 @@ class _ClientReviewScreenState extends ConsumerState<ClientReviewScreen> {
   }
 
   Widget buildReviewActions() {
+    if (!_canClientAct) {
+      return const SizedBox.shrink();
+    }
     return Card(
       color: FlownetColors.graphiteGray,
       child: Padding(
@@ -430,6 +443,9 @@ class _ClientReviewScreenState extends ConsumerState<ClientReviewScreen> {
   }
 
   Widget buildDigitalSignatureSection() {
+    if (!_canClientAct) {
+      return const SizedBox.shrink();
+    }
     return Card(
       color: FlownetColors.graphiteGray,
       child: Padding(
@@ -486,6 +502,56 @@ class _ClientReviewScreenState extends ConsumerState<ClientReviewScreen> {
     return '${two(tz.day)}/${two(tz.month)}/${tz.year} ${two(tz.hour)}:${two(tz.minute)}';
   }
 
+  bool get _canClientAct {
+    final authService = AuthService();
+    final isClient = authService.isClientUser;
+    final isSubmitted = _report?.status == ReportStatus.submitted;
+    return isClient && isSubmitted;
+  }
+
+  Widget buildStatusNotice() {
+    final report = _report;
+    if (report == null) return const SizedBox.shrink();
+    String message;
+    if (report.status == ReportStatus.approved) {
+      final approvedAt = report.approvedAt ?? report.reviewedAt;
+      final approver = report.approvedByName ?? report.reviewedByName ?? report.approvedBy ?? report.reviewedBy ?? 'Client';
+      final when = approvedAt != null ? formatDate(approvedAt) : 'Unknown time';
+      message = 'Approved by $approver on $when';
+    } else if (report.status == ReportStatus.changeRequested) {
+      final details = report.changeRequestDetails ?? report.clientComment ?? 'No comment provided';
+      message = 'Changes Requested: $details';
+    } else if (report.status == ReportStatus.submitted) {
+      message = 'Awaiting Client Approval';
+    } else {
+      message = report.statusDisplayName;
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: report.statusColor.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: report.statusColor),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: report.statusColor),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: report.statusColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -527,6 +593,9 @@ class _ClientReviewScreenState extends ConsumerState<ClientReviewScreen> {
               const Center(child: CircularProgressIndicator())
             else
               buildReportContent(),
+            const SizedBox(height: 24),
+
+            buildStatusNotice(),
             const SizedBox(height: 24),
 
             // Review Actions

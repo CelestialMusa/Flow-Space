@@ -129,6 +129,7 @@ class User {
   // Role checking methods
   bool get isTeamMember => role == UserRole.teamMember;
   bool get isDeliveryLead => role == UserRole.deliveryLead;
+  bool get isClient => role == UserRole.client;
   bool get isClientReviewer => role == UserRole.clientReviewer;
   bool get isSystemAdmin => role == UserRole.systemAdmin;
 

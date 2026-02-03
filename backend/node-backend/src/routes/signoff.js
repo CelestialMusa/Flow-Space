@@ -5,6 +5,13 @@ const { QueryTypes } = require('sequelize');
 function safeParseJson(text) {
   try { return JSON.parse(text); } catch (_) { return {}; }
 }
+function normalizeRole(role) {
+  return String(role || '').toLowerCase().replace(/[_\s-]+/g, '');
+}
+function isClientRole(role) {
+  const normalized = normalizeRole(role);
+  return normalized === 'client' || normalized === 'clientreviewer';
+}
 let reportsTableReady = false;
 async function ensureReportsTable() {
   if (reportsTableReady) return;
@@ -61,7 +68,18 @@ router.get('/', async (req, res) => {
       results = [];
     }
     const rawRows = Array.isArray(results) ? results : [];
-    const userIds = [...new Set(rawRows.map(r => r.created_by).filter(Boolean))];
+    const userIdSet = new Set();
+    for (const row of rawRows) {
+      if (row.created_by) userIdSet.add(row.created_by);
+      const c = typeof row.content === 'string' ? safeParseJson(row.content) : (row.content || {});
+      const extraIds = [
+        c.approvedBy, c.approved_by,
+        c.reviewedBy, c.reviewed_by,
+        c.submittedBy, c.submitted_by
+      ].filter(Boolean);
+      extraIds.forEach((id) => userIdSet.add(id));
+    }
+    const userIds = [...userIdSet];
     const users = userIds.length > 0 ? await User.findAll({ where: { id: userIds } }) : [];
     const userMap = new Map(users.map(u => [u.id, `${u.first_name || ''} ${u.last_name || ''}`.trim()]));
     const reports = rawRows.map((row) => {
@@ -82,12 +100,15 @@ router.get('/', async (req, res) => {
           createdByName: userMap.get(row.created_by) || null,
           submittedAt: c.submittedAt || c.submitted_at,
           submittedBy: c.submittedBy || c.submitted_by,
+          submittedByName: userMap.get(c.submittedBy || c.submitted_by) || null,
           reviewedAt: c.reviewedAt || c.reviewed_at,
           reviewedBy: c.reviewedBy || c.reviewed_by,
+          reviewedByName: userMap.get(c.reviewedBy || c.reviewed_by) || null,
           clientComment: c.clientComment || c.client_comment,
           changeRequestDetails: c.changeRequestDetails || c.change_request_details,
           approvedAt: c.approvedAt || c.approved_at,
           approvedBy: c.approvedBy || c.approved_by,
+          approvedByName: userMap.get(c.approvedBy || c.approved_by) || null,
           digitalSignature: c.digitalSignature || c.digital_signature,
         };
       } catch (e) {
@@ -159,6 +180,15 @@ router.get('/:id', async (req, res) => {
       const c = typeof row.content === 'string' ? safeParseJson(row.content) : (row.content || {});
       const creator = row.created_by ? await User.findByPk(row.created_by) : null;
       const createdByName = creator ? `${creator.first_name} ${creator.last_name}` : null;
+      const approvedById = c.approvedBy || c.approved_by;
+      const reviewedById = c.reviewedBy || c.reviewed_by;
+      const submittedById = c.submittedBy || c.submitted_by;
+      const approvedByUser = approvedById ? await User.findByPk(approvedById) : null;
+      const reviewedByUser = reviewedById ? await User.findByPk(reviewedById) : null;
+      const submittedByUser = submittedById ? await User.findByPk(submittedById) : null;
+      const approvedByName = approvedByUser ? `${approvedByUser.first_name} ${approvedByUser.last_name}`.trim() : null;
+      const reviewedByName = reviewedByUser ? `${reviewedByUser.first_name} ${reviewedByUser.last_name}`.trim() : null;
+      const submittedByName = submittedByUser ? `${submittedByUser.first_name} ${submittedByUser.last_name}`.trim() : null;
       const report = {
         id: row.id,
         deliverableId: (row.deliverable_id || '').toString(),
@@ -174,12 +204,15 @@ router.get('/:id', async (req, res) => {
         createdByName: createdByName,
         submittedAt: c.submittedAt || c.submitted_at,
         submittedBy: c.submittedBy || c.submitted_by,
+        submittedByName: submittedByName,
         reviewedAt: c.reviewedAt || c.reviewed_at,
         reviewedBy: c.reviewedBy || c.reviewed_by,
+        reviewedByName: reviewedByName,
         clientComment: c.clientComment || c.client_comment,
         changeRequestDetails: c.changeRequestDetails || c.change_request_details,
         approvedAt: c.approvedAt || c.approved_at,
         approvedBy: c.approvedBy || c.approved_by,
+        approvedByName: approvedByName,
         digitalSignature: c.digitalSignature || c.digital_signature,
       };
       return res.json(report);
@@ -379,8 +412,32 @@ router.post('/:id/approve', async (req, res) => {
     const { id } = req.params;
     const base = req.baseUrl || '';
     if (base.endsWith('/sign-off-reports')) {
+      if (!isClientRole(req.user && req.user.role)) {
+        return res.status(403).json({ error: 'Only client users can approve reports' });
+      }
       await ensureReportsTable();
       const { comment, digitalSignature } = req.body || {};
+      const [existing] = await sequelize.query(
+        'SELECT id, deliverable_id, created_by, status, content, created_at, updated_at FROM sign_off_reports WHERE id = $1',
+        { bind: [id] }
+      );
+      if (!existing || existing.length === 0) {
+        return res.status(404).json({ error: 'Report not found' });
+      }
+      const cur = existing[0];
+      const curStatus = String(cur.status || 'draft');
+      if (curStatus !== 'submitted') {
+        return res.status(409).json({ error: 'Only submitted reports can be approved' });
+      }
+      try {
+        const did = parseInt(cur.deliverable_id);
+        if (Number.isFinite(did)) {
+          const d = await Deliverable.findByPk(did);
+          if (d && String(d.status) !== 'submitted') {
+            return res.status(409).json({ error: 'Only submitted deliverables can be approved' });
+          }
+        }
+      } catch (_) {}
       const [results] = await sequelize.query(
         "UPDATE sign_off_reports SET status = $2, content = COALESCE(content, '{}'::jsonb) || jsonb_build_object('approvedAt', NOW(), 'approvedBy', $3::text, 'clientComment', $4::text, 'digitalSignature', $5::text), updated_at = NOW() WHERE id = $1 RETURNING id, deliverable_id, created_by, status, content, created_at, updated_at",
         { bind: [id, 'approved', (req.user && req.user.id) || null, comment ?? null, digitalSignature ?? null] }
@@ -390,6 +447,8 @@ router.post('/:id/approve', async (req, res) => {
       }
       const row = results[0];
       const c = typeof row.content === 'string' ? safeParseJson(row.content) : (row.content || {});
+      const approverUser = c.approvedBy ? await User.findByPk(c.approvedBy) : null;
+      const approvedByName = approverUser ? `${approverUser.first_name || ''} ${approverUser.last_name || ''}`.trim() : null;
       const report = {
         id: row.id,
         deliverableId: (row.deliverable_id || '').toString(),
@@ -401,6 +460,7 @@ router.post('/:id/approve', async (req, res) => {
         createdBy: (row.created_by || '').toString(),
         approvedAt: c.approvedAt || c.approved_at,
         approvedBy: c.approvedBy || c.approved_by,
+        approvedByName: approvedByName,
         clientComment: c.clientComment || c.client_comment,
         digitalSignature: c.digitalSignature || c.digital_signature
       };
@@ -446,6 +506,23 @@ router.post('/:id/approve', async (req, res) => {
           approvedBy: report.approvedBy
         });
       }
+      try {
+        await AuditLog.create({
+          user_id: (req.user && req.user.id) || null,
+          user_email: (req.user && req.user.email) || null,
+          user_role: (req.user && req.user.role) || null,
+          action: 'report_approved',
+          action_category: 'sign_off_report',
+          entity_type: 'sign_off_report',
+          entity_id: Number(report.id) || null,
+          entity_name: report.reportTitle,
+          old_values: { status: curStatus },
+          new_values: { status: 'approved', comment: comment ?? null },
+          endpoint: req.originalUrl,
+          http_method: req.method,
+          status_code: 200
+        });
+      } catch (_) {}
       return res.json(report);
     }
     const signoff = await Signoff.findByPk(id);
@@ -726,6 +803,12 @@ router.post('/:id/request-changes', async (req, res) => {
     const base = req.baseUrl || '';
     if (base.endsWith('/sign-off-reports')) {
       const { changeRequestDetails } = req.body || {};
+      if (!isClientRole(req.user && req.user.role)) {
+        return res.status(403).json({ error: 'Only client users can request changes' });
+      }
+      if (!changeRequestDetails) {
+        return res.status(400).json({ error: 'Change request details are required' });
+      }
       await ensureReportsTable();
       const [existing] = await sequelize.query(
         "SELECT id, deliverable_id, created_by, status, content, created_at, updated_at FROM sign_off_reports WHERE id = $1",
@@ -735,6 +818,19 @@ router.post('/:id/request-changes', async (req, res) => {
         return res.status(404).json({ error: 'Report not found' });
       }
       const cur = existing[0];
+      const curStatus = String(cur.status || 'draft');
+      if (curStatus !== 'submitted') {
+        return res.status(409).json({ error: 'Only submitted reports can request changes' });
+      }
+      try {
+        const did = parseInt(cur.deliverable_id);
+        if (Number.isFinite(did)) {
+          const d = await Deliverable.findByPk(did);
+          if (d && String(d.status) !== 'submitted') {
+            return res.status(409).json({ error: 'Only submitted deliverables can request changes' });
+          }
+        }
+      } catch (_) {}
       const curC = typeof cur.content === 'string' ? safeParseJson(cur.content) : (cur.content || {});
       const merged = {
         ...curC,
@@ -748,6 +844,8 @@ router.post('/:id/request-changes', async (req, res) => {
       );
       const row = results[0];
       const c = typeof row.content === 'string' ? safeParseJson(row.content) : (row.content || {});
+      const reviewerUser = c.reviewedBy ? await User.findByPk(c.reviewedBy) : null;
+      const reviewedByName = reviewerUser ? `${reviewerUser.first_name || ''} ${reviewerUser.last_name || ''}`.trim() : null;
       const report = {
         id: row.id,
         deliverableId: (row.deliverable_id || '').toString(),
@@ -757,6 +855,7 @@ router.post('/:id/request-changes', async (req, res) => {
         status: row.status || 'change_requested',
         createdAt: row.created_at,
         createdBy: (row.created_by || '').toString(),
+        reviewedByName: reviewedByName,
         changeRequestDetails: c.changeRequestDetails || c.change_request_details
       };
       try {
@@ -801,6 +900,23 @@ router.post('/:id/request-changes', async (req, res) => {
           changeRequestDetails: report.changeRequestDetails
         });
       }
+      try {
+        await AuditLog.create({
+          user_id: (req.user && req.user.id) || null,
+          user_email: (req.user && req.user.email) || null,
+          user_role: (req.user && req.user.role) || null,
+          action: 'report_change_requested',
+          action_category: 'sign_off_report',
+          entity_type: 'sign_off_report',
+          entity_id: Number(report.id) || null,
+          entity_name: report.reportTitle,
+          old_values: { status: curStatus },
+          new_values: { status: 'change_requested', changeRequestDetails },
+          endpoint: req.originalUrl,
+          http_method: req.method,
+          status_code: 200
+        });
+      } catch (_) {}
       return res.json(report);
     }
     return res.status(404).json({ error: 'Endpoint not found' });

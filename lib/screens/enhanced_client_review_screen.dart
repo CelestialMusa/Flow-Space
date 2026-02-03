@@ -9,6 +9,7 @@ import '../models/deliverable.dart';
 import '../models/sign_off_report.dart';
 import '../models/sprint_metrics.dart';
 import '../services/backend_api_service.dart';
+import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../theme/flownet_theme.dart';
 import '../widgets/flownet_logo.dart';
@@ -167,6 +168,10 @@ class _EnhancedClientReviewScreenState extends ConsumerState<EnhancedClientRevie
     }
   }
 Future<void> _submitApproval() async {
+    if (!_canClientAct) {
+      _showErrorDialog('Only client users can review submitted reports.');
+      return;
+    }
     if (_selectedAction.isEmpty) {
       _showErrorDialog('Please select an action (Approve or Request Changes)');
       return;
@@ -182,14 +187,34 @@ Future<void> _submitApproval() async {
     });
 
     try {
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 2));
-      
-      if (mounted) {
-        final message = _selectedAction == 'approve'
-            ? 'Deliverable approved successfully!'
-            : 'Change request submitted successfully!';
-        _showSuccessDialog(message);
+      final backendService = BackendApiService();
+      if (_selectedAction == 'approve') {
+        final response = await backendService.approveSignOffReport(
+          widget.reportId,
+          _commentController.text.isNotEmpty ? _commentController.text : null,
+          null,
+        );
+        if (response.isSuccess) {
+          await _loadReportData();
+          if (mounted) {
+            _showSuccessDialog('Deliverable approved successfully!');
+          }
+        } else if (mounted) {
+          _showErrorDialog('Failed to approve report: ${response.error}');
+        }
+      } else {
+        final response = await backendService.requestSignOffChanges(
+          widget.reportId,
+          _changeRequestController.text,
+        );
+        if (response.isSuccess) {
+          await _loadReportData();
+          if (mounted) {
+            _showSuccessDialog('Change request submitted successfully!');
+          }
+        } else if (mounted) {
+          _showErrorDialog('Failed to submit change request: ${response.error}');
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -355,6 +380,9 @@ Future<void> _submitApproval() async {
             _buildHeaderSection(),
             const SizedBox(height: 24),
 
+            _buildStatusNotice(),
+            const SizedBox(height: 24),
+
             // Quick Stats
             _buildQuickStatsSection(),
             const SizedBox(height: 24),
@@ -367,18 +395,70 @@ Future<void> _submitApproval() async {
             _buildSprintPerformanceSection(),
             const SizedBox(height: 24),
 
-            // Review Actions
-            _buildReviewActionsSection(),
-            const SizedBox(height: 24),
+            if (_canClientAct) ...[
+              // Review Actions
+              _buildReviewActionsSection(),
+              const SizedBox(height: 24),
 
-            // Advanced Options
-            _buildAdvancedOptionsSection(),
-            const SizedBox(height: 24),
+              // Advanced Options
+              _buildAdvancedOptionsSection(),
+              const SizedBox(height: 24),
 
-            // Digital Signature Section
-            _buildDigitalSignatureSection(),
+              // Digital Signature Section
+              _buildDigitalSignatureSection(),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  bool get _canClientAct {
+    final authService = AuthService();
+    final isClient = authService.isClientUser;
+    final isSubmitted = _report?.status == ReportStatus.submitted;
+    return isClient && isSubmitted;
+  }
+
+  Widget _buildStatusNotice() {
+    final report = _report;
+    if (report == null) return const SizedBox.shrink();
+    String message;
+    if (report.status == ReportStatus.approved) {
+      final approvedAt = report.approvedAt ?? report.reviewedAt;
+      final approver = report.approvedByName ?? report.reviewedByName ?? report.approvedBy ?? report.reviewedBy ?? 'Client';
+      final when = approvedAt != null ? _formatDate(approvedAt) : 'Unknown time';
+      message = 'Approved by $approver on $when';
+    } else if (report.status == ReportStatus.changeRequested) {
+      final details = report.changeRequestDetails ?? report.clientComment ?? 'No comment provided';
+      message = 'Changes Requested: $details';
+    } else if (report.status == ReportStatus.submitted) {
+      message = 'Awaiting Client Approval';
+    } else {
+      message = report.statusDisplayName;
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: report.statusColor.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: report.statusColor),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: report.statusColor),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: report.statusColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

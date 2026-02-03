@@ -462,6 +462,8 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
         return _buildTeamMemberDashboard();
       case UserRole.deliveryLead:
         return _buildDeliveryLeadDashboard();
+      case UserRole.client:
+        return _buildClientReviewerDashboard();
       case UserRole.clientReviewer:
         return _buildClientReviewerDashboard();
       case UserRole.systemAdmin:
