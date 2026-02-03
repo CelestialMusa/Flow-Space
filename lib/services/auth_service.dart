@@ -164,7 +164,11 @@ class AuthService {
 
   // Permission checking
   bool hasPermission(String permissionName) {
-    if (!_isAuthenticated || _currentUser == null) return false;
+    if (!_isAuthenticated || _currentUser == null) {
+      if (permissionName == 'authenticated') return false;
+      return false;
+    }
+    if (permissionName == 'authenticated') return true;
     return _currentUser!.hasPermission(permissionName);
   }
 
@@ -273,6 +277,8 @@ class AuthService {
     final String r = route.trim().toLowerCase();
     // Permission-based routing for sensitive pages
     switch (r) {
+      case '/dashboard':
+        return _isAuthenticated; // All authenticated users can access dashboard
       case '/deliverable-setup':
       case '/enhanced-deliverable-setup':
         return canCreateDeliverable();

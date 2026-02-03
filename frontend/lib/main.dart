@@ -11,7 +11,6 @@ import 'screens/deliverable_setup_screen.dart';
 import 'screens/sprint_console_screen.dart';
 import 'screens/signoff_report_builder_screen.dart';
 import 'screens/client_review_screen.dart';
-import 'screens/approval_requests_screen.dart';
 import 'screens/audit_trail_screen.dart';
 import 'screens/repository_screen.dart';
 import 'screens/profile_screen.dart';
@@ -110,10 +109,6 @@ class KhonoApp extends ConsumerWidget {
         GoRoute(
           path: '/client-review',
           builder: (context, state) => wrapWithLayout(const ClientReviewScreen(), '/client-review'),
-        ),
-        GoRoute(
-          path: '/deliverable-review',
-          builder: (context, state) => wrapWithLayout(const ApprovalRequestsScreen(), '/deliverable-review'),
         ),
         GoRoute(
           path: '/audit-trail',

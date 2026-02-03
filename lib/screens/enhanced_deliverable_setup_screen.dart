@@ -13,6 +13,8 @@ import '../widgets/app_modal.dart';
 import '../services/api_client.dart';
 import '../config/environment.dart';
 
+// Enhanced deliverable setup screen with AI readiness gates
+
 class EnhancedDeliverableSetupScreen extends ConsumerStatefulWidget {
   const EnhancedDeliverableSetupScreen({super.key});
 

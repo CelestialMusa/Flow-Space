@@ -3,7 +3,6 @@
 import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
-import '../services/mock_data_service.dart';
 import '../services/realtime_service.dart';
 // Models replaced with simple maps for compatibility with API responses
 
