@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
 import '../services/project_sprint_service.dart';
+import '../models/sprint.dart';
 
 String initialStatusValue(String display) {
   final d = display.toLowerCase();
@@ -24,7 +25,7 @@ class SprintConsoleScreen extends ConsumerStatefulWidget {
 }
 
 class _SprintConsoleScreenState extends ConsumerState<SprintConsoleScreen> {
-  List<dynamic> _sprints = [];
+  List<Sprint> _sprints = [];
   bool _isLoading = true;
 
   @override
@@ -35,12 +36,12 @@ class _SprintConsoleScreenState extends ConsumerState<SprintConsoleScreen> {
 
   Future<void> _loadSprints() async {
     try {
-      List<dynamic> sprints;
+      List<Sprint> sprints;
       
       if (widget.projectId != null) {
         // Load project-specific sprints
         final projectSprintsData = await ProjectSprintService.getProjectSprints(widget.projectId!);
-        sprints = projectSprintsData;
+        sprints = projectSprintsData.map((data) => Sprint.fromJson(data)).toList();
       } else {
         // Load all sprints
         sprints = await ApiService.getSprints(limit: 100);
@@ -119,10 +120,10 @@ class _SprintConsoleScreenState extends ConsumerState<SprintConsoleScreen> {
                   itemCount: _sprints.length,
                   itemBuilder: (context, index) {
                     final sprint = _sprints[index];
-                    final name = sprint['name']?.toString() ?? 'Unknown Sprint';
-                    final status = sprint['statusText']?.toString().toLowerCase() ?? 'unknown';
-                    final planned = sprint['plannedPoints'] ?? 0;
-                    final completed = sprint['completedPoints'] ?? 0;
+                    final name = sprint.name;
+                    final status = sprint.statusText.toLowerCase();
+                    final planned = sprint.committedPoints;
+                    final completed = sprint.completedPoints;
                     return Card(
                       margin: const EdgeInsets.only(bottom: 16),
                       child: Padding(
@@ -266,34 +267,25 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
       return;
     }
     try {
-      final create = {
-        'name': _nameController.text,
-        'startDate': _startDate!,
-        'endDate': _endDate!,
-        'plannedPoints': int.tryParse(_plannedPointsController.text) ?? 0,
-        'committedPoints': int.tryParse(_plannedPointsController.text) ?? 0,
-        'completedPoints': int.tryParse(_completedPointsController.text) ?? 0,
-        'velocity': 0,
-        'testPassRate': double.tryParse(_testPassRateController.text) ?? 0.0,
-        'codeCoverage': double.tryParse(_codeCoverageController.text) ?? 0.0,
-        'defectCount': int.tryParse(_defectsOpenedController.text) ?? 0,
-        'escapedDefects': int.tryParse(_escapedDefectsController.text) ?? 0,
-        'defectsClosed': int.tryParse(_defectsClosedController.text) ?? 0,
-        'carriedOverPoints': int.tryParse(_carriedOverPointsController.text) ?? 0,
-        'addedDuringSprint': int.tryParse(_addedDuringSprintController.text) ?? 0,
-        'removedDuringSprint': int.tryParse(_removedDuringSprintController.text) ?? 0,
-        'scopeChanges': const [],
-        'notes': _descriptionController.text.isEmpty ? null : _descriptionController.text,
-        'codeReviewCompletion': double.tryParse(_codeReviewCompletionController.text) ?? 0.0,
-        'documentationStatus': _documentationStatusController.text,
-        'uatNotes': _uatNotesController.text,
-        'uatPassRate': double.tryParse(_uatPassRateController.text) ?? 0.0,
-        'risksIdentified': int.tryParse(_risksIdentifiedController.text) ?? 0,
-        'risksMitigated': int.tryParse(_risksMitigatedController.text) ?? 0,
-        'blockers': _blockersController.text,
-        'decisions': _decisionsController.text,
-        'isActive': true,
-      } as dynamic;
+      final create = SprintCreate(
+        name: _nameController.text,
+        startDate: _startDate!,
+        endDate: _endDate!,
+        committedPoints: int.tryParse(_plannedPointsController.text) ?? 0,
+        completedPoints: int.tryParse(_completedPointsController.text) ?? 0,
+        velocity: 0,
+        testPassRate: double.tryParse(_testPassRateController.text) ?? 0.0,
+        codeCoverage: int.tryParse(_codeCoverageController.text) ?? 0,
+        defectCount: int.tryParse(_defectsOpenedController.text) ?? 0,
+        escapedDefects: int.tryParse(_escapedDefectsController.text) ?? 0,
+        defectsClosed: int.tryParse(_defectsClosedController.text) ?? 0,
+        carriedOverPoints: int.tryParse(_carriedOverPointsController.text) ?? 0,
+        scopeChanges: [],
+        risksIdentified: int.tryParse(_risksIdentifiedController.text) ?? 0,
+        risksMitigated: int.tryParse(_risksMitigatedController.text) ?? 0,
+        blockers: _blockersController.text,
+        decisions: _decisionsController.text,
+      );
       await ApiService.createSprint(create);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

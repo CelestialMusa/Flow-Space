@@ -300,7 +300,7 @@ class _SprintBoardScreenState extends ConsumerState<SprintBoardScreen> {
                                 {
                                   'role': 'user',
                                   'content': 'Sprint: ${widget.sprintName}. Context: ${_sprintDetails?['description'] ?? ''}. Requirements: ${aiPromptController.text}'.trim()
-                                }
+                                },
                               ];
                               final resp = await backend.aiChat(messages, temperature: 0.4, maxTokens: 256);
                               if (resp.isSuccess && resp.data != null) {

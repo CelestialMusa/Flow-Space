@@ -75,7 +75,9 @@ Future.microtask(() async {
       );
       
       if (response.isSuccess) {
-        final list = response.data!['requests'].cast<core.ApprovalRequest>();
+        final list = (response.data!['requests'] as List<dynamic>)
+            .map((item) => core.ApprovalRequest.fromJson(item as Map<String, dynamic>))
+            .toList();
         final merged = await _mergeSignOffFallback(list);
         setState(() {
           _requests = merged;
@@ -141,6 +143,8 @@ Future.microtask(() async {
             priority: 'medium',
             category: 'Sign-off Report',
             deliverableId: deliverableId.isNotEmpty ? deliverableId : null,
+            evidenceLinks: [],
+            definitionOfDone: [],
           ));
         }
       }

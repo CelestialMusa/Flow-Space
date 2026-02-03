@@ -683,7 +683,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _passwordController.text,
         '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
         userRole,
-      );
+      ) as Map<String, dynamic>;
 
       debugPrint('📊 Registration result: $result');
 

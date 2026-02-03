@@ -14,10 +14,10 @@ class ProjectManagementScreen extends StatefulWidget {
   });
 
   @override
-  ProjectManagementScreenState createState() => ProjectManagementScreenState();
+  State<ProjectManagementScreen> createState() => _ProjectManagementScreenState();
 }
 
-class ProjectManagementScreenState extends State<ProjectManagementScreen> {
+class _ProjectManagementScreenState extends State<ProjectManagementScreen> {
   List<ProjectMember> _members = [];
   ProjectRole? _userRole;
   bool _isLoading = true;
@@ -215,7 +215,18 @@ class ProjectManagementScreenState extends State<ProjectManagementScreen> {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: member.role.color.withValues(alpha: 0.2),
-          child: Icon(Icons.person, color: member.role.color),
+          child: member.userAvatar != null
+              ? ClipOval(
+                  child: Image.network(
+                    member.userAvatar!,
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        Icon(Icons.person, color: member.role.color),
+                  ),
+                )
+              : Icon(Icons.person, color: member.role.color),
         ),
         title: Text(
           member.userName,

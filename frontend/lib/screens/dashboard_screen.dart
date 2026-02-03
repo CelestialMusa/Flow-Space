@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:khono/models/sprint.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import '../utils/git_utils.dart';
 import '../widgets/deliverable_card.dart';
@@ -14,6 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/theme_provider.dart';
 import '../providers/dashboard_provider.dart';
 import '../providers/notification_provider.dart';
+import '../models/deliverable.dart';
+import '../models/user.dart';
 import '../services/api_service.dart';
 import 'sprint_report_screen.dart';
 import 'user_management_screen.dart';
@@ -29,6 +32,7 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   String? _branchName;
+  List<User> _users = [];
   
   @override
   void initState() {
@@ -40,8 +44,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     
     // Load Git branch name
     _loadBranchName();
+    _loadUsers();
   }
   
+  Future<void> _loadUsers() async {
+    try {
+      final users = await ApiService.getUsers();
+      if (mounted) {
+        setState(() {
+          _users = users;
+        });
+      }
+    } catch (_) {}
+  }
+
   Future<void> _loadBranchName() async {
     final branchName = await GitUtils.getCurrentBranchName();
     if (mounted) {
@@ -513,6 +529,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final TextEditingController descriptionController = TextEditingController();
     final TextEditingController dueDateController = TextEditingController();
     String selectedPriority = 'Medium';
+    String? selectedOwnerId;
 
     await showDialog(
       context: context,
@@ -550,6 +567,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(
+                    labelText: 'Owner',
+                  ),
+                  value: selectedOwnerId,
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: null,
+                      child: Text('Unassigned'),
+                    ),
+                    ..._users.map((user) {
+                      return DropdownMenuItem<String>(
+                        value: user.id.toString(),
+                        child: Text('${user.firstName} ${user.lastName}'),
+                      );
+                    }),
+                  ],
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      selectedOwnerId = newValue;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(
                     labelText: 'Priority',
                   ),
                   value: selectedPriority,
@@ -579,14 +620,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               onPressed: () async {
                 try {
                   await ApiService.createDeliverable(
-                    {
-                      'title': nameController.text,
-                      'description': descriptionController.text,
-                      'dueDate': DateTime.parse(dueDateController.text),
-                      'sprintIds': [],
-                      'definitionOfDone': [],
-                      'evidenceLinks': [],
-                    } as dynamic,
+                    DeliverableCreate(
+                      title: nameController.text,
+                      description: descriptionController.text,
+                      dueDate: DateTime.parse(dueDateController.text),
+                      sprintIds: [],
+                      definitionOfDone: [],
+                      evidenceLinks: [],
+                      ownerId: selectedOwnerId,
+                    ),
                   );
                   // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -669,34 +711,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             onPressed: () async {
               try {
                 await ApiService.createSprint(
-                  {
-                    'name': nameController.text,
-                    'startDate': DateTime.parse(startDateController.text),
-                    'endDate': DateTime.parse(endDateController.text),
-                    'plannedPoints': 0,
-                    'committedPoints': 0,
-                    'completedPoints': 0,
-                    'velocity': 0,
-                    'testPassRate': 0.0,
-                    'codeCoverage': 0.0,
-                    'defectCount': 0,
-                    'escapedDefects': 0,
-                    'defectsClosed': 0,
-                    'carriedOverPoints': 0,
-                    'addedDuringSprint': 0,
-                    'removedDuringSprint': 0,
-                    'scopeChanges': [],
-                    'notes': null,
-                    'codeReviewCompletion': 0.0,
-                    'documentationStatus': '',
-                    'uatNotes': '',
-                    'uatPassRate': 0.0,
-                    'risksIdentified': 0,
-                    'risksMitigated': 0,
-                    'blockers': '',
-                    'decisions': '',
-                    'isActive': false,
-                  } as dynamic,
+                  SprintCreate(
+                    name: nameController.text,
+                    startDate: DateTime.parse(startDateController.text),
+                    endDate: DateTime.parse(endDateController.text),
+                    committedPoints: 0,
+                    completedPoints: 0,
+                    velocity: 0,
+                    testPassRate: 0.0,
+                    codeCoverage: 0,
+                    defectCount: 0,
+                    escapedDefects: 0,
+                    defectsClosed: 0,
+                    carriedOverPoints: 0,
+                    scopeChanges: [],
+                    notes: null,
+                    codeReviewCompletion: 0,
+                    documentationStatus: '',
+                    uatNotes: '',
+                    uatPassRate: 0,
+                    risksIdentified: 0,
+                    risksMitigated: 0,
+                    blockers: '',
+                    decisions: '',
+                    defectsOpened: 0,
+                  ),
                 );
                 // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(context).showSnackBar(

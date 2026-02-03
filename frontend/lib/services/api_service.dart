@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/environment.dart';
 import '../models/user.dart';
 import '../models/user_role.dart';
+import '../models/deliverable.dart';
+import '../models/sprint.dart';
 import '../models/audit_log.dart';
 import '../models/notification.dart' as model;
 import 'package:dio/dio.dart';
@@ -160,11 +162,33 @@ class ApiService {
     return null;
   }
   
+  // Helper method to make HTTP requests with error handling
+  static Future<http.Response> _makeRequest(Future<http.Response> Function() requestFunction) async {
+    try {
+      return await requestFunction();
+    } catch (e) {
+      debugPrint('Request failed: $e');
+      rethrow;
+    }
+  }
+  
+  // Helper method to parse response and handle errors
+  static dynamic _parseResponse(http.Response response) {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (response.body.isNotEmpty) {
+        return jsonDecode(response.body);
+      }
+      return {'success': true};
+    } else {
+      throw Exception('Request failed with status: ${response.statusCode}');
+    }
+  }
+  
   // Health checks
   static Future<bool> health() async {
     try {
-      final response = await http.get(Uri.parse('${Environment.apiBaseUrl}/health'));
-      return response.statusCode == 200;
+      final response = await _makeRequest(() => http.get(Uri.parse('${Environment.apiBaseUrl}/health')));
+      return _parseResponse(response)['success'] == true;
     } catch (e) {
       debugPrint('Health check failed: \$e');
       return false;
@@ -306,6 +330,21 @@ class ApiService {
       return false;
     }
   }
+
+  static Future<bool> updateApprovalRequest(String id, String status) async {
+    try {
+      final response = await http.put(
+        Uri.parse('${Environment.apiBaseUrl}/approvals/$id'),
+        headers: _getHeaders(),
+        body: jsonEncode({'status': status}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Error updating approval request: $e');
+      return false;
+    }
+  }
+
   // Authentication methods
   static Future<TokenResponse> signUp(UserCreate userData) async {
     final requestBody = jsonEncode(userData.toJson());
@@ -415,7 +454,7 @@ class ApiService {
   }
   
   // Deliverable methods
-  static Future<List<dynamic>> getDeliverables({int skip = 0, int limit = 100}) async {
+  static Future<List<Deliverable>> getDeliverables({int skip = 0, int limit = 100}) async {
     final response = await http.get(
       Uri.parse('${Environment.apiBaseUrl}/deliverables?skip=\$skip&limit=\$limit'),
       headers: _getHeaders(),
@@ -425,21 +464,20 @@ class ApiService {
     final List<dynamic> data = responseData is List
         ? responseData
         : (responseData['data'] ?? responseData['items'] ?? responseData['deliverables'] ?? []);
-    return data;
+    return data.map((json) => Deliverable.fromJson(json)).toList();
   }
   
-  static Future<dynamic> createDeliverable(dynamic deliverable) async {
-    final payload = deliverable is Map 
-        ? deliverable 
-        : {
-            'title': deliverable.title,
-            'description': deliverable.description,
-            'due_date': deliverable.dueDate.toIso8601String(),
-            'definition_of_done': deliverable.definitionOfDone.join('\n'),
-            'evidence_links': deliverable.evidenceLinks,
-            'sprintIds': deliverable.sprintIds,
-            'status': 'draft',
-          };
+  static Future<Deliverable> createDeliverable(DeliverableCreate deliverable) async {
+    final payload = {
+      'title': deliverable.title,
+      'description': deliverable.description,
+      'due_date': deliverable.dueDate.toIso8601String(),
+      'definition_of_done': deliverable.definitionOfDone.join('\n'),
+      'evidence_links': deliverable.evidenceLinks,
+      'sprintIds': deliverable.sprintIds,
+      'status': 'draft',
+      if (deliverable.ownerId != null) 'owner_id': deliverable.ownerId,
+    };
     final response = await http.post(
       Uri.parse('${Environment.apiBaseUrl}/deliverables'),
       headers: _getHeaders(),
@@ -448,18 +486,18 @@ class ApiService {
     
     final dynamic responseData = jsonDecode(response.body);
     final dynamic item = responseData is Map ? (responseData['data'] ?? responseData['deliverable'] ?? responseData) : responseData;
-    return item;
+    return Deliverable.fromJson(item);
   }
   
-  static Future<dynamic> updateDeliverable(int id, dynamic deliverable) async {
+  static Future<Deliverable> updateDeliverable(int id, DeliverableUpdate deliverable) async {
     final response = await http.put(
       Uri.parse('${Environment.apiBaseUrl}/deliverables/\$id'),
       headers: _getHeaders(),
-      body: jsonEncode(deliverable is Map ? deliverable : deliverable.toJson()),
+      body: jsonEncode(deliverable.toJson()),
     );
     
     final responseData = jsonDecode(response.body);
-    return responseData;
+    return Deliverable.fromJson(responseData);
   }
   
   static Future<void> deleteDeliverable(int id) async {
@@ -469,7 +507,7 @@ class ApiService {
     );
   }
   
-  static Future<List<dynamic>> getDeliverablesBySprint(int sprintId) async {
+  static Future<List<Deliverable>> getDeliverablesBySprint(int sprintId) async {
     final response = await http.get(
       Uri.parse('${Environment.apiBaseUrl}/deliverables/sprint/\$sprintId'),
       headers: _getHeaders(),
@@ -479,9 +517,98 @@ class ApiService {
     final List<dynamic> data = responseData is List
         ? responseData
         : (responseData['data'] ?? responseData['items'] ?? responseData['deliverables'] ?? []);
-    return data;
+    return data.map((json) => Deliverable.fromJson(json)).toList();
   }
 
+  static Future<Map<String, dynamic>?> updateSprint({
+    required int id,
+    String? name,
+    String? description,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? status,
+    int? plannedPoints,
+    int? committedPoints,
+    int? completedPoints,
+    int? carriedOverPoints,
+    int? addedDuringSprint,
+    int? removedDuringSprint,
+    int? testPassRate,
+    int? codeCoverage,
+    int? escapedDefects,
+    int? defectsOpened,
+    int? defectsClosed,
+    String? defectSeverityMix,
+    int? codeReviewCompletion,
+    String? documentationStatus,
+    String? uatNotes,
+    int? uatPassRate,
+    int? risksIdentified,
+    int? risksMitigated,
+    String? blockers,
+    String? decisions,
+  }) async {
+    final response = await _makeRequest(() => http.put(
+      Uri.parse('$baseUrl/sprints/$id'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'name': name,
+        'description': description,
+        'start_date': startDate?.toIso8601String(),
+        'end_date': endDate?.toIso8601String(),
+        'status': status,
+        'planned_points': plannedPoints,
+        'committed_points': committedPoints,
+        'completed_points': completedPoints,
+        'carried_over_points': carriedOverPoints,
+        'added_during_sprint': addedDuringSprint,
+        'removed_during_sprint': removedDuringSprint,
+        'test_pass_rate': testPassRate,
+        'code_coverage': codeCoverage,
+        'escaped_defects': escapedDefects,
+        'defects_opened': defectsOpened,
+        'defects_closed': defectsClosed,
+        'defect_severity_mix': defectSeverityMix,
+        'code_review_completion': codeReviewCompletion,
+        'documentation_status': documentationStatus,
+        'uat_notes': uatNotes,
+        'uat_pass_rate': uatPassRate,
+        'risks_identified': risksIdentified,
+        'risks_mitigated': risksMitigated,
+        'blockers': blockers,
+        'decisions': decisions,
+      }),
+    ));
+
+    return _parseResponse(response);
+  }
+
+  static Future<bool> updateSprintStatus(int sprintId, String status) async {
+    final response = await _makeRequest(() => http.put(
+      Uri.parse('$baseUrl/sprints/$sprintId'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'status': status}),
+    ));
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = _parseResponse(response);
+      if (data is Map && data.containsKey('success')) {
+        final success = data['success'];
+        if (success is bool) return success;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  static Future<bool> deleteSprint(int id) async {
+    final response = await _makeRequest(() => http.delete(
+      Uri.parse('$baseUrl/sprints/$id'),
+      headers: {'Content-Type': 'application/json'},
+    ));
+    
+    return response.statusCode >= 200 && response.statusCode < 300;
+  }
+  
   static Future<void> addDeliverableToSprint(int deliverableId, int sprintId) async {
     await http.post(
       Uri.parse('${Environment.apiBaseUrl}/deliverables/\$deliverableId/sprints/\$sprintId'),
@@ -496,7 +623,7 @@ class ApiService {
     );
   }
   
-  static Future<List<dynamic>> getAvailableSprintsForDeliverable(int deliverableId) async {
+  static Future<List<Sprint>> getAvailableSprintsForDeliverable(int deliverableId) async {
     final response = await http.get(
       Uri.parse('${Environment.apiBaseUrl}/deliverables/\$deliverableId/available-sprints'),
       headers: _getHeaders(),
@@ -504,65 +631,33 @@ class ApiService {
     
     final responseData = jsonDecode(response.body);
     final List<dynamic> data = responseData['data'] as List<dynamic>;
-    return data;
+    return data.map((json) => Sprint.fromJson(json)).toList();
   }
   
   // Sprint methods
-  static Future<List<dynamic>> getSprints({int skip = 0, int limit = 100}) async {
+  static Future<List<Sprint>> getSprints({int skip = 0, int limit = 100}) async {
     final response = await http.get(
       Uri.parse('${Environment.apiBaseUrl}/sprints?skip=$skip&limit=$limit'),
       headers: _getHeaders(),
     );
     
     final responseData = jsonDecode(response.body);
-    final List<dynamic> data = responseData['data'] as List<dynamic>;
-    return data;
+    final List<dynamic> data = responseData is List
+        ? responseData
+        : (responseData['data'] ?? responseData['items'] ?? responseData['sprints'] ?? []);
+    return data.map((json) => Sprint.fromJson(json)).toList();
   }
   
-  static Future<dynamic> createSprint(dynamic sprint) async {
+  static Future<Sprint> createSprint(SprintCreate sprint) async {
     final response = await http.post(
       Uri.parse('${Environment.apiBaseUrl}/sprints'),
       headers: _getHeaders(),
-      body: jsonEncode(sprint is Map ? sprint : sprint.toJson()),
+      body: jsonEncode(sprint.toJson()),
     );
     
-    final responseData = jsonDecode(response.body);
-    return responseData;
-  }
-  
-  static Future<dynamic> updateSprint(int id, dynamic sprint) async {
-    final response = await http.put(
-      Uri.parse('${Environment.apiBaseUrl}/sprints/$id'),
-      headers: _getHeaders(),
-      body: jsonEncode(sprint is Map ? sprint : sprint.toJson()),
-    );
-    
-    final responseData = jsonDecode(response.body);
-    return responseData;
-  }
-
-  static Future<bool> updateSprintStatus(String sprintId, String status) async {
-    final response = await http.put(
-      Uri.parse('${Environment.apiBaseUrl}/sprints/$sprintId'),
-      headers: _getHeaders(),
-      body: jsonEncode({'status': status}),
-    );
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      if (data is Map) {
-        final success = data['success'];
-        if (success is bool) return success;
-      }
-      return true;
-    }
-    return false;
-  }
-  
-  static Future<void> deleteSprint(int id) async {
-    await http.delete(
-      Uri.parse('${Environment.apiBaseUrl}/sprints/$id'),
-      headers: _getHeaders(),
-    );
+    final dynamic responseData = jsonDecode(response.body);
+    final dynamic item = responseData is Map ? (responseData['data'] ?? responseData['sprint'] ?? responseData) : responseData;
+    return Sprint.fromJson(item);
   }
   
   // Signoff methods

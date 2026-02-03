@@ -15,10 +15,10 @@ class ProjectDeliverableManagementScreen extends StatefulWidget {
   });
 
   @override
-  ProjectDeliverableManagementScreenState createState() => ProjectDeliverableManagementScreenState();
+  State<ProjectDeliverableManagementScreen> createState() => _ProjectDeliverableManagementScreenState();
 }
 
-class ProjectDeliverableManagementScreenState extends State<ProjectDeliverableManagementScreen> {
+class _ProjectDeliverableManagementScreenState extends State<ProjectDeliverableManagementScreen> {
   List<Map<String, dynamic>> _linkedDeliverables = [];
   ProjectRole? _userRole;
   bool _isLoading = true;
@@ -80,15 +80,16 @@ class ProjectDeliverableManagementScreenState extends State<ProjectDeliverableMa
         _selectedDeliverableIds,
       );
 
+      if (!mounted) return;
+      
       // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Deliverables linked successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] ?? 'Deliverables linked successfully'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+        ),
+      );
 
       // Reload data
       await _loadProjectData();
@@ -99,19 +100,19 @@ class ProjectDeliverableManagementScreenState extends State<ProjectDeliverableMa
       });
 
     } catch (e) {
+      if (!mounted) return;
+      
       setState(() {
         _error = e.toString();
         _isLoading = false;
       });
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error linking deliverables: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error linking deliverables: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -127,31 +128,31 @@ class ProjectDeliverableManagementScreenState extends State<ProjectDeliverableMa
         deliverableId,
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$deliverableTitle unlinked from project'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$deliverableTitle unlinked from project'),
+          backgroundColor: Colors.green,
+        ),
+      );
 
       await _loadProjectData();
 
     } catch (e) {
+      if (!mounted) return;
+      
       setState(() {
         _error = e.toString();
         _isLoading = false;
       });
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error unlinking deliverable: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error unlinking deliverable: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 

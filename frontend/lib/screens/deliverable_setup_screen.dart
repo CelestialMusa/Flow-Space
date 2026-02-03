@@ -3,6 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
+import '../models/sprint.dart';
+import '../models/deliverable.dart';
+import '../models/user.dart';
 
 class DeliverableSetupScreen extends ConsumerStatefulWidget {
   const DeliverableSetupScreen({super.key});
@@ -27,13 +30,25 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
   String _priority = 'medium';
   String _status = 'pending';
   DateTime? _dueDate;
-  List<dynamic> _availableSprints = [];
+  List<Sprint> _availableSprints = [];
   String? _selectedSprintId;
+  List<User> _users = [];
+  String? _ownerId;
 
   @override
   void initState() {
     super.initState();
     _loadSprints();
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    try {
+      final users = await ApiService.getUsers();
+      setState(() {
+        _users = users;
+      });
+    } catch (_) {}
   }
 
   Future<void> _loadSprints() async {
@@ -79,14 +94,15 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
           .map((e) => e.trim())
           .where((e) => e.isNotEmpty)
           .toList();
-      final create = {
-        'title': _titleController.text,
-        'description': _descriptionController.text,
-        'dueDate': _dueDate!,
-        'sprintIds': contributingSprints,
-        'definitionOfDone': dodList,
-        'evidenceLinks': evidenceLinks,
-      } as dynamic;
+      final create = DeliverableCreate(
+        title: _titleController.text,
+        description: _descriptionController.text,
+        dueDate: _dueDate!,
+        sprintIds: contributingSprints,
+        definitionOfDone: dodList,
+        evidenceLinks: evidenceLinks,
+        ownerId: _ownerId,
+      );
       await ApiService.createDeliverable(create);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -146,6 +162,33 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
                     return 'Please enter a description';
                   }
                   return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: _ownerId,
+                decoration: const InputDecoration(
+                  labelText: 'Owner',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person),
+                  helperText: 'Select the team member responsible for this deliverable',
+                ),
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('Unassigned'),
+                  ),
+                  ..._users.map((user) {
+                    return DropdownMenuItem<String>(
+                      value: user.id.toString(),
+                      child: Text('${user.firstName} ${user.lastName}'),
+                    );
+                  }),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _ownerId = value;
+                  });
                 },
               ),
               const SizedBox(height: 16),
@@ -239,8 +282,8 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
                 items: [
                   for (final s in _availableSprints)
                     DropdownMenuItem(
-                      value: s['id']?.toString(),
-                      child: Text(s['name']?.toString() ?? 'Unknown Sprint'),
+                      value: s.id,
+                      child: Text(s.name),
                     ),
                 ],
                 onChanged: (value) {

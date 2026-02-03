@@ -8,15 +8,15 @@ class SprintSelector extends StatefulWidget {
   final bool enabled;
 
   const SprintSelector({
-    Key? key,
+    super.key,
     required this.projectId,
     this.initiallySelectedIds = const [],
     required this.onSelectionChanged,
     this.enabled = true,
-  }) : super(key: key);
+  });
 
   @override
-  _SprintSelectorState createState() => _SprintSelectorState();
+  State<SprintSelector> createState() => _SprintSelectorState();
 }
 
 class _SprintSelectorState extends State<SprintSelector> {
@@ -24,10 +24,15 @@ class _SprintSelectorState extends State<SprintSelector> {
   List<Map<String, dynamic>> _selectedSprints = [];
   Set<String> _selectedIds = {};
   bool _isLoading = false;
-  String _searchQuery = '';
   String? _error;
   bool _showSearchResults = false;
   bool _showCreateForm = false;
+
+  // Helper method to convert hex color string to Color
+  Color _hexToColor(String hexString) {
+    final hexCode = hexString.replaceAll('#', '');
+    return Color(int.parse('FF$hexCode', radix: 16));
+  }
 
   // Form controllers for new sprint
   final _nameController = TextEditingController();
@@ -68,7 +73,7 @@ class _SprintSelectorState extends State<SprintSelector> {
       setState(() {
         _availableSprints = sprints;
         _isLoading = false;
-        _showSearchResults = search != null && search!.isNotEmpty;
+        _showSearchResults = search != null && search.isNotEmpty;
       });
     } catch (e) {
       setState(() {
@@ -79,7 +84,6 @@ class _SprintSelectorState extends State<SprintSelector> {
   }
 
   void _onSearchChanged(String query) {
-    _searchQuery = query;
     if (query.isEmpty) {
       _loadAvailableSprints();
     } else {
@@ -159,12 +163,14 @@ class _SprintSelectorState extends State<SprintSelector> {
 
       widget.onSelectionChanged(_selectedIds.toList());
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Sprint "${newSprint['name']}" created and linked successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Sprint "${newSprint['name']}" created and linked successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
 
     } catch (e) {
       setState(() {
@@ -172,12 +178,14 @@ class _SprintSelectorState extends State<SprintSelector> {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error creating sprint: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error creating sprint: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -214,32 +222,17 @@ class _SprintSelectorState extends State<SprintSelector> {
           Row(
             children: [
               Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: TextField(
-                    onChanged: _onSearchChanged,
-                    decoration: InputDecoration(
-                      hintText: 'Search sprints...',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _searchQuery = '';
-                                _onSearchChanged('');
-                              },
-                            )
-                          : null,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
+                child: TextField(
+                  decoration: const InputDecoration(
+                    hintText: 'Search sprints...',
+                    prefixIcon: Icon(Icons.search),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
                     ),
                   ),
+                  onChanged: _onSearchChanged,
                 ),
               ),
               const SizedBox(width: 12),
@@ -469,7 +462,7 @@ class _SprintSelectorState extends State<SprintSelector> {
             ),
             child: Column(
               children: [
-                Icon(Icons.sprint, size: 48, color: Colors.grey.shade400),
+                Icon(Icons.directions_run, size: 48, color: Colors.grey.shade400),
                 const SizedBox(height: 16),
                 Text(
                   'No available sprints',
@@ -553,7 +546,7 @@ class _SprintSelectorState extends State<SprintSelector> {
       child: Row(
         children: [
           Icon(
-            Icons.sprint,
+            Icons.directions_run,
             color: Colors.blue.shade600,
             size: 20,
           ),
@@ -589,11 +582,11 @@ class _SprintSelectorState extends State<SprintSelector> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: ProjectSprintService.getStatusColor(status)
+                        color: _hexToColor(ProjectSprintService.getStatusColor(status))
                             .withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(
-                          color: ProjectSprintService.getStatusColor(status)
+                          color: _hexToColor(ProjectSprintService.getStatusColor(status))
                               .withValues(alpha: 0.3),
                         ),
                       ),
@@ -602,7 +595,7 @@ class _SprintSelectorState extends State<SprintSelector> {
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
-                          color: ProjectSprintService.getStatusColor(status),
+                          color: _hexToColor(ProjectSprintService.getStatusColor(status)),
                         ),
                       ),
                     ),
@@ -614,11 +607,11 @@ class _SprintSelectorState extends State<SprintSelector> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: ProjectSprintService.getProgressColor(progress)
+                          color: _hexToColor(ProjectSprintService.getProgressColor(progress))
                               .withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(
-                            color: ProjectSprintService.getProgressColor(progress)
+                            color: _hexToColor(ProjectSprintService.getProgressColor(progress))
                                 .withValues(alpha: 0.3),
                           ),
                         ),
@@ -627,7 +620,7 @@ class _SprintSelectorState extends State<SprintSelector> {
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w500,
-                            color: ProjectSprintService.getProgressColor(progress),
+                            color: _hexToColor(ProjectSprintService.getProgressColor(progress)),
                           ),
                         ),
                       ),
@@ -676,7 +669,7 @@ class _SprintSelectorState extends State<SprintSelector> {
             ),
             const SizedBox(width: 12),
             Icon(
-              Icons.sprint,
+              Icons.directions_run,
               color: Colors.grey.shade600,
               size: 20,
             ),
@@ -713,11 +706,11 @@ class _SprintSelectorState extends State<SprintSelector> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: ProjectSprintService.getStatusColor(status)
-                              .withValues(alpha: 0.1),
+                          color: _hexToColor(ProjectSprintService.getStatusColor(status))
+                            .withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(
-                            color: ProjectSprintService.getStatusColor(status)
+                            color: _hexToColor(ProjectSprintService.getStatusColor(status))
                                 .withValues(alpha: 0.3),
                           ),
                         ),
@@ -726,7 +719,7 @@ class _SprintSelectorState extends State<SprintSelector> {
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w500,
-                            color: ProjectSprintService.getStatusColor(status),
+                            color: _hexToColor(ProjectSprintService.getStatusColor(status)),
                           ),
                         ),
                       ),

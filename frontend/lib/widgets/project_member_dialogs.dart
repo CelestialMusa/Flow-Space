@@ -13,10 +13,10 @@ class AddMemberDialog extends StatefulWidget {
   });
 
   @override
-  AddMemberDialogState createState() => AddMemberDialogState();
+  State<AddMemberDialog> createState() => _AddMemberDialogState();
 }
 
-class AddMemberDialogState extends State<AddMemberDialog> {
+class _AddMemberDialogState extends State<AddMemberDialog> {
   final _emailController = TextEditingController();
   ProjectRole _selectedRole = ProjectRole.contributor;
   bool _isLoading = false;
@@ -61,7 +61,7 @@ class AddMemberDialogState extends State<AddMemberDialog> {
                           role.description,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: Colors.grey.shade600,
                           ),
                         ),
                       ],
@@ -87,7 +87,7 @@ class AddMemberDialogState extends State<AddMemberDialog> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error, color: Colors.red[600], size: 16),
+                  Icon(Icons.error, color: Colors.red.shade600, size: 16),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -143,6 +143,7 @@ class AddMemberDialogState extends State<AddMemberDialog> {
       if (mounted) {
         Navigator.of(context).pop();
         widget.onMemberAdded();
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${_selectedRole.displayName} added successfully'),
@@ -178,10 +179,10 @@ class ChangeRoleDialog extends StatefulWidget {
   });
 
   @override
-  ChangeRoleDialogState createState() => ChangeRoleDialogState();
+  State<ChangeRoleDialog> createState() => _ChangeRoleDialogState();
 }
 
-class ChangeRoleDialogState extends State<ChangeRoleDialog> {
+class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
   ProjectRole? _selectedRole;
   bool _isLoading = false;
   String? _error;
@@ -201,7 +202,7 @@ class ChangeRoleDialogState extends State<ChangeRoleDialog> {
         children: [
           Text(
             'Current role: ${widget.member.role.displayName}',
-            style: TextStyle(color: Colors.grey[600]),
+            style: TextStyle(color: Colors.grey.shade600),
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<ProjectRole>(
@@ -226,7 +227,7 @@ class ChangeRoleDialogState extends State<ChangeRoleDialog> {
                           role.description,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: Colors.grey.shade600,
                           ),
                         ),
                       ],
@@ -252,7 +253,7 @@ class ChangeRoleDialogState extends State<ChangeRoleDialog> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error, color: Colors.red[600], size: 16),
+                  Icon(Icons.error, color: Colors.red.shade600, size: 16),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -303,6 +304,7 @@ class ChangeRoleDialogState extends State<ChangeRoleDialog> {
       if (mounted) {
         Navigator.of(context).pop();
         widget.onRoleChanged();
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Role changed to ${_selectedRole!.displayName}'),
@@ -332,10 +334,10 @@ class RemoveMemberDialog extends StatefulWidget {
   });
 
   @override
-  RemoveMemberDialogState createState() => RemoveMemberDialogState();
+  State<RemoveMemberDialog> createState() => _RemoveMemberDialogState();
 }
 
-class RemoveMemberDialogState extends State<RemoveMemberDialog> {
+class _RemoveMemberDialogState extends State<RemoveMemberDialog> {
   bool _isLoading = false;
 
   @override
@@ -357,7 +359,7 @@ class RemoveMemberDialogState extends State<RemoveMemberDialog> {
             ),
             child: Row(
               children: [
-                Icon(Icons.warning, color: Colors.orange[600], size: 20),
+                Icon(Icons.warning, color: Colors.orange.shade600, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -378,7 +380,7 @@ class RemoveMemberDialogState extends State<RemoveMemberDialog> {
         ElevatedButton(
           onPressed: _isLoading ? null : _removeMember,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red[600],
+            backgroundColor: Colors.red.shade600,
             foregroundColor: Colors.white,
           ),
           child: _isLoading
@@ -410,6 +412,7 @@ class RemoveMemberDialogState extends State<RemoveMemberDialog> {
       if (mounted) {
         Navigator.of(context).pop();
         widget.onMemberRemoved();
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Team member removed successfully'),
@@ -422,7 +425,7 @@ class RemoveMemberDialogState extends State<RemoveMemberDialog> {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error removing member: $e'),
+            content: Text('Failed to remove member: $e'),
             backgroundColor: Colors.red,
           ),
         );
