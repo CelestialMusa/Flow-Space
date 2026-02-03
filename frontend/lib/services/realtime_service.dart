@@ -2,8 +2,6 @@
 
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../services/api_service.dart';
-import '../models/deliverable.dart';
-import '../models/sprint.dart';
 import '../models/notification.dart';
 import 'dart:async';
 
@@ -153,8 +151,7 @@ class RealtimeService {
   /// Handle deliverable created event
   void _handleDeliverableCreated(dynamic data) {
     try {
-      final deliverable = Deliverable.fromJson(data);
-      _emitEvent('deliverable_created', deliverable);
+      _emitEvent('deliverable_created', data);
     } catch (e) {
       print('Error handling deliverable_created event: \$e');
     }
@@ -163,8 +160,7 @@ class RealtimeService {
   /// Handle deliverable updated event
   void _handleDeliverableUpdated(dynamic data) {
     try {
-      final deliverable = Deliverable.fromJson(data);
-      _emitEvent('deliverable_updated', deliverable);
+      _emitEvent('deliverable_updated', data);
     } catch (e) {
       print('Error handling deliverable_updated event: \$e');
     }
@@ -198,8 +194,7 @@ class RealtimeService {
   /// Handle sprint created event
   void _handleSprintCreated(dynamic data) {
     try {
-      final sprint = Sprint.fromJson(data);
-      _emitEvent('sprint_created', sprint);
+      _emitEvent('sprint_created', data);
     } catch (e) {
       print('Error handling sprint_created event: \$e');
     }
@@ -208,8 +203,7 @@ class RealtimeService {
   /// Handle sprint updated event
   void _handleSprintUpdated(dynamic data) {
     try {
-      final sprint = Sprint.fromJson(data);
-      _emitEvent('sprint_updated', sprint);
+      _emitEvent('sprint_updated', data);
     } catch (e) {
       print('Error handling sprint_updated event: \$e');
     }
