@@ -42,10 +42,12 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
   List<dynamic> _sprints = [];
   String? _selectedDeliverableId;
   List<String> _selectedSprintIds = [];
+  String? _changeRequestDetails;
   bool _isLoading = false;
   bool _isSaving = false;
   bool _isLoadingDeliverables = false;
   SignOffReport? _existingReport;
+  String? _existingPerformanceData;
   final GlobalKey<SignatureCaptureWidgetState> _signatureKey = GlobalKey<SignatureCaptureWidgetState>();
   bool _useAiAssist = false;
   bool _isAiGenerating = false;
@@ -118,6 +120,8 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
             _knownLimitationsController.text = content['knownLimitations']?.toString() ?? '';
             _nextStepsController.text = content['nextSteps']?.toString() ?? '';
             _selectedSprintIds = (content['sprintIds'] as List?)?.map((e) => e.toString()).toList() ?? [];
+            _changeRequestDetails = data['changeRequestDetails']?.toString();
+            _existingPerformanceData = content['sprintPerformanceData']?.toString();
             _normalizeSelectedDeliverable();
           });
           
@@ -314,6 +318,7 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
           'reportTitle': _titleController.text,
           'reportContent': _contentController.text,
           if (_selectedSprintIds.isNotEmpty) 'sprintIds': _selectedSprintIds,
+          if (_existingPerformanceData != null) 'sprintPerformanceData': _existingPerformanceData,
           if (_knownLimitationsController.text.isNotEmpty) 
             'knownLimitations': _knownLimitationsController.text,
           if (_nextStepsController.text.isNotEmpty) 
@@ -427,6 +432,7 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
               'reportTitle': _titleController.text,
               'reportContent': _contentController.text,
               if (_selectedSprintIds.isNotEmpty) 'sprintIds': _selectedSprintIds,
+              if (_existingPerformanceData != null) 'sprintPerformanceData': _existingPerformanceData,
               if (_knownLimitationsController.text.isNotEmpty) 
                 'knownLimitations': _knownLimitationsController.text,
               if (_nextStepsController.text.isNotEmpty) 
@@ -788,6 +794,55 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
                           ),
                     ),
                     const SizedBox(height: 24),
+
+                    if (_changeRequestDetails != null && _changeRequestDetails!.isNotEmpty) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.1),
+                          border: Border.all(color: Colors.orange),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Change Requested',
+                                  style: TextStyle(
+                                    color: Colors.orange,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _changeRequestDetails!,
+                              style: const TextStyle(
+                                color: FlownetColors.pureWhite,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Please address these issues before resubmitting.',
+                              style: TextStyle(
+                                color: FlownetColors.coolGray,
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                     
                     // Deliverable Selection
                     _isLoadingDeliverables

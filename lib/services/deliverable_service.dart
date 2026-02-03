@@ -123,6 +123,7 @@ class DeliverableService {
     List<String>? sprintIds,
     List<String>? evidenceLinks,
     String? ownerId,
+    String? projectId,
   }) async {
     try {
       final token = _authService.accessToken;
@@ -145,10 +146,11 @@ class DeliverableService {
         'due_date': dueDate?.toIso8601String(),
         'created_by': _authService.currentUser?.id,
         'assigned_to': assignedTo,
-if (sprintId != null && (sprintIds == null || sprintIds.isEmpty)) 'sprint_id': sprintId,
+        if (sprintId != null && (sprintIds == null || sprintIds.isEmpty)) 'sprint_id': sprintId,
         if (sprintIds != null) 'sprintIds': sprintIds,
         if (evidenceLinks != null) 'evidence_links': evidenceLinks,
         if (ownerId != null) 'owner_id': ownerId,
+        if (projectId != null) 'project_id': projectId,
       };
 
       final response = await _apiClient.post('/deliverables', body: body);
@@ -292,6 +294,7 @@ if (sprintId != null && (sprintIds == null || sprintIds.isEmpty)) 'sprint_id': s
     List<String>? sprintIds,
     List<String>? evidenceLinks,
     String? ownerId,
+    String? projectId,
   }) async {
     try {
       final token = _authService.accessToken;
@@ -310,6 +313,7 @@ if (sprintId != null && (sprintIds == null || sprintIds.isEmpty)) 'sprint_id': s
       if (sprintIds != null) body['sprintIds'] = sprintIds;
       if (evidenceLinks != null) body['evidence_links'] = evidenceLinks;
       if (ownerId != null) body['owner_id'] = ownerId;
+      if (projectId != null) body['project_id'] = projectId;
 
       final response = await _apiClient.put('/deliverables/$id', body: body);
       

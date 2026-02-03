@@ -40,7 +40,6 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   List<Map<String, dynamic>> _auditLogs = [];
   List<Map<String, dynamic>> _filteredAuditLogs = [];
   final BackendApiService _backendService = BackendApiService();
-  final BackendApiService _backendApiService = BackendApiService();
   List<Map<String, dynamic>> _pendingReports = [];
   bool _isLoadingPendingReports = false;
   String? _pendingReportsError;
@@ -79,6 +78,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     _loadPendingReports();
     _loadClientReviewMetrics();
     _computeTeamMetrics();
+    _setupRealtimeListeners();
   }
 
   @override
@@ -241,7 +241,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     });
 
     try {
-      final response = await _backendApiService.getAuditLogs(
+      final response = await _backendService.getAuditLogs(
         skip: skip,
         limit: _auditLogsPerPage,
         action: _selectedActionFilter,

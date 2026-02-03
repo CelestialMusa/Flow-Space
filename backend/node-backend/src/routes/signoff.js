@@ -51,12 +51,24 @@ router.get('/', async (req, res) => {
       return res.status(404).json({ error: 'Endpoint not found' });
     }
     await ensureReportsTable();
+    
+    const { deliverableId } = req.query;
     let results;
     try {
-      results = await sequelize.query(
-        "SELECT id, deliverable_id, created_by, status, content, created_at, updated_at FROM sign_off_reports ORDER BY created_at DESC",
-        { type: QueryTypes.SELECT }
-      );
+      if (deliverableId) {
+        results = await sequelize.query(
+          "SELECT id, deliverable_id, created_by, status, content, created_at, updated_at FROM sign_off_reports WHERE deliverable_id = $1 ORDER BY created_at DESC",
+          { 
+            bind: [deliverableId],
+            type: QueryTypes.SELECT 
+          }
+        );
+      } else {
+        results = await sequelize.query(
+          "SELECT id, deliverable_id, created_by, status, content, created_at, updated_at FROM sign_off_reports ORDER BY created_at DESC",
+          { type: QueryTypes.SELECT }
+        );
+      }
     } catch (dbErr) {
       results = [];
     }
@@ -291,6 +303,13 @@ router.put('/:id', async (req, res) => {
       if (ownerId && req.user && String(req.user.id) !== ownerId) {
         return res.status(403).json({ error: 'Not authorized to update this report' });
       }
+      
+      // Seal check: Prevent updates if approved
+      const currentStatus = String(existing[0].status || 'draft');
+      if (currentStatus === 'approved') {
+        return res.status(403).json({ error: 'Report is approved and sealed. No further updates allowed.' });
+      }
+
       const [results] = await sequelize.query(
         `UPDATE sign_off_reports SET status = COALESCE($2, status), content = COALESCE(content, '{}'::jsonb) || $3::jsonb, updated_at = NOW() WHERE id = $1 RETURNING id, deliverable_id, created_by, status, content, created_at, updated_at`,
         { bind: [id, updates.status ?? null, JSON.stringify(updates)] }
@@ -381,6 +400,16 @@ router.post('/:id/approve', async (req, res) => {
     if (base.endsWith('/sign-off-reports')) {
       await ensureReportsTable();
       const { comment, digitalSignature } = req.body || {};
+      
+      // Seal check: Prevent re-approval
+      const [existing] = await sequelize.query(
+        'SELECT status FROM sign_off_reports WHERE id = $1',
+        { bind: [id] }
+      );
+      if (existing && existing.length > 0 && existing[0].status === 'approved') {
+        return res.status(403).json({ error: 'Report is already approved and sealed.' });
+      }
+
       const [results] = await sequelize.query(
         "UPDATE sign_off_reports SET status = $2, content = COALESCE(content, '{}'::jsonb) || jsonb_build_object('approvedAt', NOW(), 'approvedBy', $3::text, 'clientComment', $4::text, 'digitalSignature', $5::text), updated_at = NOW() WHERE id = $1 RETURNING id, deliverable_id, created_by, status, content, created_at, updated_at",
         { bind: [id, 'approved', (req.user && req.user.id) || null, comment ?? null, digitalSignature ?? null] }
@@ -437,6 +466,30 @@ router.post('/:id/approve', async (req, res) => {
           } catch (_) {}
         }
       } catch (_) {}
+      // Create Audit Log
+      try {
+        const { AuditLog } = require('../models');
+        const user = req.user || {};
+        const actorName = user.first_name && user.last_name 
+          ? `${user.first_name} ${user.last_name}` 
+          : (user.username || 'Unknown User');
+          
+        await AuditLog.create({
+          entity_type: 'signoff',
+          entity_id: report.id,
+          action: 'approved',
+          actor_id: user.id || null,
+          actor_name: actorName,
+          details: { 
+            comment: comment ?? null,
+            digital_signature: digitalSignature ? 'Signed' : null
+          },
+          created_at: new Date()
+        });
+      } catch (auditErr) {
+        console.error('Error creating audit log for approval:', auditErr);
+      }
+
       if (global.realtimeEvents) {
         global.realtimeEvents.emit('report_approved', {
           id: report.id,
@@ -506,6 +559,27 @@ router.post('/:id/submit', async (req, res) => {
         submittedAt: c.submittedAt || c.submitted_at,
         submittedBy: c.submittedBy || c.submitted_by
       };
+      // Create Audit Log
+      try {
+        const { AuditLog } = require('../models');
+        const user = req.user || {};
+        const actorName = user.first_name && user.last_name 
+          ? `${user.first_name} ${user.last_name}` 
+          : (user.username || 'Unknown User');
+          
+        await AuditLog.create({
+          entity_type: 'signoff',
+          entity_id: report.id,
+          action: 'submitted',
+          actor_id: user.id || null,
+          actor_name: actorName,
+          details: { status: 'submitted' },
+          created_at: new Date()
+        });
+      } catch (auditErr) {
+        console.error('Error creating audit log for submission:', auditErr);
+      }
+
       if (global.realtimeEvents) {
         global.realtimeEvents.emit('report_submitted', {
           id: report.id,
@@ -735,10 +809,28 @@ router.post('/:id/request-changes', async (req, res) => {
         return res.status(404).json({ error: 'Report not found' });
       }
       const cur = existing[0];
+
+      // Seal check: Prevent changes if approved
+      if (cur.status === 'approved') {
+        return res.status(403).json({ error: 'Report is already approved and sealed.' });
+      }
+
       const curC = typeof cur.content === 'string' ? safeParseJson(cur.content) : (cur.content || {});
+      
+      // History management
+      const history = Array.isArray(curC.changeRequestHistory) ? curC.changeRequestHistory : [];
+      if (curC.changeRequestDetails) {
+        history.unshift({
+          details: curC.changeRequestDetails,
+          requestedAt: curC.reviewedAt || cur.updated_at,
+          requestedBy: curC.reviewedBy || null
+        });
+      }
+
       const merged = {
         ...curC,
-        changeRequestDetails: changeRequestDetails ?? curC.changeRequestDetails ?? curC.change_request_details ?? null,
+        changeRequestHistory: history,
+        changeRequestDetails: changeRequestDetails ?? null,
         reviewedAt: new Date().toISOString(),
         reviewedBy: (req.user && req.user.id) ? String(req.user.id) : (curC.reviewedBy || null)
       };
@@ -801,6 +893,28 @@ router.post('/:id/request-changes', async (req, res) => {
           changeRequestDetails: report.changeRequestDetails
         });
       }
+
+      // Create Audit Log
+      try {
+        const { AuditLog } = require('../models');
+        const user = req.user || {};
+        const actorName = user.first_name && user.last_name 
+          ? `${user.first_name} ${user.last_name}` 
+          : (user.username || 'Unknown User');
+          
+        await AuditLog.create({
+          entity_type: 'signoff',
+          entity_id: report.id,
+          action: 'request_changes',
+          actor_id: user.id || null,
+          actor_name: actorName,
+          details: { change_request_details: changeRequestDetails },
+          created_at: new Date()
+        });
+      } catch (auditErr) {
+        console.error('Error creating audit log for change request:', auditErr);
+      }
+
       return res.json(report);
     }
     return res.status(404).json({ error: 'Endpoint not found' });

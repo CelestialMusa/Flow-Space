@@ -1,4 +1,4 @@
-﻿// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use
 
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -15,6 +15,7 @@ import 'package:printing/printing.dart';
 
 import '../models/deliverable.dart';
 import '../services/deliverable_service.dart';
+import '../services/backend_api_service.dart';
 import '../config/environment.dart';
 import 'audit_log_detail_screen.dart';
 
@@ -43,6 +44,8 @@ class _DeliverableDetailScreenState extends State<DeliverableDetailScreen> {
   late TextEditingController _descriptionController;
   String? _selectedPriority;
   DateTime? _selectedDueDate;
+  String? _selectedProjectId;
+  List<Map<String, dynamic>> _projects = [];
 
   @override
   void initState() {
@@ -50,6 +53,34 @@ class _DeliverableDetailScreenState extends State<DeliverableDetailScreen> {
     _deliverable = widget.deliverable;
     _initControllers();
     _loadDeliverableDetails();
+    _loadProjects();
+  }
+
+  Future<void> _loadProjects() async {
+    try {
+      final backendApiService = BackendApiService();
+      final response = await backendApiService.getProjects();
+      
+      if (response.isSuccess && response.data != null) {
+        List<dynamic> projectsList = [];
+        if (response.data is List) {
+          projectsList = response.data as List;
+        } else if (response.data is Map) {
+          final data = response.data as Map<String, dynamic>;
+          projectsList = data['data'] as List? ?? data['projects'] as List? ?? [];
+        }
+        
+        setState(() {
+          _projects = projectsList
+              .where((p) => p != null)
+              .map((p) => p is Map ? Map<String, dynamic>.from(p) : <String, dynamic>{})
+              .where((m) => m.isNotEmpty)
+              .toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading projects: $e');
+    }
   }
 
   void _initControllers() {
@@ -64,6 +95,7 @@ class _DeliverableDetailScreenState extends State<DeliverableDetailScreen> {
     );
     
     _selectedDueDate = _deliverable.dueDate;
+    _selectedProjectId = _deliverable.projectId;
   }
 
   @override
@@ -105,6 +137,7 @@ class _DeliverableDetailScreenState extends State<DeliverableDetailScreen> {
         description: _descriptionController.text,
         priority: _selectedPriority,
         dueDate: _selectedDueDate,
+        projectId: _selectedProjectId,
       );
 
       if (response.isSuccess && mounted) {
@@ -531,6 +564,32 @@ class _DeliverableDetailScreenState extends State<DeliverableDetailScreen> {
             else
               Text(
                 'Due Date: ${DateFormat('MMM d, yyyy').format(_deliverable.dueDate)}',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            const SizedBox(height: 16),
+            if (_isEditing)
+              DropdownButtonFormField<String>(
+                value: _selectedProjectId,
+                decoration: const InputDecoration(
+                  labelText: 'Project',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                items: [
+                  DropdownMenuItem<String>(
+                    value: null,
+                    child: Text(_projects.isEmpty ? 'No projects available' : 'Unassigned'),
+                  ),
+                  ..._projects.map((p) => DropdownMenuItem<String>(
+                    value: p['id'].toString(),
+                    child: Text(p['name'] ?? p['key'] ?? 'Unknown'),
+                  )),
+                ],
+                onChanged: (val) => setState(() => _selectedProjectId = val),
+              )
+            else if (_deliverable.projectName != null)
+              Text(
+                'Project: ${_deliverable.projectName}',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             if (_deliverable.assignedToName != null) ...[

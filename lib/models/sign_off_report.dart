@@ -27,8 +27,10 @@ class SignOffReport {
   final String? reviewedBy;
   final String? clientComment;
   final String? changeRequestDetails;
+  final List<dynamic>? changeRequestHistory;
   final DateTime? approvedAt;
   final String? approvedBy;
+
   final String? digitalSignature;
 
   const SignOffReport({
@@ -49,6 +51,7 @@ class SignOffReport {
     this.reviewedBy,
     this.clientComment,
     this.changeRequestDetails,
+    this.changeRequestHistory,
     this.approvedAt,
     this.approvedBy,
     this.digitalSignature,
@@ -72,6 +75,7 @@ class SignOffReport {
     String? reviewedBy,
     String? clientComment,
     String? changeRequestDetails,
+    List<dynamic>? changeRequestHistory,
     DateTime? approvedAt,
     String? approvedBy,
     String? digitalSignature,
@@ -94,6 +98,7 @@ class SignOffReport {
       reviewedBy: reviewedBy ?? this.reviewedBy,
       clientComment: clientComment ?? this.clientComment,
       changeRequestDetails: changeRequestDetails ?? this.changeRequestDetails,
+      changeRequestHistory: changeRequestHistory ?? this.changeRequestHistory,
       approvedAt: approvedAt ?? this.approvedAt,
       approvedBy: approvedBy ?? this.approvedBy,
       digitalSignature: digitalSignature ?? this.digitalSignature,
@@ -119,6 +124,7 @@ class SignOffReport {
       'reviewedBy': reviewedBy,
       'clientComment': clientComment,
       'changeRequestDetails': changeRequestDetails,
+      'changeRequestHistory': changeRequestHistory,
       'approvedAt': approvedAt?.toIso8601String(),
       'approvedBy': approvedBy,
       'digitalSignature': digitalSignature,
@@ -166,6 +172,7 @@ class SignOffReport {
 
     final String? clientComment = (json['clientComment'] ?? content['clientComment'] ?? json['comments'])?.toString();
     final String? changeRequestDetails = (json['changeRequestDetails'] ?? content['changeRequestDetails'])?.toString();
+    final List<dynamic>? changeRequestHistory = (json['changeRequestHistory'] ?? content['changeRequestHistory']);
 
     final String approvedAtStr = (json['approvedAt'] ?? json['approved_at'] ?? '').toString();
     final DateTime? approvedAt = approvedAtStr.isNotEmpty ? DateTime.parse(approvedAtStr) : null;
@@ -190,6 +197,7 @@ class SignOffReport {
       reviewedBy: reviewedBy,
       clientComment: clientComment,
       changeRequestDetails: changeRequestDetails,
+      changeRequestHistory: changeRequestHistory,
       approvedAt: approvedAt,
       approvedBy: approvedBy,
       digitalSignature: digitalSignature,

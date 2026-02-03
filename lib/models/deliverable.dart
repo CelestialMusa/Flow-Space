@@ -82,6 +82,8 @@ class Deliverable {
   final String? ownerId;
   final String? ownerName;
   final String? ownerRole;
+  final String? projectId;
+  final String? projectName;
   final List<AuditLogEntry> auditLogs;
   final List<DeliverableArtifact> artifacts;
 
@@ -108,6 +110,8 @@ class Deliverable {
     this.ownerId,
     this.ownerName,
     this.ownerRole,
+    this.projectId,
+    this.projectName,
     this.auditLogs = const [],
     this.artifacts = const [],
   });
@@ -135,6 +139,8 @@ class Deliverable {
     String? ownerId,
     String? ownerName,
     String? ownerRole,
+    String? projectId,
+    String? projectName,
     List<AuditLogEntry>? auditLogs,
   }) {
     return Deliverable(
@@ -160,6 +166,8 @@ class Deliverable {
       ownerId: ownerId ?? this.ownerId,
       ownerName: ownerName ?? this.ownerName,
       ownerRole: ownerRole ?? this.ownerRole,
+      projectId: projectId ?? this.projectId,
+      projectName: projectName ?? this.projectName,
       auditLogs: auditLogs ?? this.auditLogs,
     );
   }
@@ -188,6 +196,8 @@ class Deliverable {
       'ownerId': ownerId,
       'ownerName': ownerName,
       'ownerRole': ownerRole,
+      'projectId': projectId,
+      'projectName': projectName,
       'artifacts': artifacts.map((e) => e.toJson()).toList(),
       // We don't necessarily need to send audit logs back to server, but good for completeness
       // 'auditLogs': auditLogs.map((e) => e.toJson()).toList(), 

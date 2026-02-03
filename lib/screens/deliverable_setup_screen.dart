@@ -27,6 +27,8 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
   List<Map<String, dynamic>> _availableSprints = [];
   List<Map<String, dynamic>> _users = [];
   String? _ownerId;
+  String? _selectedProjectId;
+  List<Map<String, dynamic>> _projects = [];
   bool _isSaving = false;
   bool _isGenerating = false;
 
@@ -35,6 +37,34 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
     super.initState();
     _loadSprints();
     _loadUsers();
+    _loadProjects();
+  }
+
+  Future<void> _loadProjects() async {
+    try {
+      final backendApiService = BackendApiService();
+      final response = await backendApiService.getProjects();
+      
+      if (response.isSuccess && response.data != null) {
+        List<dynamic> projectsList = [];
+        if (response.data is List) {
+          projectsList = response.data as List;
+        } else if (response.data is Map) {
+          final data = response.data as Map<String, dynamic>;
+          projectsList = data['data'] as List? ?? data['projects'] as List? ?? [];
+        }
+        
+        setState(() {
+          _projects = projectsList
+              .where((p) => p != null)
+              .map((p) => p is Map ? Map<String, dynamic>.from(p) : <String, dynamic>{})
+              .where((m) => m.isNotEmpty)
+              .toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading projects: $e');
+    }
   }
 
   Future<void> _loadUsers() async {
@@ -241,6 +271,7 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
         dueDate: _dueDate,
 sprintIds: _selectedSprints,
         ownerId: _ownerId,
+        projectId: _selectedProjectId,
         evidenceLinks: _evidenceLinksController.text
             .split(RegExp(r'[,\n]'))
             .map((s) => s.trim())
@@ -279,6 +310,7 @@ sprintIds: _selectedSprints,
                   createdBy: '',
                   assignedTo: null,
                   sprintIds: _selectedSprints,
+                  projectId: _selectedProjectId,
                   createdByName: null,
                   assignedToName: null,
                   createdAt: DateTime.now(),
@@ -479,6 +511,43 @@ sprintIds: _selectedSprints,
                 validator: (value) {
                   if (_status != 'draft' && (value == null || value.isEmpty)) {
                     return 'Owner must be selected before deliverable is marked Active/In Progress';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Project
+              DropdownButtonFormField<String>(
+                // ignore: deprecated_member_use
+                value: _selectedProjectId,
+                decoration: const InputDecoration(
+                  labelText: 'Assign Project *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.folder),
+                  helperText: 'Select the project this deliverable belongs to',
+                ),
+                items: [
+                  DropdownMenuItem<String>(
+                    value: null,
+                    child: Text(_projects.isEmpty ? 'No projects available' : 'Select Project'),
+                  ),
+                  ..._projects.map((project) {
+                    final name = project['name'] ?? project['key'] ?? 'Unknown Project';
+                    return DropdownMenuItem<String>(
+                      value: project['id'].toString(),
+                      child: Text(name),
+                    );
+                  }),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedProjectId = value;
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please assign a project';
                   }
                   return null;
                 },
