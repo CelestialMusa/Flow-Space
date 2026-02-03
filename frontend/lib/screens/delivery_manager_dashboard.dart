@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
-import '../models/sprint.dart';
 import '../models/user.dart';
-import '../models/deliverable.dart';
 import '../providers/client_approval_provider.dart';
 
 class DeliveryManagerDashboard extends ConsumerStatefulWidget {
@@ -14,9 +12,9 @@ class DeliveryManagerDashboard extends ConsumerStatefulWidget {
 }
 
 class _DeliveryManagerDashboardState extends ConsumerState<DeliveryManagerDashboard> {
-  List<Sprint> _sprints = [];
+  List<dynamic> _sprints = [];
   List<User> _teamMembers = [];
-  List<Deliverable> _recentDeliverables = [];
+  List<dynamic> _recentDeliverables = [];
   int _pendingApprovalsCount = 0;
   int _overdueApprovalsCount = 0;
   int _approvalsNeedingReminderCount = 0;
@@ -32,7 +30,7 @@ class _DeliveryManagerDashboardState extends ConsumerState<DeliveryManagerDashbo
     try {
       // Load active sprints
       final sprints = await ApiService.getSprints();
-      final activeSprints = sprints.where((sprint) => sprint.isActive).toList();
+      final activeSprints = sprints.where((sprint) => (sprint as dynamic)?['isActive'] == true).toList();
       
       // Load team members
       final teamMembers = await ApiService.getUsers();

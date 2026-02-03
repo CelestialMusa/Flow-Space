@@ -3,8 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
-import '../models/sprint.dart';
-import '../models/deliverable.dart';
 
 class DeliverableSetupScreen extends ConsumerStatefulWidget {
   const DeliverableSetupScreen({super.key});
@@ -29,7 +27,7 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
   String _priority = 'medium';
   String _status = 'pending';
   DateTime? _dueDate;
-  List<Sprint> _availableSprints = [];
+  List<dynamic> _availableSprints = [];
   String? _selectedSprintId;
 
   @override
@@ -81,14 +79,14 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
           .map((e) => e.trim())
           .where((e) => e.isNotEmpty)
           .toList();
-      final create = DeliverableCreate(
-        title: _titleController.text,
-        description: _descriptionController.text,
-        dueDate: _dueDate!,
-        sprintIds: contributingSprints,
-        definitionOfDone: dodList,
-        evidenceLinks: evidenceLinks,
-      );
+      final create = {
+        'title': _titleController.text,
+        'description': _descriptionController.text,
+        'dueDate': _dueDate!,
+        'sprintIds': contributingSprints,
+        'definitionOfDone': dodList,
+        'evidenceLinks': evidenceLinks,
+      } as dynamic;
       await ApiService.createDeliverable(create);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -241,8 +239,8 @@ class _DeliverableSetupScreenState extends ConsumerState<DeliverableSetupScreen>
                 items: [
                   for (final s in _availableSprints)
                     DropdownMenuItem(
-                      value: s.id,
-                      child: Text(s.name),
+                      value: s['id']?.toString(),
+                      child: Text(s['name']?.toString() ?? 'Unknown Sprint'),
                     ),
                 ],
                 onChanged: (value) {
