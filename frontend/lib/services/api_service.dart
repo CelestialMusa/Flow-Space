@@ -429,15 +429,17 @@ class ApiService {
   }
   
   static Future<dynamic> createDeliverable(dynamic deliverable) async {
-    final payload = {
-      'title': deliverable.title,
-      'description': deliverable.description,
-      'due_date': deliverable.dueDate.toIso8601String(),
-      'definition_of_done': deliverable.definitionOfDone.join('\n'),
-      'evidence_links': deliverable.evidenceLinks,
-      'sprintIds': deliverable.sprintIds,
-      'status': 'draft',
-    };
+    final payload = deliverable is Map 
+        ? deliverable 
+        : {
+            'title': deliverable.title,
+            'description': deliverable.description,
+            'due_date': deliverable.dueDate.toIso8601String(),
+            'definition_of_done': deliverable.definitionOfDone.join('\n'),
+            'evidence_links': deliverable.evidenceLinks,
+            'sprintIds': deliverable.sprintIds,
+            'status': 'draft',
+          };
     final response = await http.post(
       Uri.parse('${Environment.apiBaseUrl}/deliverables'),
       headers: _getHeaders(),
@@ -453,7 +455,7 @@ class ApiService {
     final response = await http.put(
       Uri.parse('${Environment.apiBaseUrl}/deliverables/\$id'),
       headers: _getHeaders(),
-      body: jsonEncode(deliverable.toJson()),
+      body: jsonEncode(deliverable is Map ? deliverable : deliverable.toJson()),
     );
     
     final responseData = jsonDecode(response.body);
@@ -467,7 +469,7 @@ class ApiService {
     );
   }
   
-  static Future<List<Deliverable>> getDeliverablesBySprint(int sprintId) async {
+  static Future<List<dynamic>> getDeliverablesBySprint(int sprintId) async {
     final response = await http.get(
       Uri.parse('${Environment.apiBaseUrl}/deliverables/sprint/\$sprintId'),
       headers: _getHeaders(),
@@ -521,7 +523,7 @@ class ApiService {
     final response = await http.post(
       Uri.parse('${Environment.apiBaseUrl}/sprints'),
       headers: _getHeaders(),
-      body: jsonEncode(sprint.toJson()),
+      body: jsonEncode(sprint is Map ? sprint : sprint.toJson()),
     );
     
     final responseData = jsonDecode(response.body);
@@ -532,7 +534,7 @@ class ApiService {
     final response = await http.put(
       Uri.parse('${Environment.apiBaseUrl}/sprints/$id'),
       headers: _getHeaders(),
-      body: jsonEncode(sprint.toJson()),
+      body: jsonEncode(sprint is Map ? sprint : sprint.toJson()),
     );
     
     final responseData = jsonDecode(response.body);
