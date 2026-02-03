@@ -258,6 +258,52 @@ class ApiClient {
     }
   }
 
+  Future<ApiResponse> uploadFileBytes(
+    String endpoint, {
+    required List<int> fileBytes,
+    required String filename,
+    String fileField = 'file',
+    Map<String, String>? fields,
+  }) async {
+    // Check auth
+    if (isAuthenticated && !_isTokenValid()) {
+      final refreshed = await _refreshAccessToken();
+      if (!refreshed) {
+        return ApiResponse.error('Authentication expired. Please login again.');
+      }
+    }
+
+    try {
+      final uri = Uri.parse('$_baseUrlWithVersion$endpoint');
+      final request = http.MultipartRequest('POST', uri);
+
+      // Auth header
+      if (_accessToken != null) {
+        request.headers['Authorization'] = 'Bearer $_accessToken';
+      }
+
+      // Add fields
+      if (fields != null) {
+        request.fields.addAll(fields);
+      }
+
+      // Add file
+      request.files.add(http.MultipartFile.fromBytes(
+        fileField,
+        fileBytes,
+        filename: filename,
+      ));
+
+      final streamedResponse = await request.send().timeout(_timeout);
+      final response = await http.Response.fromStream(streamedResponse);
+      
+      return _handleResponse(response);
+    } catch (e) {
+      debugPrint('Upload error: $e');
+      return ApiResponse.error('Upload failed: $e');
+    }
+  }
+
   ApiResponse _handleResponse(http.Response response) {
     try {
       final rawBody = response.body;

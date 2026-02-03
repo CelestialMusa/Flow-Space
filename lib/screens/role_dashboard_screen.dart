@@ -9,15 +9,14 @@ import '../services/realtime_service.dart';
 import '../services/backend_api_service.dart';
 import '../services/api_service.dart';
 import '../services/sign_off_report_service.dart';
-import '../models/sign_off_report.dart';
 import '../services/notification_service.dart';
 import '../models/notification_item.dart';
+import '../models/deliverable.dart';
 import '../widgets/sprint_performance_chart.dart';
 import '../widgets/background_image.dart';
 import '../widgets/notification_center_widget.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
-import '../widgets/app_modal.dart';
 
 class RoleDashboardScreen extends ConsumerStatefulWidget {
   const RoleDashboardScreen({super.key});
@@ -33,10 +32,10 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   final SignOffReportService _reportService = SignOffReportService(AuthService());
   bool _isLoadingDashboardDeliverables = false;
   bool _isLoadingDashboardSprints = false;
-  bool _isLoadingDashboardProjects = false;
   List<Map<String, dynamic>> _dashboardDeliverables = [];
   List<Map<String, dynamic>> _dashboardSprints = [];
   List<Map<String, dynamic>> _dashboardProjects = [];
+  bool _isLoadingDashboardProjects = false;
   List<Map<String, dynamic>> _auditLogs = [];
   List<Map<String, dynamic>> _filteredAuditLogs = [];
   final BackendApiService _backendService = BackendApiService();
@@ -44,11 +43,14 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   List<Map<String, dynamic>> _pendingReports = [];
   bool _isLoadingPendingReports = false;
   String? _pendingReportsError;
-  Map<String, dynamic> _clientReviewMetrics = {};
-  bool _isLoadingClientMetrics = false;
   Map<String, dynamic> _teamMetrics = {};
   bool _isLoadingTeamMetrics = false;
+  
+  // Missing variables
   String _selectedChartType = 'velocity';
+  bool _isLoadingClientMetrics = false;
+  Map<String, dynamic> _clientReviewMetrics = {};
+
   bool _isLoadingAuditLogs = false;
   String? _auditLogsError;
   bool _isLoadingMoreAuditLogs = false;
@@ -115,6 +117,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     try {
       final items = await ApiService.getDeliverables();
       _dashboardDeliverables = items;
+      
       _computeTeamMetrics();
     } finally {
       if (mounted) setState(() => _isLoadingDashboardDeliverables = false);
@@ -126,10 +129,12 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
       final resp = await _backendService.getProjects(page: 1, limit: 100);
       if (resp.isSuccess && resp.data != null) {
         final dynamic raw = resp.data;
-        final List<dynamic> items = raw is Map ? (raw['data'] ?? raw['projects'] ?? raw['items'] ?? []) : (raw is List ? raw : []);
-        _dashboardProjects = items.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
-      } else {
-        _dashboardProjects = [];
+        final List<dynamic> items = raw is Map ? (raw['items'] ?? raw['projects'] ?? raw['data'] ?? []) : (raw is List ? raw : []);
+        if (mounted) {
+          setState(() {
+            _dashboardProjects = items.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+          });
+        }
       }
       _computeTeamMetrics();
     } finally {
@@ -373,6 +378,28 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   }
 
 
+  String? _getOwnerName(Map<String, dynamic> data) {
+    if (data['ownerName'] != null) return data['ownerName'].toString();
+    if (data['owner_name'] != null) return data['owner_name'].toString();
+    
+    if (data['owner'] != null && data['owner'] is Map) {
+      final owner = data['owner'];
+      final first = owner['first_name'] ?? owner['firstName'] ?? '';
+      final last = owner['last_name'] ?? owner['lastName'] ?? '';
+      if (first.toString().isNotEmpty || last.toString().isNotEmpty) {
+        return '$first $last'.trim();
+      }
+      return owner['email']?.toString();
+    }
+    return null;
+  }
+
+  String? _getOwnerId(Map<String, dynamic> data) {
+    return data['ownerId']?.toString() ?? 
+           data['owner_id']?.toString() ?? 
+           (data['owner'] != null && data['owner'] is Map ? data['owner']['id']?.toString() : null);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_currentUser == null) {
@@ -491,7 +518,11 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
           const SizedBox(height: 24),
           _buildQuickActions(),
           const SizedBox(height: 24),
+          _buildKanbanLinkCard(),
+          const SizedBox(height: 24),
           _buildMyDeliverables(),
+          const SizedBox(height: 24),
+          _buildReviewMetrics(),
           const SizedBox(height: 24),
           _buildRecentActivity(),
         ],
@@ -511,7 +542,11 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
           const SizedBox(height: 24),
           _buildTeamMetrics(),
           const SizedBox(height: 24),
+          _buildReviewMetrics(),
+          const SizedBox(height: 24),
           _buildSprintOverview(),
+          const SizedBox(height: 24),
+          _buildKanbanLinkCard(),
           const SizedBox(height: 24),
           _buildDeliverablesOverview(),
           const SizedBox(height: 24),
@@ -570,16 +605,29 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
       padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+          children: [
             _buildCardHeader(Icons.notifications_active, 'Approval Reminders', route: '/approval-requests'),
             const SizedBox(height: 16),
-            Row(
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
               children: [
-                Expanded(
-                  child: _buildActionButton(
-                    icon: Icons.assignment,
-                    label: 'Send Reminder For Report',
-                    onTap: () => context.push('/send-reminder'),
+                _buildActionButton(
+                  icon: Icons.assignment,
+                  label: 'Send Reminder',
+                  onTap: () => context.push('/send-reminder'),
+                ),
+                _buildActionButton(
+                  icon: Icons.trending_up,
+                  label: 'Trigger Escalation',
+                  onTap: _triggerEscalation,
+                ),
+                _buildActionButton(
+                  icon: Icons.analytics_outlined,
+                  label: 'Deliverables Overview',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const DeliverablesMetricsScreen()),
                   ),
                 ),
               ],
@@ -588,6 +636,40 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _triggerEscalation() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Trigger Escalation'),
+          content: const Text('This will check for stalled approvals and send escalation notifications. Continue?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Trigger'),
+            ),
+          ],
+        ),
+      );
+
+      if (result != true) return;
+
+      final resp = await _backendService.triggerEscalation(force: true);
+      if (resp.isSuccess) {
+        messenger.showSnackBar(const SnackBar(content: Text('Escalation process triggered successfully')));
+      } else {
+        messenger.showSnackBar(SnackBar(content: Text('Failed to trigger escalation: ${resp.error}')));
+      }
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   Widget _buildRoleSpecificFAB() {
@@ -669,35 +751,35 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   Widget _buildQuickActions() {
     final canCreate = _authService.canCreateDeliverable();
     return Row(
-            children: [
-              Expanded(
+      children: [
+        Expanded(
           child: Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
-                child: _buildActionButton(
+              child: _buildActionButton(
                 icon: Icons.assignment_outlined,
-                  label: 'Create Deliverable',
-                  onTap: () => context.go('/deliverable-setup'),
+                label: 'Create Deliverable',
+                onTap: () => context.go('/deliverable-setup'),
               ),
             ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
           child: Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
-                child: _buildActionButton(
+              child: _buildActionButton(
                 icon: Icons.flag_outlined,
-                  label: 'Open Sprint Console',
-                  onTap: () => context.go('/sprint-console'),
+                label: 'Open Sprint Console',
+                onTap: () => context.go('/sprint-console'),
               ),
             ),
-                ),
-              ),
-              const SizedBox(width: 12),
+          ),
+        ),
+        const SizedBox(width: 12),
         if (canCreate)
-              Expanded(
+          Expanded(
             child: Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -762,6 +844,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                                 children: [
                                   _priorityChip((d['priority'] ?? '').toString()),
                                   _dueDateChip(d['due_date'] ?? d['dueDate'] ?? d['deadline']),
+                                  _ownerChip(_getOwnerName(d), _getOwnerId(d)),
                                 ],
                               ),
                               const SizedBox(height: 6),
@@ -792,13 +875,22 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                                   ),
                                   const Spacer(),
                                   IconButton(
-                                    onPressed: () {
-                                      final route = id.isNotEmpty ? '/report-editor/$id' : '/repository';
-                                      context.go(route);
-                                    },
-                                    icon: const Icon(Icons.open_in_new),
-                                    tooltip: 'Open',
-                                  ),
+                                onPressed: () {
+                                  if (id.isNotEmpty) {
+                                    try {
+                                      final deliverable = Deliverable.fromJson(d);
+                                      context.push('/deliverable-detail', extra: deliverable);
+                                    } catch (e) {
+                                      debugPrint('Error parsing deliverable for navigation: $e');
+                                      context.go('/repository');
+                                    }
+                                  } else {
+                                    context.go('/repository');
+                                  }
+                                },
+                                icon: const Icon(Icons.open_in_new),
+                                tooltip: 'Open',
+                              ),
                                 ],
                               ),
                             ],
@@ -838,11 +930,11 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                     final id = (d['id']?.toString() ?? d['uuid']?.toString() ?? '');
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
                               const Icon(Icons.assignment_outlined, size: 18),
                               const SizedBox(width: 8),
                               Expanded(child: Text(status.isNotEmpty ? '$title • $status' : title)),
@@ -858,8 +950,8 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                             ],
                           ),
                           const SizedBox(height: 6),
-              Row(
-                children: [
+                          Row(
+                            children: [
                               TextButton.icon(
                                 onPressed: id.isEmpty ? null : () => _editDeliverable(d),
                                 icon: const Icon(Icons.edit_outlined, size: 18),
@@ -879,9 +971,9 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                                 },
                                 icon: const Icon(Icons.open_in_new),
                                 tooltip: 'Open',
-                  ),
-                ],
-              ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     );
@@ -965,6 +1057,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                   _metricTile('Completed', _teamMetrics['completed'] ?? 0, Icons.check_circle_outline, Colors.green),
                   _metricTile('Overdue', _teamMetrics['overdue'] ?? 0, Icons.warning_amber_outlined, Colors.red),
                   _metricTile('Active Sprints', _teamMetrics['active_sprints'] ?? 0, Icons.flag_outlined, Colors.purple),
+                  _metricTile('Active Projects', _teamMetrics['active_projects'] ?? 0, Icons.folder_open_outlined, Colors.indigo),
                   _metricTile('Pending Reviews', _teamMetrics['pending_reviews'] ?? 0, Icons.rule_folder_outlined, Colors.blueGrey),
                   _metricTile('Completion Rate', _teamMetrics['completion_rate'] ?? '-', Icons.pie_chart_outline, Colors.teal),
                 ],
@@ -1043,9 +1136,9 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                             const Icon(Icons.folder_outlined, size: 18),
                             const SizedBox(width: 8),
                             Expanded(child: Text(status.toString().isNotEmpty ? '$name • $status' : name)),
-                  ],
-                ),
-              ),
+                          ],
+                        ),
+                      ),
                     );
                   }),
                 ],
@@ -1073,8 +1166,8 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                         final id = (r['id'] ?? r['report_id'] ?? '').toString();
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
+                          child: Row(
+                            children: [
                               Expanded(
                                 child: InkWell(
                                   onTap: () {
@@ -1109,7 +1202,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                                 icon: const Icon(Icons.check_circle_outline, size: 18),
                                 label: const Text('Approve'),
                               ),
-                    const SizedBox(width: 4),
+                              const SizedBox(width: 4),
                               TextButton.icon(
                                 onPressed: id.isEmpty ? null : () => _promptChangeRequest(r),
                                 icon: const Icon(Icons.edit_note, size: 18),
@@ -1167,16 +1260,14 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildCardHeader(Icons.rate_review_outlined, 'Review Metrics', route: '/report-repository'),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
             if (_isLoadingClientMetrics)
               const Center(child: CircularProgressIndicator())
-            else if (_clientReviewMetrics.isEmpty)
-              const Text('No metrics available')
             else
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
-            children: [
+                children: [
                   _metricTile('Submitted', _clientReviewMetrics['submitted'] ?? 0, Icons.upload_outlined, Colors.orange),
                   _metricTile('Approved', _clientReviewMetrics['approved'] ?? 0, Icons.check_circle_outline, Colors.green),
                   _metricTile('Changes Requested', _clientReviewMetrics['changes'] ?? 0, Icons.edit_note, Colors.blueGrey),
@@ -1188,6 +1279,44 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildProjectsOverview() {
+    if (_isLoadingDashboardProjects) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildCardHeader(Icons.folder_outlined, 'Projects Overview (${_dashboardProjects.length})', route: '/projects'),
+            const SizedBox(height: 8),
+            if (_dashboardProjects.isEmpty)
+              const Text('No active projects'),
+            ..._dashboardProjects.take(3).map((p) {
+              final title = p['name'] ?? 'Untitled Project';
+              final status = (p['status'] ?? '').toString();
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    const Icon(Icons.folder_open, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(status.isNotEmpty ? '$title • $status' : title)),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPendingReviews() {
+    return _buildPendingApprovals();
   }
 
   Widget _buildPendingApprovals() {
@@ -1422,9 +1551,9 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
           title: const Text('Edit Deliverable'),
           content: SizedBox(
             width: 480,
-      child: Column(
+            child: Column(
               mainAxisSize: MainAxisSize.min,
-        children: [
+              children: [
                 TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder())),
                 const SizedBox(height: 8),
                 TextField(controller: descriptionController, maxLines: 3, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
@@ -1460,36 +1589,26 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
             TextButton(onPressed: () => context.pop(false), child: const Text('Cancel')),
             ElevatedButton(onPressed: () => context.pop(true), child: const Text('Save')),
           ],
-        );
-      },
+        ),
+      ),
     );
-    if (confirmed != true) return;
-    final updates = <String, dynamic>{};
-    if (titleController.text.trim().isNotEmpty) updates['title'] = titleController.text.trim();
-    if (descriptionController.text.trim().isNotEmpty) updates['description'] = descriptionController.text.trim();
-    if (dodController.text.trim().isNotEmpty) updates['definition_of_done'] = dodController.text.trim();
-    if (priority.isNotEmpty) updates['priority'] = priority;
-    if (dueController.text.trim().isNotEmpty) updates['due_date'] = dueController.text.trim();
-    if (updates.isEmpty) return;
-    final resp = await _backendService.updateDeliverable(id, updates);
-    if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    if (resp.isSuccess) {
-      setState(() {
-        _dashboardDeliverables = _dashboardDeliverables.map((e) {
-          final eId = (e['id']?.toString() ?? e['uuid']?.toString() ?? '');
-          if (eId == id) {
-            final m = Map<String, dynamic>.from(e);
-            updates.forEach((k, v) { m[k] = v; });
-            return m;
-          }
-          return e;
-        }).toList();
-      });
-      messenger.showSnackBar(const SnackBar(content: Text('Deliverable updated')));
-      _computeTeamMetrics();
-    } else {
-      messenger.showSnackBar(SnackBar(content: Text(resp.error ?? 'Failed to update deliverable')));
+  }
+
+  Future<void> _editDeliverable(Map<String, dynamic> d) async {
+    final id = (d['id']?.toString() ?? d['uuid']?.toString() ?? '');
+    if (id.isEmpty) return;
+    
+    try {
+      final deliverable = Deliverable.fromJson(d);
+      await context.push('/deliverable-detail', extra: deliverable);
+      // Reload deliverables when returning to reflect changes
+      _loadDashboardDeliverables();
+    } catch (e) {
+      debugPrint('Error navigating to deliverable detail: $e');
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error opening deliverable: $e')),
+      );
     }
   }
 
@@ -1538,6 +1657,11 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
         final status = (s['status'] ?? s['state'] ?? '').toString().toLowerCase();
         if (status == 'active' || status == 'in_progress' || status == 'in-progress') activeSprints++;
       }
+      int activeProjects = 0;
+      for (final p in _dashboardProjects) {
+         final status = (p['status'] ?? '').toString().toLowerCase();
+         if (status != 'completed' && status != 'archived') activeProjects++;
+      }
       final pendingReviews = _pendingReports.length;
       String completionRateStr;
       if (totalDeliverables > 0) {
@@ -1552,6 +1676,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
         'in_progress': inProgress,
         'overdue': overdue,
         'active_sprints': activeSprints,
+        'active_projects': activeProjects,
         'pending_reviews': pendingReviews,
         'completion_rate': completionRateStr,
       };
@@ -1639,11 +1764,11 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
 
   Future<void> _loadClientReviewMetrics() async {
     setState(() {
-      _isLoadingClientMetrics = true;
     });
     try {
       final resp = await _reportService.getSignOffReports();
       final m = {
+        'draft': 0,
         'submitted': 0,
         'approved': 0,
         'changes': 0,
@@ -1679,6 +1804,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
             }
           }
         }
+        int draft = 0;
         int submitted = 0;
         int approved = 0;
         int changes = 0;
@@ -1686,6 +1812,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
         final durations = <double>[];
         for (final r in items.whereType<Map>()) {
           final s = (r['status'] ?? '').toString().toLowerCase();
+          if (s == 'draft') draft++;
           if (s == 'submitted') submitted++;
           if (s == 'approved') approved++;
           if (s.contains('change')) changes++;
@@ -1699,6 +1826,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
             durations.add(hours);
           }
         }
+        m['draft'] = draft;
         m['submitted'] = submitted;
         m['approved'] = approved;
         m['changes'] = changes;
@@ -1709,16 +1837,13 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
         }
       }
       setState(() {
-        _clientReviewMetrics = m;
-      });
-    } catch (_) {
-      setState(() {
         _clientReviewMetrics = {};
       });
     } finally {
       if (mounted) setState(() => _isLoadingClientMetrics = false);
     }
   }
+
 
   Widget _teamPerformanceSummary() {
     double planned = 0;
@@ -1767,6 +1892,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                 _featureTile(Icons.security, 'Role Management', () => context.go('/role-management')),
                 _featureTile(Icons.health_and_safety, 'System Health', () => context.go('/system-health')),
                 _featureTile(Icons.receipt_long, 'Audit Logs', () => context.go('/audit-logs')),
+                _featureTile(Icons.assignment, 'Deliverables Overview', () => context.go('/deliverables-overview')),
               ],
             ),
           ],
@@ -2036,6 +2162,54 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     _loadCurrentUser();
   }
   
+  Widget _buildKanbanLinkCard() {
+    return InkWell(
+      onTap: () => context.push('/deliverables-overview'),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+          border: Border.all(color: Theme.of(context).primaryColor.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.view_kanban, color: Theme.of(context).primaryColor),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Deliverables Board',
+                    style: TextStyle(
+                      fontSize: 16, 
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Track progress and manage status',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, size: 16, color: Theme.of(context).primaryColor),
+          ],
+        ),
+      ),
+    );
+  }
 
 }
 

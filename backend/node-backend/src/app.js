@@ -20,7 +20,7 @@ app.use((req, res, next) => {
 const { testConnection, syncDatabase } = require('./config/database');
 
 // Import models
-const { sequelize, User, Notification, Ticket } = require('./models');
+const { sequelize, User, Notification, Ticket, ApprovalRequest } = require('./models');
 const { QueryTypes, Op } = require('sequelize');
 
 // Import middleware
@@ -367,52 +367,18 @@ async function startServer() {
         console.warn('AI features disabled until OPENAI_API_KEY is set');
       }
 
-      const sendPendingReportReminders = async () => {
+      const schedulerService = require('./services/schedulerService');
+
+      const runScheduledTasks = async () => {
         try {
-          const dueReports = await sequelize.query(
-            "SELECT id, created_by, status, content, updated_at FROM sign_off_reports WHERE status = 'submitted' AND updated_at <= NOW() - INTERVAL '1 day'",
-            { type: QueryTypes.SELECT }
-          );
-
-          if (!dueReports || dueReports.length === 0) return;
-
-          const reviewers = await User.findAll({ where: { role: { [Op.in]: ['clientReviewer', 'ClientReviewer', 'clientreviewer'] }, is_active: true } });
-          if (!reviewers || reviewers.length === 0) return;
-
-          for (const report of dueReports) {
-            const content = typeof report.content === 'string' ? (() => { try { return JSON.parse(report.content); } catch { return {}; } })() : (report.content || {});
-            const title = content.reportTitle || content.report_title || 'Sign-Off Report';
-
-            // Prevent duplicate reminders by checking existing notifications in the last 2 days
-            const recentReminders = await sequelize.query(
-              "SELECT id FROM notifications WHERE type = 'approval' AND message LIKE :msgPattern AND created_at >= NOW() - INTERVAL '2 days'",
-              { type: QueryTypes.SELECT, replacements: { msgPattern: `%${title}%` } }
-            );
-            if (recentReminders && recentReminders.length > 0) continue;
-
-            const notifications = reviewers.map((client) => ({
-              recipient_id: client.id,
-              sender_id: report.created_by || null,
-              type: 'approval',
-              message: `Reminder: Please review and approve or request changes for "${title}"`,
-              payload: {
-                report_id: report.id,
-                report_title: title,
-                action_url: `/enhanced-client-review/${report.id}`,
-              },
-              is_read: false,
-              created_at: new Date(),
-            }));
-
-            await Notification.bulkCreate(notifications);
-          }
+          await schedulerService.runScheduledTasks();
         } catch (err) {
-          console.error('Error sending pending report reminders:', err);
+          console.error('Error in scheduled tasks:', err);
         }
       };
 
-      sendPendingReportReminders();
-      setInterval(sendPendingReportReminders, 30 * 60 * 1000);
+      runScheduledTasks();
+      setInterval(runScheduledTasks, 30 * 60 * 1000);
     });
     server.on('error', (err) => {
       if (err && err.code === 'EADDRINUSE') {

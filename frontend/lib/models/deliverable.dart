@@ -1,62 +1,124 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'dod_item.dart';
-import 'audit_log_entry.dart';
-import 'deliverable_artifact.dart';
 
-export 'dod_item.dart';
-export 'audit_log_entry.dart';
-export 'deliverable_artifact.dart';
+class DoDItem {
+  final String text;
+  final bool isCompleted;
+
+  DoDItem({required this.text, this.isCompleted = false});
+
+  Map<String, dynamic> toJson() => {
+    'text': text,
+    'isCompleted': isCompleted,
+  };
+
+  factory DoDItem.fromJson(Map<String, dynamic> json) {
+    return DoDItem(
+      text: json['text'] as String,
+      isCompleted: json['isCompleted'] as bool? ?? false,
+    );
+  }
+}
+
+class AuditLogEntry {
+  final int id;
+  final String? userId;
+  final String? userEmail;
+  final String? userRole;
+  final String action;
+  final String? actionCategory;
+  final String? entityType;
+  final String? entityId;
+  final Map<String, dynamic>? oldValues;
+  final Map<String, dynamic>? newValues;
+  final List<String>? changedFields;
+  final DateTime createdAt;
+
+  const AuditLogEntry({
+    required this.id,
+    this.userId,
+    this.userEmail,
+    this.userRole,
+    required this.action,
+    this.actionCategory,
+    this.entityType,
+    this.entityId,
+    this.oldValues,
+    this.newValues,
+    this.changedFields,
+    required this.createdAt,
+  });
+
+  factory AuditLogEntry.fromJson(Map<String, dynamic> json) {
+    Map<String, dynamic>? parseMap(dynamic value) {
+      if (value == null) return null;
+      if (value is Map<String, dynamic>) return value;
+      if (value is String) {
+        try {
+          return jsonDecode(value) as Map<String, dynamic>;
+        } catch (_) {
+          return null;
+        }
+      }
+      return null;
+    }
+
+    List<String>? parseList(dynamic value) {
+      if (value == null) return null;
+      if (value is List) return value.map((e) => e.toString()).toList();
+      if (value is String) {
+        try {
+          final decoded = jsonDecode(value);
+          if (decoded is List) return decoded.map((e) => e.toString()).toList();
+        } catch (_) {
+          return null;
+        }
+      }
+      return null;
+    }
+
+    return AuditLogEntry(
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      userId: json['user_id']?.toString() ?? json['userId']?.toString(),
+      userEmail: json['user_email']?.toString() ?? json['userEmail']?.toString(),
+      userRole: json['user_role']?.toString() ?? json['userRole']?.toString(),
+      action: json['action']?.toString() ?? 'unknown',
+      actionCategory: json['action_category']?.toString() ?? json['actionCategory']?.toString(),
+      entityType: json['entity_type']?.toString() ?? json['entityType']?.toString(),
+      entityId: json['entity_id']?.toString() ?? json['entityId']?.toString(),
+      oldValues: parseMap(json['old_values'] ?? json['oldValues']),
+      newValues: parseMap(json['new_values'] ?? json['newValues']),
+      changedFields: parseList(json['changed_fields'] ?? json['changedFields']),
+      createdAt: json['created_at'] != null 
+          ? DateTime.parse(json['created_at'].toString()) 
+          : DateTime.now(),
+    );
+  }
+  
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'user_email': userEmail,
+      'user_role': userRole,
+      'action': action,
+      'action_category': actionCategory,
+      'entity_type': entityType,
+      'entity_id': entityId,
+      'old_values': oldValues,
+      'new_values': newValues,
+      'changed_fields': changedFields,
+      'created_at': createdAt.toIso8601String(),
+    };
+  }
+}
 
 enum DeliverableStatus {
   draft,
-  inProgress,
-  inReview,
-  signedOff,
-  submitted, // Legacy: treat as inReview
-  approved, // Legacy: treat as signedOff
+  submitted,
+  approved,
   changeRequested,
   rejected,
-}
-
-extension DeliverableStatusX on DeliverableStatus {
-  String get displayName {
-    switch (this) {
-      case DeliverableStatus.draft:
-        return 'Draft';
-      case DeliverableStatus.inProgress:
-        return 'In Progress';
-      case DeliverableStatus.inReview:
-      case DeliverableStatus.submitted:
-        return 'In Review';
-      case DeliverableStatus.signedOff:
-      case DeliverableStatus.approved:
-        return 'Signed Off';
-      case DeliverableStatus.changeRequested:
-        return 'Change Requested';
-      case DeliverableStatus.rejected:
-        return 'Rejected';
-    }
-  }
-
-  Color get color {
-    switch (this) {
-      case DeliverableStatus.draft:
-        return Colors.grey;
-      case DeliverableStatus.inProgress:
-        return Colors.blue;
-      case DeliverableStatus.inReview:
-      case DeliverableStatus.submitted:
-        return Colors.orange;
-      case DeliverableStatus.signedOff:
-      case DeliverableStatus.approved:
-        return Colors.green;
-      case DeliverableStatus.changeRequested:
-        return Colors.amber;
-      case DeliverableStatus.rejected:
-        return Colors.red;
-    }
-  }
 }
 
 class Deliverable {
@@ -83,7 +145,6 @@ class Deliverable {
   final String? ownerName;
   final String? ownerRole;
   final List<AuditLogEntry> auditLogs;
-  final List<DeliverableArtifact> artifacts;
 
   const Deliverable({
     required this.id,
@@ -109,7 +170,6 @@ class Deliverable {
     this.ownerName,
     this.ownerRole,
     this.auditLogs = const [],
-    this.artifacts = const [],
   });
 
   Deliverable copyWith({
@@ -188,32 +248,19 @@ class Deliverable {
       'ownerId': ownerId,
       'ownerName': ownerName,
       'ownerRole': ownerRole,
-      'artifacts': artifacts.map((e) => e.toJson()).toList(),
-      // We don't necessarily need to send audit logs back to server, but good for completeness
-      // 'auditLogs': auditLogs.map((e) => e.toJson()).toList(), 
     };
   }
 
   factory Deliverable.fromJson(Map<String, dynamic> json) {
-    // Helper to parse status
     DeliverableStatus parseStatus(String? statusStr) {
       if (statusStr == null) return DeliverableStatus.draft;
-      
-      final lower = statusStr.toLowerCase();
-      // Explicit mappings for backend values
-      if (lower == 'review' || lower == 'in_review') return DeliverableStatus.inReview;
-      if (lower == 'completed' || lower == 'signed_off') return DeliverableStatus.signedOff;
-      if (lower == 'in_progress' || lower == 'active') return DeliverableStatus.inProgress;
-      
-      // Handle snake_case or camelCase
-      final normalized = lower.replaceAll('_', '');
+      final normalized = statusStr.toLowerCase().replaceAll('_', '');
       for (var val in DeliverableStatus.values) {
         if (val.name.toLowerCase() == normalized) return val;
       }
       return DeliverableStatus.draft;
     }
 
-    // Helper to parse DoD items
     List<DoDItem> parseDoD(dynamic dodValue) {
       if (dodValue == null) return [];
       if (dodValue is List) {
@@ -232,7 +279,6 @@ class Deliverable {
             }).toList();
           }
         } catch (_) {
-          // Not JSON, split by newline
           if (dodValue.trim().isNotEmpty) {
              return dodValue.split('\n')
                .map((s) => s.trim())
@@ -245,7 +291,6 @@ class Deliverable {
       return [];
     }
 
-    // Handle sprintIds which might come as 'sprintIds' (List) or 'sprint_id' (String)
     List<String> parseSprintIds(Map<String, dynamic> json) {
       if (json['sprintIds'] != null) {
         return List<String>.from(json['sprintIds']);
@@ -262,7 +307,6 @@ class Deliverable {
       return [];
     }
     
-    // Handle camelCase and snake_case keys
     final id = json['id']?.toString() ?? json['uuid']?.toString() ?? '';
     final title = json['title']?.toString() ?? json['name']?.toString() ?? '';
     final description = json['description']?.toString() ?? '';
@@ -283,7 +327,6 @@ class Deliverable {
     final evidenceValue = json['evidenceLinks'] ?? json['evidence_links'];
     final evidenceLinks = evidenceValue != null ? List<String>.from(evidenceValue) : <String>[];
     
-    // Handle nested owner object
     String? ownerId = json['ownerId']?.toString() ?? json['owner_id']?.toString();
     String? ownerName = json['ownerName']?.toString() ?? json['owner_name']?.toString();
     String? ownerRole = json['ownerRole']?.toString() ?? json['owner_role']?.toString();
@@ -304,7 +347,6 @@ class Deliverable {
       }
     }
 
-    // Parse Audit Logs
     final auditLogsJson = json['auditLogs'] ?? json['audit_logs'];
     List<AuditLogEntry> auditLogs = [];
     if (auditLogsJson != null && auditLogsJson is List) {
@@ -318,17 +360,7 @@ class Deliverable {
           })
           .whereType<AuditLogEntry>()
           .toList();
-      // Sort by newest first
       auditLogs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    }
-
-    // Parse Artifacts
-    final artifactsJson = json['artifacts'];
-    List<DeliverableArtifact> artifacts = [];
-    if (artifactsJson != null && artifactsJson is List) {
-      artifacts = artifactsJson
-          .map((e) => DeliverableArtifact.fromJson(e as Map<String, dynamic>))
-          .toList();
     }
 
     return Deliverable(
@@ -355,51 +387,103 @@ class Deliverable {
       ownerName: ownerName,
       ownerRole: ownerRole,
       auditLogs: auditLogs,
-      artifacts: artifacts,
     );
   }
 
-  String get statusDisplayName => status.displayName;
-
-  Color get statusColor => status.color;
-
-  bool get isOverdue {
-    return DateTime.now().isAfter(dueDate) && 
-           status != DeliverableStatus.approved && 
-           status != DeliverableStatus.signedOff;
-  }
-
-  int get daysUntilDue {
-    return dueDate.difference(DateTime.now()).inDays;
-  }
-
-  static DeliverableStatus _parseStatus(String raw) {
-    final normalized = raw.trim().toLowerCase();
-    switch (normalized) {
-      case 'in_progress':
-      case 'inprogress':
-      case 'active':
-        return DeliverableStatus.inProgress;
-      case 'in_review':
-      case 'review':
-      case 'inreview':
-        return DeliverableStatus.inReview;
-      case 'signed_off':
-      case 'signedoff':
-      case 'completed':
-        return DeliverableStatus.signedOff;
-      case 'submitted':
-        return DeliverableStatus.submitted;
-      case 'approved':
-        return DeliverableStatus.approved;
-      case 'change_requested':
-      case 'changerequested':
-        return DeliverableStatus.changeRequested;
-      case 'rejected':
-        return DeliverableStatus.rejected;
-      case 'draft':
-      default:
-        return DeliverableStatus.draft;
+  String get statusDisplayName {
+    switch (status) {
+      case DeliverableStatus.draft:
+        return 'Draft';
+      case DeliverableStatus.submitted:
+        return 'Submitted';
+      case DeliverableStatus.approved:
+        return 'Approved';
+      case DeliverableStatus.changeRequested:
+        return 'Change Requested';
+      case DeliverableStatus.rejected:
+        return 'Rejected';
     }
+  }
+
+  Color get statusColor {
+    switch (status) {
+      case DeliverableStatus.draft:
+        return Colors.grey;
+      case DeliverableStatus.submitted:
+        return Colors.orange;
+      case DeliverableStatus.approved:
+        return Colors.green;
+      case DeliverableStatus.changeRequested:
+        return Colors.amber;
+      case DeliverableStatus.rejected:
+        return Colors.red;
+    }
+  }
+}
+
+class DeliverableCreate {
+  final String title;
+  final String description;
+  final DateTime dueDate;
+  final List<String> sprintIds;
+  final List<String> definitionOfDone;
+  final List<String> evidenceLinks;
+  final String? ownerId;
+
+  DeliverableCreate({
+    required this.title,
+    required this.description,
+    required this.dueDate,
+    required this.sprintIds,
+    required this.definitionOfDone,
+    required this.evidenceLinks,
+    this.ownerId,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'description': description,
+      'due_date': dueDate.toIso8601String(),
+      'sprintIds': sprintIds,
+      'definition_of_done': definitionOfDone,
+      'evidence_links': evidenceLinks,
+      if (ownerId != null) 'owner_id': ownerId,
+    };
+  }
+}
+
+class DeliverableUpdate {
+  final String? title;
+  final String? description;
+  final DateTime? dueDate;
+  final String? status;
+  final List<String>? sprintIds;
+  final List<String>? definitionOfDone;
+  final List<String>? evidenceLinks;
+  final String? ownerId;
+
+  DeliverableUpdate({
+    this.title,
+    this.description,
+    this.dueDate,
+    this.status,
+    this.sprintIds,
+    this.definitionOfDone,
+    this.evidenceLinks,
+    this.ownerId,
+  });
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = {};
+    if (title != null) data['title'] = title;
+    if (description != null) data['description'] = description;
+    if (dueDate != null) data['due_date'] = dueDate!.toIso8601String();
+    if (status != null) data['status'] = status;
+    if (sprintIds != null) data['sprintIds'] = sprintIds;
+    if (definitionOfDone != null) data['definition_of_done'] = definitionOfDone;
+    if (evidenceLinks != null) data['evidence_links'] = evidenceLinks;
+    if (ownerId != null) data['owner_id'] = ownerId;
+    return data;
   }
 }
