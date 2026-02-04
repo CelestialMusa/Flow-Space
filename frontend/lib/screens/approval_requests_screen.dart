@@ -59,10 +59,8 @@ class _ApprovalRequestsScreenState extends State<ApprovalRequestsScreen> {
     setState(() => _isLoading = true);
     
     try {
-      final statusParam = _selectedStatus != 'all' ? _selectedStatus : null;
-      final priorityParam = _selectedPriority != 'all' ? _selectedPriority : null;
+      final statusParam = GoRouterState.of(context).uri.queryParameters['status'] ?? 'pending';
       final categoryParam = _selectedCategory != 'all' ? _selectedCategory : null;
-      final deliverableParam = _selectedDeliverableId != 'all' ? _selectedDeliverableId : null;
       final response = await ApiService.getApprovalRequests(
         status: statusParam,
         type: categoryParam,

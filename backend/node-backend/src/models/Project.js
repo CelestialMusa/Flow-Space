@@ -34,6 +34,23 @@ module.exports = (sequelize, DataTypes) => {
     created_by: {
       type: DataTypes.UUID,
       allowNull: true
+    },
+    start_date: {
+      type: DataTypes.DATEONLY,
+      allowNull: true
+    },
+    end_date: {
+      type: DataTypes.DATEONLY,
+      allowNull: true
+    },
+    client: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    type: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: 'software'
     }
   }, {
     tableName: 'projects',

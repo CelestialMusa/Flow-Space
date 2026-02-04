@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/environment.dart';
 import '../models/project.dart';
+import 'api_service.dart';
 
 class ProjectService {
   static Future<List<Project>> getProjects({int limit = 100, int offset = 0}) async {
@@ -22,6 +23,10 @@ class ProjectService {
     } catch (e) {
       throw Exception('Error fetching projects: $e');
     }
+  }
+
+  static Future<List<Project>> getAllProjects() async {
+    return await getProjects(limit: 1000, offset: 0);
   }
 
   static Future<Project> getProject(String projectId) async {
@@ -131,10 +136,9 @@ class ProjectService {
     };
     
     // Add Authorization header if token is available
-    // Implement proper token management using AuthService
-    // if (ApiService.accessToken != null) {
-    //   headers['Authorization'] = 'Bearer ${ApiService.accessToken}';
-    // }
+    if (ApiService.accessToken != null) {
+      headers['Authorization'] = 'Bearer ${ApiService.accessToken}';
+    }
     
     return headers;
   }

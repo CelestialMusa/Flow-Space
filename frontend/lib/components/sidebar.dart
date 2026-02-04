@@ -1,88 +1,198 @@
 // ignore_for_file: use_super_parameters, deprecated_member_use, prefer_const_constructors
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../providers/api_auth_riverpod_provider.dart';
 
-class Sidebar extends StatefulWidget {
-  final bool isCollapsed;
-  final Function(bool) onToggle;
-  final String currentRoute;
+class SidebarItem {
+  final String title;
+  final IconData icon;
+  final String route;
+  final String tooltip;
+  final List<String> allowedRoles; // Roles that can see this item
 
-  const Sidebar({
-    Key? key,
-    required this.isCollapsed,
-    required this.onToggle,
-    required this.currentRoute,
-  }) : super(key: key);
-
-  @override
-  State<Sidebar> createState() => _SidebarState();
+  const SidebarItem({
+    required this.title,
+    required this.icon,
+    required this.route,
+    required this.tooltip,
+    this.allowedRoles = const [], // Empty means all roles can see
+  });
 }
 
-class _SidebarState extends State<Sidebar> {
-  final List<dynamic> _sidebarItems = [
-    SidebarItem(
-      title: 'Profile',
-      icon: Icons.person,
-      route: '/profile',
-      tooltip: 'User Profile',
-    ),
-    SidebarItem(
-      title: 'Settings',
-      icon: Icons.settings,
-      route: '/settings',
-      tooltip: 'App Settings',
-    ),
-    SidebarItem(
-      title: 'Notifications',
-      icon: Icons.notifications,
-      route: '/notifications',
-      tooltip: 'Notifications',
-    ),
-    const SidebarDivider(),
-    SidebarItem(
-      title: 'Dashboard',
-      icon: Icons.dashboard,
-      route: '/dashboard',
-      tooltip: 'Main Dashboard',
-    ),
-    SidebarItem(
-      title: 'Deliverables',
-      icon: Icons.task,
-      route: '/deliverable-setup',
-      tooltip: 'Manage Deliverables',
-    ),
-    SidebarItem(
-      title: 'Sprints',
-      icon: Icons.timeline,
-      route: '/sprint-console',
-      tooltip: 'Sprint Console',
-    ),
-    SidebarItem(
-      title: 'Sign-off Builder',
-      icon: Icons.description,
-      route: '/signoff-builder',
-      tooltip: 'Build Sign-off Reports',
-    ),
-    SidebarItem(
-      title: 'Client Review',
-      icon: Icons.visibility,
-      route: '/client-review',
-      tooltip: 'Client Review Dashboard',
-    ),
-    SidebarItem(
-      title: 'Audit Trail',
-      icon: Icons.history,
-      route: '/audit-trail',
-      tooltip: 'Audit Trail Logs',
-    ),
-    SidebarItem(
-      title: 'Repository',
-      icon: Icons.storage,
-      route: '/repository',
-      tooltip: 'Signed Reports Repository',
-    ),
-  ];
+class SidebarDivider {
+  const SidebarDivider();
+}
+
+class Sidebar extends ConsumerStatefulWidget {
+  final bool isCollapsed;
+  final String currentRoute;
+  final Function(bool)? onToggle;
+
+  const Sidebar({
+    super.key,
+    required this.isCollapsed,
+    required this.currentRoute,
+    this.onToggle,
+  });
+
+  @override
+  ConsumerState<Sidebar> createState() => _SidebarState();
+}
+
+class _SidebarState extends ConsumerState<Sidebar> {
+  List<dynamic> _sidebarItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _buildSidebarItems();
+    
+    // Listen for user changes and rebuild sidebar
+    ref.listen(apiCurrentUserProvider, (previous, next) {
+      if (previous?.id != next?.id) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _buildSidebarItems();
+        });
+      }
+    });
+    
+    // Force rebuild for testing
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _buildSidebarItems();
+    });
+  }
+
+  void _buildSidebarItems() {
+    final user = ref.watch(apiCurrentUserProvider);
+    final userRole = user?.role.name ?? 'teamMember';
+    
+    debugPrint('🔍 Sidebar Debug - User: ${user?.firstName} ${user?.lastName}, Role: ${user?.role}, Role Name: $userRole');
+
+    setState(() {
+      _sidebarItems = [
+        // Common items for all roles
+        const SidebarDivider(),
+        const SidebarItem(
+          title: 'Dashboard',
+          icon: Icons.dashboard,
+          route: '/dashboard',
+          tooltip: 'Main Dashboard',
+        ),
+        
+        // Projects tab - temporarily available to all users for testing
+        const SidebarItem(
+          title: 'Projects',
+          icon: Icons.folder,
+          route: '/projects',
+          tooltip: 'Manage Projects',
+        ),
+        // Show Create Project to all users
+        SidebarItem(
+          title: 'Create Project',
+          icon: Icons.add_circle,
+          route: '/project-setup',
+          tooltip: 'Create New Project',
+        ),
+        if (_canAccessRole('systemAdmin', userRole) || _canAccessRole('deliveryLead', userRole)) 
+          const SidebarItem(
+            title: 'Deliverables',
+            icon: Icons.task,
+            route: '/deliverable-setup',
+            tooltip: 'Manage Deliverables',
+            allowedRoles: ['systemAdmin', 'deliveryLead'],
+          ),
+        
+        if (_canAccessRole('systemAdmin', userRole) || _canAccessRole('deliveryLead', userRole) || _canAccessRole('qaEngineer', userRole))
+          const SidebarItem(
+            title: 'Sprints',
+            icon: Icons.timeline,
+            route: '/sprint-console',
+            tooltip: 'Sprint Console',
+            allowedRoles: ['systemAdmin', 'deliveryLead', 'qaEngineer'],
+          ),
+        
+        if (_canAccessRole('systemAdmin', userRole) || _canAccessRole('deliveryLead', userRole))
+          const SidebarItem(
+            title: 'Sign-off Builder',
+            icon: Icons.description,
+            route: '/signoff-builder',
+            tooltip: 'Build Sign-off Reports',
+            allowedRoles: ['systemAdmin', 'deliveryLead'],
+          ),
+        
+        if (_canAccessRole('client', userRole) || _canAccessRole('clientReviewer', userRole))
+          const SidebarItem(
+            title: 'Client Review',
+            icon: Icons.visibility,
+            route: '/client-review',
+            tooltip: 'Client Review Dashboard',
+            allowedRoles: ['client', 'clientReviewer'],
+          ),
+        
+        if (_canAccessRole('systemAdmin', userRole))
+          const SidebarItem(
+            title: 'Audit Trail',
+            icon: Icons.history,
+            route: '/audit-trail',
+            tooltip: 'Audit Trail Logs',
+            allowedRoles: ['systemAdmin'],
+          ),
+        
+        if (_canAccessRole('systemAdmin', userRole) || _canAccessRole('deliveryLead', userRole))
+          const SidebarItem(
+            title: 'Repository',
+            icon: Icons.storage,
+            route: '/repository',
+            tooltip: 'Signed Reports Repository',
+            allowedRoles: ['systemAdmin', 'deliveryLead'],
+          ),
+        
+        // User-specific items
+        const SidebarDivider(),
+        const SidebarItem(
+          title: 'Profile',
+          icon: Icons.person,
+          route: '/profile',
+          tooltip: 'User Profile',
+        ),
+        
+        if (_canAccessRole('systemAdmin', userRole))
+          const SidebarItem(
+            title: 'Settings',
+            icon: Icons.settings,
+            route: '/settings',
+            tooltip: 'System Settings',
+            allowedRoles: ['systemAdmin'],
+          ),
+        
+        const SidebarItem(
+          title: 'Notifications',
+          icon: Icons.notifications,
+          route: '/notifications',
+          tooltip: 'Notifications',
+        ),
+      ];
+    });
+  }
+
+  bool _canAccessRole(String requiredRole, String userRole) {
+    // Role hierarchy: systemAdmin > deliveryLead > qaEngineer > clientReviewer > client > teamMember
+    final roleHierarchy = {
+      'systemAdmin': 6,
+      'deliveryLead': 5,
+      'qaEngineer': 4,
+      'clientReviewer': 3,
+      'client': 2,
+      'teamMember': 1,
+    };
+    
+    final userLevel = roleHierarchy[userRole] ?? 0;
+    final requiredLevel = roleHierarchy[requiredRole] ?? 0;
+    
+    return userLevel >= requiredLevel;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +254,7 @@ class _SidebarState extends State<Sidebar> {
               widget.isCollapsed ? Icons.menu_open : Icons.menu,
               size: 20,
             ),
-            onPressed: () => widget.onToggle(!widget.isCollapsed),
+            onPressed: widget.onToggle != null ? () => widget.onToggle!(!widget.isCollapsed) : null,
             tooltip: widget.isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar',
           ),
         ],
@@ -202,22 +312,4 @@ class _SidebarState extends State<Sidebar> {
       ),
     );
   }
-}
-
-class SidebarItem {
-  final String title;
-  final IconData icon;
-  final String route;
-  final String tooltip;
-
-  SidebarItem({
-    required this.title,
-    required this.icon,
-    required this.route,
-    required this.tooltip,
-  });
-}
-
-class SidebarDivider {
-  const SidebarDivider();
 }

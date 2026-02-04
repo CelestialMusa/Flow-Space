@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import './sidebar.dart';
+import '../providers/api_auth_riverpod_provider.dart';
+import '../models/user_role.dart';
 
 final sidebarProvider = StateProvider<bool>((ref) => false);
 
@@ -20,6 +22,8 @@ class MainLayout extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isSidebarCollapsed = ref.watch(sidebarProvider);
+    // final user = ref.watch(apiCurrentUserProvider); // Available for future user-based features
+    // final userRole = user?.role; // Available for future role-based features
 
     return Scaffold(
       body: Row(
@@ -57,6 +61,14 @@ class MainLayout extends ConsumerWidget {
           ),
         ],
       ),
+      floatingActionButton: currentRoute == '/projects'
+          ? FloatingActionButton(
+              onPressed: () => context.go('/projects/create'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.white,
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 }
@@ -64,6 +76,9 @@ class MainLayout extends ConsumerWidget {
 // Helper function to wrap screens with main layout
 Widget wrapWithLayout(Widget child, String route) {
   return Consumer(builder: (context, ref, _) {
-    return MainLayout(child: child, currentRoute: route);
+    return MainLayout(
+      child: child, 
+      currentRoute: route,
+    );
   });
 }

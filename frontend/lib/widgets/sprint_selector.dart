@@ -21,7 +21,7 @@ class SprintSelector extends StatefulWidget {
 
 class _SprintSelectorState extends State<SprintSelector> {
   List<Map<String, dynamic>> _availableSprints = [];
-  List<Map<String, dynamic>> _selectedSprints = [];
+  final List<Map<String, dynamic>> _selectedSprints = [];
   Set<String> _selectedIds = {};
   bool _isLoading = false;
   String? _error;
@@ -644,7 +644,6 @@ class _SprintSelectorState extends State<SprintSelector> {
   Widget _buildAvailableSprintTile(Map<String, dynamic> sprint) {
     final isSelected = _selectedIds.contains(sprint['id'] as String);
     final status = sprint['status'] as String?;
-    final progress = sprint['progress'] as int? ?? 0;
     final ticketCount = sprint['ticket_count'] as int? ?? 0;
     
     return InkWell(
