@@ -42,27 +42,21 @@ class AppShell extends ConsumerWidget {
               },
               currentRoute: currentRoute,
             ),
-            // Main content area - THIS IS THE KEY!
+            // Main content area
             Expanded(
               child: child,
             ),
           ],
         ),
-        // FAB that shows on ALL pages within the shell
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('FAB WORKS! Inside ShellRoute'),
-                backgroundColor: Colors.green,
-              ),
-            );
-            context.go('/project-setup');
-          },
-          backgroundColor: Colors.purple,
-          foregroundColor: Colors.white,
-          child: const Icon(Icons.add),
-        ),
+        // FAB that ONLY shows on /projects page
+        floatingActionButton: currentRoute == '/projects'
+            ? FloatingActionButton(
+                onPressed: () => context.go('/projects/create'),
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Colors.white,
+                child: const Icon(Icons.add),
+              )
+            : null,
       ),
     );
   }
