@@ -21,6 +21,10 @@ class AppShell extends ConsumerWidget {
     final isSidebarCollapsed = ref.watch(sidebarProvider);
     final themeMode = ref.watch(themeProvider);
 
+    // Debug logging
+    debugPrint('🔍 AppShell Debug - currentRoute: $currentRoute');
+    debugPrint('🔍 AppShell Debug - shouldShowFAB: ${currentRoute == '/projects'}');
+
     return MaterialApp(
       theme: ThemeData(
         useMaterial3: true,
