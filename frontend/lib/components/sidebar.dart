@@ -83,7 +83,7 @@ class _SidebarState extends ConsumerState<Sidebar> {
         
         // Projects tab - temporarily available to all users for testing
         const SidebarItem(
-          title: 'Projects',
+          title: 'Projects 🎯',
           icon: Icons.folder,
           route: '/projects',
           tooltip: 'Manage Projects',
