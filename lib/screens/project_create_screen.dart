@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../services/project_service.dart';
-import '../services/user_data_service.dart';
-import '../models/user.dart';
 
 class ProjectCreateScreen extends StatefulWidget {
   final String? projectId;
@@ -26,9 +24,6 @@ class _ProjectCreateScreenState extends State<ProjectCreateScreen> {
   String _selectedType = 'Software Development';
   bool _isLoading = false;
   bool _isEditing = false;
-  List<User> _availableUsers = [];
-  final List<User> _selectedMembers = [];
-  bool _isLoadingUsers = false;
 
   final List<String> _projectTypes = [
     'Software Development',
@@ -43,22 +38,8 @@ class _ProjectCreateScreenState extends State<ProjectCreateScreen> {
   void initState() {
     super.initState();
     _isEditing = widget.projectId != null;
-    _loadUsers();
     if (_isEditing) {
       _loadProjectData();
-    }
-  }
-
-  Future<void> _loadUsers() async {
-    setState(() => _isLoadingUsers = true);
-    try {
-      final users = await UserDataService().getUsers();
-      setState(() {
-        _availableUsers = users;
-        _isLoadingUsers = false;
-      });
-    } catch (e) {
-      setState(() => _isLoadingUsers = false);
     }
   }
 
@@ -143,12 +124,7 @@ class _ProjectCreateScreenState extends State<ProjectCreateScreen> {
         'status': 'planning',
         'priority': 'medium',
         'tags': [],
-        'members': _selectedMembers.map((user) => {
-          'userId': user.id,
-          'userName': user.name,
-          'userEmail': user.email,
-          'role': 'contributor'
-        }).toList(),
+        'members': [],
         'deliverableIds': [],
         'sprintIds': [],
       };
@@ -199,328 +175,302 @@ class _ProjectCreateScreenState extends State<ProjectCreateScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit Project' : 'Create Project'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.grey[50]!,
-              Colors.grey[100]!,
+      backgroundColor: Colors.grey[50],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Project Name
+              _buildFormField(
+                label: 'Project Name',
+                controller: _nameController,
+                hintText: 'Enter project name',
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Project name is required';
+                  }
+                  return null;
+                },
+                onChanged: (_) => _generateProjectKey(),
+              ),
+              const SizedBox(height: 16),
+
+              // Project Key
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildFormField(
+                      label: 'Project Key',
+                      controller: _keyController,
+                      hintText: 'Auto-generated from project name',
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Project key is required';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: IconButton(
+                      onPressed: _generateProjectKey,
+                      icon: const Icon(Icons.refresh, color: Colors.white),
+                      tooltip: 'Generate Key',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Description
+              _buildFormField(
+                label: 'Description',
+                controller: _descriptionController,
+                maxLines: 3,
+                hintText: 'Enter project description',
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Description is required';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Dates Row
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildFormField(
+                      label: 'Start Date',
+                      controller: _startDateController,
+                      hintText: 'DD/MM/YYYY',
+                      readOnly: true,
+                      suffixIcon: Icons.calendar_today,
+                      onTap: () => _selectDate(context, _startDateController),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Start date is required';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildFormField(
+                      label: 'End Date',
+                      controller: _endDateController,
+                      hintText: 'DD/MM/YYYY',
+                      readOnly: true,
+                      suffixIcon: Icons.calendar_today,
+                      onTap: () => _selectDate(context, _endDateController),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'End date is required';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Client Name
+              _buildFormField(
+                label: 'Client Name',
+                controller: _clientController,
+                hintText: 'Enter client name',
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Client name is required';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Project Type
+              _buildDropdownField(
+                label: 'Project Type',
+                value: _selectedType,
+                items: _projectTypes,
+                onChanged: (value) {
+                  setState(() => _selectedType = value);
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // URLs Row
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildFormField(
+                      label: 'Repository URL',
+                      controller: _repositoryController,
+                      hintText: 'https://github.com/username/repo',
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildFormField(
+                      label: 'Documentation URL',
+                      controller: _documentationController,
+                      hintText: 'https://docs.example.com',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => context.go('/projects'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _saveProject,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Text(_isEditing ? 'Update Project' : 'Save Project'),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Project Name
-                TextFormField(
-                  controller: _nameController,
-                  decoration: InputDecoration(
-                    labelText: 'Project Name',
-                    hintText: 'Enter project name',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Project name is required';
-                    }
-                    return null;
-                  },
-                  onChanged: (_) => _generateProjectKey(),
-                ),
-                const SizedBox(height: 16),
+      ),
+    );
+  }
 
-                // Project Key
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _keyController,
-                        decoration: InputDecoration(
-                          labelText: 'Project Key',
-                          hintText: 'Auto-generated from project name',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Project key is required';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: _generateProjectKey,
-                      icon: const Icon(Icons.refresh),
-                      tooltip: 'Generate Key',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Description
-                TextFormField(
-                  controller: _descriptionController,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    labelText: 'Description',
-                    hintText: 'Enter project description',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Description is required';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Dates Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _startDateController,
-                        readOnly: true,
-                        decoration: InputDecoration(
-                          labelText: 'Start Date',
-                          hintText: 'DD/MM/YYYY',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.calendar_today),
-                            onPressed: () => _selectDate(context, _startDateController),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Start date is required';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _endDateController,
-                        readOnly: true,
-                        decoration: InputDecoration(
-                          labelText: 'End Date',
-                          hintText: 'DD/MM/YYYY',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.calendar_today),
-                            onPressed: () => _selectDate(context, _endDateController),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'End date is required';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Client Name
-                TextFormField(
-                  controller: _clientController,
-                  decoration: InputDecoration(
-                    labelText: 'Client Name',
-                    hintText: 'Enter client name',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Client name is required';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Project Type
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedType,
-                  decoration: InputDecoration(
-                    labelText: 'Project Type',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                  items: _projectTypes.map((type) {
-                    return DropdownMenuItem(
-                      value: type,
-                      child: Text(type),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() => _selectedType = value!);
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Team Members
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Team Members',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[300]!),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        children: [
-                          if (_isLoadingUsers)
-                            const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Center(child: CircularProgressIndicator()),
-                            )
-                          else
-                            ListView.builder(
-                              shrinkWrap: true,
-                              itemCount: _availableUsers.length,
-                              itemBuilder: (context, index) {
-                                final user = _availableUsers[index];
-                                final isSelected = _selectedMembers.any((member) => member.id == user.id);
-                                return CheckboxListTile(
-                                  title: Text(user.name),
-                                  subtitle: Text(user.email),
-                                  value: isSelected,
-                                  onChanged: (bool? selected) {
-                                    setState(() {
-                                      if (selected == true) {
-                                        _selectedMembers.add(user);
-                                      } else {
-                                        _selectedMembers.removeWhere((member) => member.id == user.id);
-                                      }
-                                    });
-                                  },
-                                );
-                              },
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Repository URL
-                TextFormField(
-                  controller: _repositoryController,
-                  decoration: InputDecoration(
-                    labelText: 'Repository URL',
-                    hintText: 'https://github.com/username/repo',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Documentation URL
-                TextFormField(
-                  controller: _documentationController,
-                  decoration: InputDecoration(
-                    labelText: 'Documentation URL',
-                    hintText: 'https://docs.example.com',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => context.go('/projects'),
-                        child: const Text('Cancel'),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _saveProject,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : Text(_isEditing ? 'Update Project' : 'Save Project'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+  Widget _buildFormField({
+    required String label,
+    required TextEditingController controller,
+    String? hintText,
+    int maxLines = 1,
+    bool readOnly = false,
+    IconData? suffixIcon,
+    void Function()? onTap,
+    String? Function(String?)? validator,
+    void Function(String)? onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[700],
           ),
         ),
-      ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          maxLines: maxLines,
+          readOnly: readOnly,
+          decoration: InputDecoration(
+            hintText: hintText,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            suffixIcon: suffixIcon != null
+                ? IconButton(
+                    icon: Icon(suffixIcon, size: 20),
+                    onPressed: onTap,
+                  )
+                : null,
+          ),
+          validator: validator,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDropdownField({
+    required String label,
+    required String value,
+    required List<String> items,
+    required void Function(String) onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[700],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonFormField<String>(
+            initialValue: value,
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            items: items.map((type) {
+              return DropdownMenuItem(
+                value: type,
+                child: Text(type),
+              );
+            }).toList(),
+            onChanged: (String? newValue) {
+              if (newValue != null) {
+                onChanged(newValue);
+              }
+            },
+          ),
+        ),
+      ],
     );
   }
 }
