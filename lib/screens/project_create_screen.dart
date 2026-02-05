@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../services/project_service.dart';
+import '../services/user_data_service.dart';
+import '../models/user.dart';
 
 class ProjectCreateScreen extends StatefulWidget {
-  const ProjectCreateScreen({super.key});
+  final String? projectId;
+  
+  const ProjectCreateScreen({super.key, this.projectId});
 
   @override
   State<ProjectCreateScreen> createState() => _ProjectCreateScreenState();
@@ -21,6 +25,10 @@ class _ProjectCreateScreenState extends State<ProjectCreateScreen> {
   final _documentationController = TextEditingController();
   String _selectedType = 'Software Development';
   bool _isLoading = false;
+  bool _isEditing = false;
+  List<User> _availableUsers = [];
+  final List<User> _selectedMembers = [];
+  bool _isLoadingUsers = false;
 
   final List<String> _projectTypes = [
     'Software Development',
@@ -30,6 +38,52 @@ class _ProjectCreateScreenState extends State<ProjectCreateScreen> {
     'Training',
     'Support & Maintenance',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _isEditing = widget.projectId != null;
+    _loadUsers();
+    if (_isEditing) {
+      _loadProjectData();
+    }
+  }
+
+  Future<void> _loadUsers() async {
+    setState(() => _isLoadingUsers = true);
+    try {
+      final users = await UserDataService().getUsers();
+      setState(() {
+        _availableUsers = users;
+        _isLoadingUsers = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingUsers = false);
+    }
+  }
+
+  Future<void> _loadProjectData() async {
+    if (widget.projectId == null) return;
+    
+    try {
+      final project = await ProjectService.getProjectById(widget.projectId!);
+      if (project != null) {
+        setState(() {
+          _nameController.text = project.name;
+          _keyController.text = project.id;
+          _descriptionController.text = project.description;
+          _clientController.text = project.clientName ?? '';
+          _selectedType = project.projectType;
+          _startDateController.text = '${project.startDate.day}/${project.startDate.month}/${project.startDate.year}';
+          if (project.endDate != null) {
+            _endDateController.text = '${project.endDate!.day}/${project.endDate!.month}/${project.endDate!.year}';
+          }
+        });
+      }
+    } catch (e) {
+      // Handle error
+    }
+  }
 
   @override
   void dispose() {
@@ -89,20 +143,39 @@ class _ProjectCreateScreenState extends State<ProjectCreateScreen> {
         'status': 'planning',
         'priority': 'medium',
         'tags': [],
-        'members': [],
+        'members': _selectedMembers.map((user) => {
+          'userId': user.id,
+          'userName': user.name,
+          'userEmail': user.email,
+          'role': 'contributor'
+        }).toList(),
         'deliverableIds': [],
         'sprintIds': [],
       };
 
-      await ProjectService.createProject(projectData);
+      if (_isEditing) {
+        await ProjectService.updateProject(widget.projectId!, projectData);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Project updated successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        await ProjectService.createProject(projectData);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Project created successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Project created successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
         context.go('/projects');
       }
     } catch (e) {
@@ -125,7 +198,7 @@ class _ProjectCreateScreenState extends State<ProjectCreateScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Project'),
+        title: Text(_isEditing ? 'Edit Project' : 'Create Project'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
       ),
@@ -326,6 +399,61 @@ class _ProjectCreateScreenState extends State<ProjectCreateScreen> {
                 ),
                 const SizedBox(height: 16),
 
+                // Team Members
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Team Members',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[300]!),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        children: [
+                          if (_isLoadingUsers)
+                            const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          else
+                            ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: _availableUsers.length,
+                              itemBuilder: (context, index) {
+                                final user = _availableUsers[index];
+                                final isSelected = _selectedMembers.any((member) => member.id == user.id);
+                                return CheckboxListTile(
+                                  title: Text(user.name),
+                                  subtitle: Text(user.email),
+                                  value: isSelected,
+                                  onChanged: (bool? selected) {
+                                    setState(() {
+                                      if (selected == true) {
+                                        _selectedMembers.add(user);
+                                      } else {
+                                        _selectedMembers.removeWhere((member) => member.id == user.id);
+                                      }
+                                    });
+                                  },
+                                );
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
                 // Repository URL
                 TextFormField(
                   controller: _repositoryController,
@@ -383,7 +511,7 @@ class _ProjectCreateScreenState extends State<ProjectCreateScreen> {
                                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                 ),
                               )
-                            : const Text('Save Project'),
+                            : Text(_isEditing ? 'Update Project' : 'Save Project'),
                       ),
                     ),
                   ],

@@ -181,6 +181,18 @@ final GoRouter _router = GoRouter(
       ),
     ),
     GoRoute(
+      path: '/projects/:projectId/edit',
+      builder: (context, state) {
+        final projectId = state.pathParameters['projectId']!;
+        return RoleGuard(
+          requiredPermission: 'authenticated',
+          child: SidebarScaffold(
+            child: ProjectCreateScreen(projectId: projectId),
+          ),
+        );
+      },
+    ),
+    GoRoute(
       path: '/deliverable-setup',
       builder: (context, state) => const RouteGuard(
         route: '/deliverable-setup',
