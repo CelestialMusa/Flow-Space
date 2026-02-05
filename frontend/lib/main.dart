@@ -68,7 +68,7 @@ class KhonoApp extends ConsumerWidget {
         // MAIN SHELL - This contains the sidebar and FAB
         ShellRoute(
           builder: (context, state, child) {
-            final currentRoute = state.uri.path; // Use path instead of full URI
+            final currentRoute = state.matchedLocation; // Use matchedLocation for accurate route
             return AppShell(
               currentRoute: currentRoute,
               child: child,
