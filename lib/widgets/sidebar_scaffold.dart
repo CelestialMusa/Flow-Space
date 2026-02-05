@@ -34,6 +34,12 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         requiredPermission: null, // All authenticated users can access dashboard
       ),
       const _NavItem(
+        label: 'Projects', 
+        icon: Icons.folder_outlined,
+        route: '/projects',
+        requiredPermission: null, // All authenticated users can access projects
+      ),
+      const _NavItem(
         label: 'Sprints', 
         icon: Icons.timer_outlined, 
         route: '/sprint-console',
