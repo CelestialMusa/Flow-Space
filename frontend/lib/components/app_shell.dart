@@ -18,6 +18,10 @@ class AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isSidebarCollapsed = ref.watch(sidebarProvider);
 
+    // Debug logging
+    debugPrint('🔍 AppShell BUILD - currentRoute: $currentRoute');
+    debugPrint('🔍 AppShell BUILD - shouldShowFAB: ${currentRoute == '/projects'}');
+
     return Scaffold(
       body: Row(
         children: [
@@ -124,7 +128,7 @@ class Sidebar extends StatelessWidget {
                 // 🔴 Projects tab — THIS IS THE MISSING PIECE
                 SidebarItem(
                   icon: Icons.folder,
-                  label: 'Projects',
+                  label: 'Projects 🚀',
                   route: '/projects',
                   currentRoute: currentRoute,
                   isCollapsed: isCollapsed,
