@@ -23,6 +23,11 @@ class AppShell extends ConsumerWidget {
     debugPrint('🔍 AppShell BUILD - shouldShowFAB: ${currentRoute == '/projects'}');
 
     return Scaffold(
+      appBar: AppBar(
+        title: Text('🔴 APPSHELL ACTIVE - Route: $currentRoute'),
+        backgroundColor: Colors.red,
+        foregroundColor: Colors.white,
+      ),
       body: Row(
         children: [
           // Sidebar
@@ -68,19 +73,20 @@ class Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: isCollapsed ? 80 : 240,
-      color: Colors.grey[900],
+      color: Colors.red[900], // 🔴 RED BACKGROUND - IMPOSSIBLE TO MISS
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
           Container(
             padding: const EdgeInsets.all(16),
+            color: Colors.red[700],
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 if (!isCollapsed)
                   const Text(
-                    'Khonology',
+                    '🔴 SIDEBAR ACTIVE',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
