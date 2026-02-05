@@ -50,6 +50,7 @@ import 'screens/deliverable_detail_screen.dart';
 import 'screens/environment_management_screen.dart';
 import 'screens/project_workspace_screen.dart';
 import 'screens/projects_screen.dart';
+import 'screens/project_create_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -167,6 +168,15 @@ final GoRouter _router = GoRouter(
         requiredPermission: 'authenticated',
         child: SidebarScaffold(
           child: ProjectsScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/projects/create',
+      builder: (context, state) => const RoleGuard(
+        requiredPermission: 'authenticated',
+        child: SidebarScaffold(
+          child: ProjectCreateScreen(),
         ),
       ),
     ),

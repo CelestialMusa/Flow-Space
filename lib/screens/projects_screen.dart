@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class ProjectsScreen extends StatelessWidget {
   const ProjectsScreen({super.key});
@@ -28,20 +29,22 @@ class ProjectsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Projects management coming soon',
+                'Manage your projects here',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey[500],
                 ),
               ),
               const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Projects functionality will be implemented soon!')),
-                  );
-                },
-                child: const Text('Create Project'),
+              ElevatedButton.icon(
+                onPressed: () => context.go('/projects/create'),
+                icon: const Icon(Icons.add),
+                label: const Text('Create Project'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
               ),
             ],
           ),
