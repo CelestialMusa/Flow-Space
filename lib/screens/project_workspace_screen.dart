@@ -39,6 +39,7 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   List<Deliverable> _availableDeliverables = [];
   List<Sprint> _availableSprints = [];
   List<User> _availableUsers = [];
+  User? _selectedOwner;
   
   bool _isLoading = false;
   bool _isEditing = false;
@@ -47,11 +48,15 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   @override
   void initState() {
     super.initState();
+    _initData();
+  }
+
+  Future<void> _initData() async {
+    await _loadAvailableData();
     if (widget.projectId != null) {
       _isEditing = true;
-      _loadProject();
+      await _loadProject();
     }
-    _loadAvailableData();
   }
 
   @override
@@ -84,6 +89,18 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
           _members = project.members;
           _deliverableIds = project.deliverableIds;
           _sprintIds = project.sprintIds;
+          
+          // Set selected owner
+          try {
+             // Prefer ownerId from project if available (frontend model update pending in other files)
+             // or fallback to finding member with owner role
+             if (project.ownerId != null) {
+               _selectedOwner = _availableUsers.firstWhere((u) => u.id == project.ownerId);
+             } else {
+               final ownerMember = _members.firstWhere((m) => m.role == ProjectRole.owner);
+               _selectedOwner = _availableUsers.firstWhere((u) => u.id == ownerMember.userId);
+             }
+          } catch (_) {}
         });
       }
     } catch (e) {
@@ -153,6 +170,7 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
         createdAt: _isEditing ? _currentProject!.createdAt : DateTime.now(),
         updatedAt: DateTime.now(),
         updatedBy: AuthService().currentUser?.id ?? 'unknown',
+        ownerId: _selectedOwner?.id,
       );
 
       if (_isEditing) {
@@ -173,22 +191,30 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
     }
   }
 
-  void _addMember() {
+  void _openMemberSelectionDialog() {
     showDialog(
       context: context,
-      builder: (context) => _AddMemberDialog(
+      builder: (context) => _SelectMembersDialog(
         availableUsers: _availableUsers,
-        onAdd: (user, role) {
+        selectedUserIds: _members.map((m) => m.userId).toList(),
+        onSelect: (selectedUsers) {
           setState(() {
-            if (!_members.any((m) => m.userId == user.id)) {
-              _members.add(ProjectMember(
-                userId: user.id,
-                userName: user.name,
-                userEmail: user.email,
-                role: role,
-                assignedAt: DateTime.now(),
-              ));
+            // Keep existing members who are still selected
+            final existingMembers = _members.where((m) => selectedUsers.any((u) => u.id == m.userId)).toList();
+            
+            // Add new members
+            for (var user in selectedUsers) {
+              if (!existingMembers.any((m) => m.userId == user.id)) {
+                existingMembers.add(ProjectMember(
+                  userId: user.id,
+                  userName: user.name,
+                  userEmail: user.email,
+                  role: ProjectRole.contributor, // Default role
+                  assignedAt: DateTime.now(),
+                ));
+              }
             }
+            _members = existingMembers;
           });
         },
       ),
@@ -436,6 +462,50 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
               fontSize: 16,
               color: colorScheme.onSurface,
             ),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<User>(
+            // ignore: deprecated_member_use
+            value: _selectedOwner,
+            decoration: InputDecoration(
+              labelText: 'Project Owner',
+              prefixIcon: Icon(Icons.person_outline, color: colorScheme.primary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.outline.withAlpha(100)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.outline.withAlpha(50)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.primary, width: 2),
+              ),
+              filled: true,
+              fillColor: colorScheme.surface.withAlpha(100),
+            ),
+            style: TextStyle(
+              fontSize: 16,
+              color: colorScheme.onSurface,
+            ),
+            items: _availableUsers.map((user) {
+              return DropdownMenuItem(
+                value: user,
+                child: Text(user.name),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                _selectedOwner = value;
+              });
+            },
+            validator: (value) {
+              if (value == null) {
+                return 'Project owner is required';
+              }
+              return null;
+            },
           ),
         ],
       ),
@@ -743,39 +813,62 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   }
 
   Widget _buildMembersSection(ColorScheme colorScheme) {
+    final currentUserId = AuthService().currentUser?.id;
+    final isOwner = _selectedOwner?.id != null && _selectedOwner!.id == currentUserId;
+    // Allow member assignment if it's a new project or if the current user is the owner
+    final canAssignMembers = !_isEditing || isOwner;
+
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              Icon(Icons.people_outline, color: colorScheme.primary, size: 24),
+              const SizedBox(width: 8),
               Text(
                 'Team Members',
                 style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
                   color: colorScheme.onSurface,
                 ),
-              ),
-              IconButton(
-                onPressed: _addMember,
-                icon: const Icon(Icons.add),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          if (_members.isEmpty)
-            const Text('No members added yet')
-          else
-            ..._members.map((member) => ListTile(
-              title: Text(member.userName),
-              subtitle: Text('${member.userEmail} • ${member.role.name}'),
-              trailing: IconButton(
-                onPressed: () => _removeMember(member.userId),
-                icon: const Icon(Icons.remove, color: Colors.red),
+          if (!canAssignMembers)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Text(
+                'Only the project owner can assign members.',
+                style: TextStyle(color: colorScheme.error, fontStyle: FontStyle.italic),
               ),
-            )),
+            ),
+          InkWell(
+            onTap: canAssignMembers ? _openMemberSelectionDialog : null,
+            child: InputDecorator(
+              decoration: InputDecoration(
+                labelText: 'Assign Members',
+                prefixIcon: Icon(Icons.group_add_outlined, color: canAssignMembers ? colorScheme.primary : colorScheme.outline),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                enabled: canAssignMembers,
+                filled: true,
+                fillColor: colorScheme.surface.withAlpha(100),
+                suffixIcon: Icon(Icons.arrow_drop_down, color: canAssignMembers ? colorScheme.primary : colorScheme.outline),
+              ),
+              child: _members.isEmpty
+                  ? Text('Select members...', style: TextStyle(color: colorScheme.onSurface.withAlpha(100)))
+                  : Wrap(
+                      spacing: 8.0,
+                      runSpacing: 4.0,
+                      children: _members.map((member) => Chip(
+                        label: Text(member.userName),
+                        onDeleted: canAssignMembers ? () => _removeMember(member.userId) : null,
+                      )).toList(),
+                    ),
+            ),
+          ),
         ],
       ),
     );
@@ -979,68 +1072,59 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   }
 }
 
-class _AddMemberDialog extends StatefulWidget {
+class _SelectMembersDialog extends StatefulWidget {
   final List<User> availableUsers;
-  final Function(User, ProjectRole) onAdd;
+  final List<String> selectedUserIds;
+  final Function(List<User>) onSelect;
 
-  const _AddMemberDialog({
+  const _SelectMembersDialog({
     required this.availableUsers,
-    required this.onAdd,
+    required this.selectedUserIds,
+    required this.onSelect,
   });
 
   @override
-  State<_AddMemberDialog> createState() => _AddMemberDialogState();
+  State<_SelectMembersDialog> createState() => _SelectMembersDialogState();
 }
 
-class _AddMemberDialogState extends State<_AddMemberDialog> {
-  User? _selectedUser;
-  ProjectRole _selectedRole = ProjectRole.contributor;
+class _SelectMembersDialogState extends State<_SelectMembersDialog> {
+  late Set<String> _selectedIds;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIds = Set.from(widget.selectedUserIds);
+  }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Add Team Member'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DropdownButtonFormField<User>(
-            initialValue: _selectedUser,
-            decoration: const InputDecoration(
-              labelText: 'Select User',
-              border: OutlineInputBorder(),
-            ),
-            items: widget.availableUsers.map((user) {
-              return DropdownMenuItem(
-                value: user,
-                child: Text('${user.name} (${user.email})'),
-              );
-            }).toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedUser = value;
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<ProjectRole>(
-            initialValue: _selectedRole,
-            decoration: const InputDecoration(
-              labelText: 'Role',
-              border: OutlineInputBorder(),
-            ),
-            items: ProjectRole.values.map((role) {
-              return DropdownMenuItem(
-                value: role,
-                child: Text(role.name),
-              );
-            }).toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedRole = value!;
-              });
-            },
-          ),
-        ],
+      title: const Text('Select Team Members'),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 300,
+        child: ListView.builder(
+          itemCount: widget.availableUsers.length,
+          itemBuilder: (context, index) {
+            final user = widget.availableUsers[index];
+            final isSelected = _selectedIds.contains(user.id);
+            
+            return CheckboxListTile(
+              title: Text(user.name),
+              subtitle: Text(user.email),
+              value: isSelected,
+              onChanged: (value) {
+                setState(() {
+                  if (value == true) {
+                    _selectedIds.add(user.id);
+                  } else {
+                    _selectedIds.remove(user.id);
+                  }
+                });
+              },
+            );
+          },
+        ),
       ),
       actions: [
         TextButton(
@@ -1048,13 +1132,14 @@ class _AddMemberDialogState extends State<_AddMemberDialog> {
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          onPressed: _selectedUser != null
-              ? () {
-                  widget.onAdd(_selectedUser!, _selectedRole);
-                  Navigator.of(context).pop();
-                }
-              : null,
-          child: const Text('Add'),
+          onPressed: () {
+            final selectedUsers = widget.availableUsers
+                .where((u) => _selectedIds.contains(u.id))
+                .toList();
+            widget.onSelect(selectedUsers);
+            Navigator.of(context).pop();
+          },
+          child: const Text('Select'),
         ),
       ],
     );

@@ -424,7 +424,10 @@ debugPrint('📡 Sprint creation response: ${response.statusCode}');
     String? projectType,
     DateTime? startDate,
     DateTime? endDate,
+    String? clientName,
     String? clientEmail,
+    String? ownerId,
+    List<String>? memberIds,
   }) async {
     try {
       final body = {
@@ -434,7 +437,10 @@ debugPrint('📡 Sprint creation response: ${response.statusCode}');
         if (projectType != null) 'projectType': projectType,
         if (startDate != null) 'start_date': startDate.toIso8601String(),
         if (endDate != null) 'end_date': endDate.toIso8601String(),
+        if (clientName != null) 'client_name': clientName,
         if (clientEmail != null) 'client_email': clientEmail,
+        if (ownerId != null) 'owner_id': ownerId,
+        if (memberIds != null) 'members': memberIds,
       };
 
       final response = await _backendApiService.createProject(body);

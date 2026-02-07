@@ -13,6 +13,8 @@ import '../services/backend_api_service.dart';
 import '../services/realtime_service.dart';
 import '../services/auth_service.dart';
 import '../services/sprint_database_service.dart';
+import '../models/user.dart';
+import '../services/user_data_service.dart';
 import '../services/jira_service.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/glass_card.dart';
@@ -52,9 +54,16 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
     _nameController.clear();
     _keyController.clear();
     _descriptionController.clear();
+    final TextEditingController clientNameController = TextEditingController();
     final TextEditingController clientEmailController = TextEditingController();
     DateTime? startDate;
     DateTime? endDate;
+    
+    User? selectedOwner;
+    final List<String> selectedMemberIds = [];
+    List<User> availableUsers = [];
+    bool isLoadingUsers = true;
+    bool usersFetchStarted = false;
 
     showDialog(
       context: context,
@@ -63,6 +72,33 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
           title: const Text('Create New Project'),
           content: StatefulBuilder(
             builder: (context, setState) {
+              if (!usersFetchStarted) {
+                usersFetchStarted = true;
+                UserDataService().getUsers().then((users) {
+                  if (context.mounted) {
+                    setState(() {
+                      availableUsers = users;
+                      isLoadingUsers = false;
+                    });
+                  }
+                }).catchError((e) {
+                  debugPrint('Error loading users: $e');
+                  if (context.mounted) {
+                    setState(() {
+                      isLoadingUsers = false;
+                    });
+                  }
+                });
+              }
+
+              if (isLoadingUsers) {
+                return const SizedBox(
+                  height: 200,
+                  width: 300,
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+
               return Form(
                 key: formKey,
                 child: SingleChildScrollView(
@@ -71,7 +107,6 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                     children: [
                       TextFormField(
                         controller: _nameController,
-
                         decoration: const InputDecoration(
                           labelText: 'Project Name',
                           border: OutlineInputBorder(),
@@ -99,6 +134,84 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
+                      DropdownButtonFormField<User>(
+                        // ignore: deprecated_member_use
+                        value: selectedOwner,
+                        decoration: const InputDecoration(
+                          labelText: 'Project Owner',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.person_outline),
+                        ),
+                        items: availableUsers.map((user) {
+                          return DropdownMenuItem(
+                            value: user,
+                            child: Text(user.name),
+                          );
+                        }).toList(),
+                        onChanged: (value) => setState(() => selectedOwner = value),
+                        validator: (value) => value == null ? 'Project owner is required' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      InkWell(
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Select Team Members'),
+                              content: SizedBox(
+                                width: double.maxFinite,
+                                child: StatefulBuilder(
+                                  builder: (ctx, setDialogState) {
+                                    return ListView.builder(
+                                      shrinkWrap: true,
+                                      itemCount: availableUsers.length,
+                                      itemBuilder: (ctx, index) {
+                                        final user = availableUsers[index];
+                                        final isSelected = selectedMemberIds.contains(user.id);
+                                        return CheckboxListTile(
+                                          title: Text(user.name),
+                                          subtitle: Text(user.email),
+                                          value: isSelected,
+                                          onChanged: (val) {
+                                            setDialogState(() {
+                                              if (val == true) {
+                                                selectedMemberIds.add(user.id);
+                                              } else {
+                                                selectedMemberIds.remove(user.id);
+                                              }
+                                            });
+                                            // Update the parent state as well so the count updates
+                                            setState(() {});
+                                          },
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: const Text('Done'),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Team Members',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.people_outline),
+                          ),
+                          child: Text(
+                            selectedMemberIds.isEmpty
+                                ? 'Select members'
+                                : '${selectedMemberIds.length} members selected',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       TextFormField(
                         controller: _descriptionController,
                         maxLines: 3,
@@ -106,6 +219,15 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                           labelText: 'Description (Optional)',
                           border: OutlineInputBorder(),
                         ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: clientNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Client Name',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) => value == null || value.isEmpty ? 'Client name is required' : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -202,9 +324,12 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                       description: _descriptionController.text,
                       startDate: startDate,
                       endDate: endDate,
+                      clientName: clientNameController.text,
                       clientEmail: clientEmailController.text.isNotEmpty
                           ? clientEmailController.text
                           : null,
+                      ownerId: selectedOwner?.id,
+                      memberIds: selectedMemberIds,
                     );
 
                     if (created != null) {
