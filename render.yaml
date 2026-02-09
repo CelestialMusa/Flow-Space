@@ -36,7 +36,7 @@ services:
     env: node
     buildCommand: |
       echo "Running database migrations..."
-      node migrations/run-all.js
+      node migrations/run-all.cjs
     startCommand: |
       echo "Starting backend server..."
       node server.js
