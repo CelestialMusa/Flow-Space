@@ -2,33 +2,17 @@
 import pkg from 'pg';
 const { Pool } = pkg;
 
-// Explicit DB connection mode - removes ambiguity and forces determinism
+// Safest approach: Use ONLY DATABASE_URL to avoid credential mismatches
 function createPool() {
-  const mode = process.env.DB_CONNECTION_MODE;
-
-  if (mode === 'external') {
-    console.log('🛜 Using EXTERNAL database connection');
-    console.log('📊 Connection URL:', process.env.DATABASE_URL ? '***CONFIGURED***' : 'NOT SET');
-    return new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false,
-      },
-    });
+  console.log('🛜 Using DATABASE_URL (safest approach)');
+  console.log('📊 Connection URL:', process.env.DATABASE_URL ? '***CONFIGURED***' : 'NOT SET');
+  
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL is not set. Please configure it in Render environment variables.');
   }
 
-  console.log('🛜 Using ENV database connection');
-  console.log('📊 Host:', process.env.DB_HOST || 'localhost');
-  console.log('📊 User:', process.env.DB_USER || 'flow_space_user');
-  console.log('📊 Database:', process.env.DB_NAME || 'flow_space');
-  console.log('📊 Port:', process.env.DB_PORT || '5432');
-  
   return new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'flow_space_user',
-    password: process.env.DB_PASSWORD || 'postgres',
-    database: process.env.DB_NAME || 'flow_space',
-    port: parseInt(process.env.DB_PORT) || 5432,
+    connectionString: process.env.DATABASE_URL,
     ssl: {
       rejectUnauthorized: false,
     },
@@ -39,7 +23,7 @@ const pool = createPool();
 
 // Test database connection
 pool.on('connect', () => {
-  console.log('Connected to PostgreSQL database');
+  console.log('✅ Connected to PostgreSQL database via DATABASE_URL');
 });
 
 export default pool;
