@@ -106,6 +106,7 @@ void main() {
       final project = Project(
         id: '1',
         name: 'Test Project',
+        key: 'TEST',
         description: 'Test Description',
         clientName: 'Test Client',
         status: ProjectStatus.planning,
@@ -128,6 +129,7 @@ void main() {
       final project = Project(
         id: '1',
         name: 'Test Project',
+        key: 'TEST',
         description: 'Test Description',
         clientName: 'Test Client',
         status: ProjectStatus.planning,

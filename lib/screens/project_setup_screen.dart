@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/project.dart';
 import '../services/project_service.dart';
+import '../widgets/glass_card.dart';
+import 'project_details_screen.dart';
 
 class ProjectSetupScreen extends StatefulWidget {
   final String? projectId;
@@ -36,6 +38,10 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
     'Internal',
   ];
 
+  final List<Map<String, dynamic>> _teamMembers = [];
+  List<Map<String, dynamic>> _availableUsers = [];
+  bool _isLoadingUsers = false;
+
   final Map<String, String?> _validationErrors = {
     'name': null,
     'key': null,
@@ -48,7 +54,13 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialize default dates for new projects
+    if (widget.projectId == null) {
+      _startDate = DateTime.now();
+      _endDate = DateTime.now().add(const Duration(days: 30));
+    }
     _isEditing = widget.projectId != null;
+    _loadAvailableUsers();
     if (_isEditing) {
       _loadProject();
     }
@@ -75,7 +87,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
           _nameController.text = project.name;
           _descriptionController.text = project.description;
           _clientNameController.text = project.clientName ?? '';
-          _keyController.text = project.projectType;
+          _keyController.text = project.key;
           _selectedProjectType = project.projectType;
           _selectedStatus = project.status;
           _selectedPriority = project.priority;
@@ -117,8 +129,8 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
         if (value.trim().length > 20) {
           return 'Project key must not exceed 20 characters';
         }
-        if (!RegExp(r'^[A-Z][A-Z0-9_]*$').hasMatch(value.trim())) {
-          return 'Project key must start with letter and contain only uppercase letters, numbers, and underscores';
+        if (!RegExp(r'^[A-Za-z][A-Za-z0-9_]*$').hasMatch(value.trim())) {
+          return 'Project key must start with letter and contain only letters, numbers, and underscores';
         }
         break;
       case 'description':
@@ -167,6 +179,61 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
     });
   }
 
+  Future<void> _loadAvailableUsers() async {
+    setState(() => _isLoadingUsers = true);
+    try {
+      // Mock user data for now - replace with actual API call
+      final mockUsers = [
+        {'id': '1', 'name': 'Busisiwe Dhlamini', 'email': 'busisiwe.dhlamini@khonology.com', 'role': 'deliveryLead'},
+        {'id': '2', 'name': 'John Smith', 'email': 'john.smith@khonology.com', 'role': 'developer'},
+        {'id': '3', 'name': 'Jane Doe', 'email': 'jane.doe@khonology.com', 'role': 'designer'},
+        {'id': '4', 'name': 'Mike Johnson', 'email': 'mike.johnson@khonology.com', 'role': 'tester'},
+      ];
+      
+      setState(() {
+        _availableUsers = mockUsers;
+        _isLoadingUsers = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingUsers = false);
+      _showErrorSnackBar('Error loading users: $e');
+    }
+  }
+
+  void _addTeamMember(Map<String, dynamic> user) {
+    setState(() {
+      if (!_teamMembers.any((member) => member['id'] == user['id'])) {
+        _teamMembers.add({
+          ...user,
+          'role': 'member', // Default role
+          'addedAt': DateTime.now().toIso8601String(),
+        });
+        _availableUsers.removeWhere((u) => u['id'] == user['id']);
+      }
+    });
+  }
+
+  void _removeTeamMember(Map<String, dynamic> member) {
+    setState(() {
+      _teamMembers.removeWhere((m) => m['id'] == member['id']);
+      _availableUsers.add({
+        'id': member['id'],
+        'name': member['name'],
+        'email': member['email'],
+        'role': member['originalRole'] ?? 'developer',
+      });
+    });
+  }
+
+  void _updateTeamMemberRole(String memberId, String newRole) {
+    setState(() {
+      final memberIndex = _teamMembers.indexWhere((m) => m['id'] == memberId);
+      if (memberIndex != -1) {
+        _teamMembers[memberIndex]['role'] = newRole;
+      }
+    });
+  }
+
   Future<void> _saveProject() async {
     if (!_formKey.currentState!.validate()) {
       _showValidationErrorSummary();
@@ -180,6 +247,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
         'name': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
         'clientName': _clientNameController.text.trim(),
+        'projectKey': _keyController.text.trim(),
         'projectType': _selectedProjectType,
         'status': _selectedStatus.name,
         'priority': _selectedPriority.name,
@@ -189,7 +257,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
 
       Project? savedProject;
       
-      if (_isEditing && widget.projectId != null) {
+      if (widget.projectId != null) {
         savedProject = await ProjectService.updateProject(widget.projectId!, projectData);
         _showSuccessSnackBar('Project updated successfully');
       } else {
@@ -198,12 +266,55 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
       }
 
       if (mounted) {
-        Navigator.of(context).pop(savedProject);
+        if (widget.projectId != null) {
+          Navigator.of(context).pop(savedProject);
+        } else {
+          // Navigate to project details screen for new projects
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => ProjectDetailsScreen(projectId: savedProject!.id),
+            ),
+          );
+        }
       }
     } catch (e) {
       _showErrorSnackBar('Error saving project: $e');
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  bool _hasFormChanged() {
+    if (_originalProject == null) return true;
+    
+    return _nameController.text.trim() != _originalProject!.name ||
+           _descriptionController.text.trim() != _originalProject!.description ||
+           _clientNameController.text.trim() != (_originalProject!.clientName ?? '') ||
+           _selectedProjectType != _originalProject!.projectType ||
+           _selectedStatus != _originalProject!.status ||
+           _selectedPriority != _originalProject!.priority ||
+           _startDate?.toIso8601String() != _originalProject!.startDate.toIso8601String() ||
+           _endDate?.toIso8601String() != _originalProject!.endDate?.toIso8601String();
+  }
+
+  void _resetForm() {
+    if (_originalProject != null) {
+      setState(() {
+        _nameController.text = _originalProject!.name;
+        _descriptionController.text = _originalProject!.description;
+        _clientNameController.text = _originalProject!.clientName ?? '';
+        _keyController.text = _originalProject!.projectType;
+        _selectedProjectType = _originalProject!.projectType;
+        _selectedStatus = _originalProject!.status;
+        _selectedPriority = _originalProject!.priority;
+        _startDate = _originalProject!.startDate;
+        _endDate = _originalProject!.endDate;
+        
+        // Clear validation errors
+        _validationErrors.forEach((key, value) {
+          _validationErrors[key] = null;
+        });
+      });
     }
   }
 
@@ -290,25 +401,27 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.projectId != null && _originalProject == null && !_isLoading) {
-      _loadProject();
-    }
-    
     return Scaffold(
-      backgroundColor: Colors.black.withValues(alpha: 0.5),
-      body: Center(
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.8,
-          constraints: const BoxConstraints(maxWidth: 600),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.blue[900]!.withValues(alpha: 0.1),
+              Colors.purple[900]!.withValues(alpha: 0.1),
+              Colors.transparent,
+            ],
           ),
+        ),
+        child: SafeArea(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
               _buildHeader(),
-              _buildForm(),
+              Expanded(
+                child: _buildForm(),
+              ),
               _buildActionButtons(),
             ],
           ),
@@ -321,42 +434,46 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Create Project',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _isEditing ? 'Edit Project' : 'Create Project',
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A202C),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Define basic project details so deliverables and sprints can be tracked correctly.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
+                const SizedBox(height: 8),
+                Text(
+                  _isEditing 
+                    ? 'Update project details and manage team members'
+                    : 'Define project details and assign team members',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
             child: Container(
-              width: 32,
-              height: 32,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: Colors.white.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
               ),
               child: Icon(
                 Icons.close,
-                size: 18,
-                color: Colors.grey[600],
+                color: Colors.grey[700],
+                size: 20,
               ),
             ),
           ),
@@ -366,47 +483,44 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
   }
 
   Widget _buildForm() {
-    return Expanded(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildProjectInformationSection(),
-              const SizedBox(height: 24),
-              _buildTimelineSection(),
-              const SizedBox(height: 24),
-              _buildClientClassificationSection(),
-              const SizedBox(height: 32),
-            ],
-          ),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildProjectInformationSection(),
+            const SizedBox(height: 24),
+            _buildTimelineSection(),
+            const SizedBox(height: 24),
+            _buildClientClassificationSection(),
+            const SizedBox(height: 24),
+            _buildTeamManagementSection(),
+            const SizedBox(height: 32),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildProjectInformationSection() {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-      ),
+    return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Project Information',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Colors.grey[800],
+              color: Color(0xFF2D3748),
             ),
           ),
           const SizedBox(height: 16),
           _buildModernNameField(),
+          const SizedBox(height: 16),
+          _buildModernKeyField(),
           const SizedBox(height: 16),
           _buildModernDescriptionField(),
         ],
@@ -415,21 +529,16 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
   }
 
   Widget _buildTimelineSection() {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-      ),
+    return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Timeline',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Colors.grey[800],
+              color: Color(0xFF2D3748),
             ),
           ),
           const SizedBox(height: 16),
@@ -440,21 +549,16 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
   }
 
   Widget _buildClientClassificationSection() {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-      ),
+    return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Client & Classification',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Colors.grey[800],
+              color: Color(0xFF2D3748),
             ),
           ),
           const SizedBox(height: 16),
@@ -466,36 +570,305 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
     );
   }
 
+  Widget _buildTeamManagementSection() {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Team Members',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2D3748),
+                ),
+              ),
+              if (_teamMembers.isNotEmpty)
+                Text(
+                  '${_teamMembers.length} member${_teamMembers.length == 1 ? '' : 's'}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF718096),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Current team members
+          if (_teamMembers.isNotEmpty) ...[
+            ..._teamMembers.map((member) => _buildTeamMemberTile(member)),
+            const SizedBox(height: 16),
+          ],
+          
+          // Add team member button
+          _buildAddTeamMemberButton(),
+          
+          const SizedBox(height: 16),
+          
+          // Available users section
+          if (_availableUsers.isNotEmpty) ...[
+            const Text(
+              'Available Users',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF4A5568),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ..._availableUsers.take(3).map((user) => _buildAvailableUserTile(user)),
+            if (_availableUsers.length > 3)
+              Text(
+                '... and ${_availableUsers.length - 3} more',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF718096),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTeamMemberTile(Map<String, dynamic> member) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: Colors.blue[100],
+            child: Text(
+              member['name'][0].toUpperCase(),
+              style: TextStyle(
+                color: Colors.blue[700],
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  member['name'],
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    color: Color(0xFF1A202C),
+                  ),
+                ),
+                Text(
+                  member['email'],
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF718096),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          DropdownButton<String>(
+            value: member['role'],
+            items: ['owner', 'admin', 'member', 'viewer'].map((role) {
+              return DropdownMenuItem(
+                value: role,
+                child: Text(
+                  role[0].toUpperCase() + role.substring(1),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF1A202C),
+                  ),
+                ),
+              );
+            }).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                _updateTeamMemberRole(member['id'], value);
+              }
+            },
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: Icon(Icons.remove_circle_outline, color: Colors.red[400]),
+            onPressed: () => _removeTeamMember(member),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvailableUserTile(Map<String, dynamic> user) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: Colors.grey[300],
+            child: Text(
+              user['name'][0].toUpperCase(),
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  user['name'],
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  user['email'],
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => _addTeamMember(user),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue[600],
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              textStyle: const TextStyle(fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddTeamMemberButton() {
+    return OutlinedButton.icon(
+        onPressed: _showAddTeamMemberDialog,
+        icon: Icon(Icons.person_add, color: Colors.blue[600]),
+        label: Text(
+          'Add Team Member',
+          style: TextStyle(color: Colors.blue[600]),
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          side: BorderSide(color: Colors.blue[300]!),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      );
+  }
+
+  void _showAddTeamMemberDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Team Member'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: _isLoadingUsers
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                  shrinkWrap: true,
+                  children: _availableUsers.map((user) {
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.grey[300],
+                        child: Text(user['name'][0].toUpperCase()),
+                      ),
+                      title: Text(user['name']),
+                      subtitle: Text(user['email']),
+                      trailing: ElevatedButton(
+                        onPressed: () {
+                          _addTeamMember(user);
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text('Add'),
+                      ),
+                    );
+                  }).toList(),
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildModernNameField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Project Name*',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: Colors.grey[700],
+            color: Color(0xFF4A5568),
           ),
         ),
         const SizedBox(height: 8),
         TextFormField(
           controller: _nameController,
+          style: const TextStyle(
+            fontSize: 16,
+            color: Color(0xFF1A202C),
+            fontWeight: FontWeight.w400,
+          ),
           decoration: InputDecoration(
             hintText: 'Enter project name',
+            hintStyle: const TextStyle(
+              color: Color(0xFFA0AEC0),
+              fontSize: 14,
+            ),
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.blue[400]!),
+              borderSide: const BorderSide(color: Color(0xFF3182CE)),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
@@ -507,40 +880,124 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
     );
   }
 
+  Widget _buildModernKeyField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'Project ID*',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF4A5568),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: () {
+                final name = _nameController.text.trim();
+                if (name.isNotEmpty) {
+                  final key = name.toUpperCase()
+                      .replaceAll(RegExp(r'[^A-Z0-9_]'), '_')
+                      .replaceAll(RegExp(r'_+'), '_');
+                  _keyController.text = key;
+                }
+              },
+              icon: const Icon(Icons.refresh, size: 16),
+              tooltip: 'Generate from project name',
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _keyController,
+          style: const TextStyle(
+            fontSize: 16,
+            color: Color(0xFF1A202C),
+            fontWeight: FontWeight.w400,
+            letterSpacing: 1.2,
+          ),
+          inputFormatters: [
+            UpperCaseTextFormatter(),
+            FilteringTextInputFormatter.allow(RegExp(r'[A-Z0-9_]')),
+          ],
+          decoration: InputDecoration(
+            hintText: 'PROJECT_KEY',
+            hintStyle: const TextStyle(
+              color: Color(0xFFA0AEC0),
+              fontSize: 14,
+              letterSpacing: 1.2,
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFF3182CE)),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+          maxLength: 20,
+          onChanged: (value) => _validateFieldOnChange('key', value),
+          validator: (value) => _validateField('key', value),
+        ),
+      ],
+    );
+  }
+
   Widget _buildModernDescriptionField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Project Description',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: Colors.grey[700],
+            color: Color(0xFF4A5568),
           ),
         ),
         const SizedBox(height: 8),
         TextFormField(
           controller: _descriptionController,
+          style: const TextStyle(
+            fontSize: 16,
+            color: Color(0xFF1A202C),
+            fontWeight: FontWeight.w400,
+            height: 1.5,
+          ),
+          maxLines: 5,
           decoration: InputDecoration(
             hintText: 'Enter project description',
+            hintStyle: const TextStyle(
+              color: Color(0xFFA0AEC0),
+              fontSize: 14,
+            ),
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.blue[400]!),
+              borderSide: const BorderSide(color: Color(0xFF3182CE)),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
-          maxLines: 3,
           maxLength: 1000,
           onChanged: (value) => _validateFieldOnChange('description', value),
           validator: (value) => _validateField('description', value),
@@ -649,35 +1106,44 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Client*',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: Colors.grey[700],
+            color: Color(0xFF4A5568),
           ),
         ),
         const SizedBox(height: 8),
         TextFormField(
           controller: _clientNameController,
+          style: const TextStyle(
+            fontSize: 16,
+            color: Color(0xFF1A202C),
+            fontWeight: FontWeight.w400,
+          ),
           decoration: InputDecoration(
             hintText: 'Select client',
+            hintStyle: const TextStyle(
+              color: Color(0xFFA0AEC0),
+              fontSize: 14,
+            ),
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.blue[400]!),
+              borderSide: const BorderSide(color: Color(0xFF3182CE)),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            suffixIcon: Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+            suffixIcon: const Icon(Icons.arrow_drop_down, color: Color(0xFF718096)),
           ),
           onChanged: (value) => _validateFieldOnChange('clientName', value),
           validator: (value) => _validateField('clientName', value),
@@ -690,12 +1156,12 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Project Type*',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: Colors.grey[700],
+            color: Color(0xFF4A5568),
           ),
         ),
         const SizedBox(height: 8),
@@ -703,20 +1169,28 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border.all(color: Colors.grey[300]!),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _selectedProjectType,
-              hint: Text('Choose project type', style: TextStyle(color: Colors.grey[500])),
+              hint: const Text('Choose project type', style: TextStyle(color: Color(0xFFA0AEC0))),
+              style: const TextStyle(
+                fontSize: 16,
+                color: Color(0xFF1A202C),
+                fontWeight: FontWeight.w400,
+              ),
               isExpanded: true,
               items: _projectTypes.map((String type) {
                 return DropdownMenuItem<String>(
                   value: type,
                   child: Text(
                     type,
-                    style: const TextStyle(fontSize: 14),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF1A202C),
+                    ),
                   ),
                 );
               }).toList(),
@@ -735,46 +1209,96 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
   Widget _buildActionButtons() {
     return Padding(
       padding: const EdgeInsets.all(24.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+      child: GlassCard(
+        child: Column(
+          children: [
+            if (_isEditing && _hasFormChanged()) ...[
+              // Reset button for edit mode
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _resetForm,
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('Reset Changes'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        side: BorderSide(color: Colors.orange[400]!),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 12),
+            ],
+            // Main action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: BorderSide(color: Colors.grey[400]!),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _saveProject,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue[600],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Text('Saving...'),
+                            ],
+                          )
+                        : Text(
+                            _isEditing ? 'Update Project' : 'Create Project',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
             ),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          ElevatedButton(
-            onPressed: _saveProject,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'Save Project',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

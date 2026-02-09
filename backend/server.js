@@ -1302,13 +1302,19 @@ app.get('/api/v1/projects', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const userRole = req.user.role;
 
-    let query = `SELECT p.* FROM projects p`;
+    let query = `
+      SELECT 
+        p.*,
+        u.name as owner_name
+      FROM projects p
+      LEFT JOIN users u ON p.owner_id = u.id
+    `;
     const params = [];
 
     if (userRole === 'teamMember') {
       query += `
         LEFT JOIN project_members pm ON pm.project_id = p.id
-        WHERE p.owner_id = $1 OR p.created_by = $1 OR pm.user_id = $1
+        WHERE p.owner_id = $1 OR pm.user_id = $1
       `;
       params.push(userId);
     }
@@ -1712,18 +1718,11 @@ app.post('/api/v1/sprints/backfill-projects', authenticateToken, async (req, res
       });
     }
     
-    // Find sprints without project_id and associate them with existing projects
+    // Find sprints without project_id and leave them unassociated (removed project association logic)
     const result = await pool.query(`
       UPDATE sprints 
-      SET project_id = (
-        SELECT id 
-        FROM projects 
-        WHERE created_by = sprints.created_by 
-        LIMIT 1
-      ),
-      updated_at = NOW()
-      WHERE project_id IS NULL 
-        AND created_by IS NOT NULL
+      SET updated_at = NOW()
+      WHERE project_id IS NULL
       RETURNING id, name, project_id, updated_at
     `);
     
@@ -6128,22 +6127,13 @@ app.get('/api/v1/projects/:projectId/sprints', authenticateToken, async (req, re
       SELECT 
         s.id,
         s.name,
-        s.description,
         s.status,
         s.start_date,
         s.end_date,
         s.created_at,
-        s.updated_at,
-        u.name as created_by_name,
-        COUNT(t.id) as ticket_count,
-        COUNT(CASE WHEN t.status = 'done' THEN 1 END) as completed_tickets,
-        SUM(t.points) as total_points,
-        SUM(CASE WHEN t.status = 'done' THEN t.points ELSE 0 END) as completed_points
+        s.updated_at
       FROM sprints s
-      LEFT JOIN users u ON s.created_by = u.id
-      LEFT JOIN tickets t ON s.id = t.sprint_id
       WHERE s.project_id = $1
-      GROUP BY s.id, u.name
       ORDER BY s.created_at DESC
     `;
     
@@ -6315,16 +6305,14 @@ app.post('/api/v1/projects/:projectId/sprints/new', authenticateToken, async (re
     
     // Create the sprint linked to the project
     const result = await pool.query(`
-      INSERT INTO sprints (name, description, start_date, end_date, project_id, created_by, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      INSERT INTO sprints (name, start_date, end_date, project_id, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, NOW(), NOW())
       RETURNING *
     `, [
       name.trim(),
-      description || null,
       start_date ? new Date(start_date) : null,
       end_date ? new Date(end_date) : null,
-      projectId,
-      userId
+      projectId
     ]);
     
     // Log the action
@@ -6472,16 +6460,11 @@ app.get('/api/v1/projects/:projectId/available-sprints', authenticateToken, asyn
       SELECT 
         s.id,
         s.name,
-        s.description,
         s.status,
         s.start_date,
         s.end_date,
-        s.created_at,
-        u.name as created_by_name,
-        COUNT(t.id) as ticket_count
+        s.created_at
       FROM sprints s
-      LEFT JOIN users u ON s.created_by = u.id
-      LEFT JOIN tickets t ON s.id = t.sprint_id
       WHERE (s.project_id IS NULL OR s.project_id != $1)
     `;
     
@@ -6489,18 +6472,12 @@ app.get('/api/v1/projects/:projectId/available-sprints', authenticateToken, asyn
     
     // Add search filter if provided
     if (search && search.trim()) {
-      query += ` AND (s.name ILIKE $2 OR s.description ILIKE $2)`;
+      query += ` AND (s.name ILIKE $2 OR s.status ILIKE $2)`;
       params.push(`%${search.trim()}%`);
     }
     
-    // Filter by user role - team members can only see their own sprints
-    if (req.user.role === 'teamMember') {
-      query += ` AND s.created_by = $${params.length + 1}`;
-      params.push(userId);
-    }
-    
     query += `
-      GROUP BY s.id, u.name
+      GROUP BY s.id
       ORDER BY s.created_at DESC 
       LIMIT 50
     `;
