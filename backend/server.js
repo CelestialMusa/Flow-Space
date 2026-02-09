@@ -1,10 +1,24 @@
+// server.js (lines 2–102) — ES Module compatible
+
+// Imports (ES Module syntax)
+import express from 'express';
+import cors from 'cors';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import pool from './dbPool.js'; // your Postgres pool connection
+import SendGridEmailService from './sendgridEmailService.js';
+import EmailService from './emailService.js';
 
 // JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
 // Authentication middleware
-const authenticateToken = (req, res, next) => {
+export const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -21,13 +35,15 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Default role permissions (in-memory fallback)
 const defaultRolePermissions = {
   teammember: new Set(['view_sprints', 'update_tickets', 'update_sprint_status']),
   deliverylead: new Set(['view_sprints', 'update_tickets', 'update_sprint_status']),
   clientreviewer: new Set(['view_sprints'])
 };
 
-const requirePermission = (permissionName) => async (req, res, next) => {
+// Permission middleware
+export const requirePermission = (permissionName) => async (req, res, next) => {
   try {
     const role = req.user && req.user.role ? String(req.user.role) : null;
     if (!role) {
@@ -35,19 +51,21 @@ const requirePermission = (permissionName) => async (req, res, next) => {
     }
 
     const normalizedRole = role.toLowerCase();
-    // Explicitly forbid admin from update operations
     const pn = String(permissionName).toLowerCase();
+
+    // Forbid admin update operations
     if ((pn.startsWith('update_')) && ['systemadmin', 'admin', 'system_admin'].includes(normalizedRole)) {
       return res.status(403).json({ error: 'Forbidden: admin cannot update statuses' });
     }
+
     try {
       const result = await pool.query(
         `
-          SELECT 1
-          FROM user_roles ur
-          JOIN role_permissions rp ON rp.role_id = ur.id
-          JOIN permissions p ON p.id = rp.permission_id
-          WHERE ur.user_id = $1 AND p.name = $2
+        SELECT 1
+        FROM user_roles ur
+        JOIN role_permissions rp ON rp.role_id = ur.id
+        JOIN permissions p ON p.id = rp.permission_id
+        WHERE ur.user_id = $1 AND p.name = $2
         `,
         [req.user.id, permissionName]
       );
@@ -55,10 +73,10 @@ const requirePermission = (permissionName) => async (req, res, next) => {
       if (result.rows.length === 0) {
         return res.status(403).json({ error: 'Insufficient permissions' });
       }
+
       next();
     } catch (dbError) {
-      // If permissions tables don't exist, fall back to default role permissions
-      if (dbError.code === '42P01') {
+      if (dbError.code === '42P01') { // table does not exist
         const permissions = defaultRolePermissions[normalizedRole];
         if (permissions && permissions.has(permissionName)) {
           next();
@@ -76,10 +94,6 @@ const requirePermission = (permissionName) => async (req, res, next) => {
 };
 
 // Email Configuration - Use SendGrid with SMTP fallback
-const SendGridEmailService = require('./sendgridEmailService');
-const EmailService = require('./emailService');
-
-// Try SendGrid first, fallback to SMTP
 const emailService = process.env.SENDGRID_API_KEY 
   ? new SendGridEmailService() 
   : new EmailService();
@@ -98,6 +112,9 @@ emailService
     console.log('⚠️  Email configuration error:', err.message);
     console.log('💡 Email functionality will be limited until credentials are configured');
   });
+
+// Initialize Express app
+const app = express();
 
 // Middleware - Configure CORS for Flutter Web
 app.use(cors({
@@ -159,48 +176,6 @@ const upload = multer({
     }
     cb(null, true);
   }
-});
-
-// Explicit DB connection mode - removes ambiguity and forces determinism
-function createPool() {
-  const mode = process.env.DB_CONNECTION_MODE;
-
-  if (mode === 'external') {
-    console.log(' Using EXTERNAL database connection');
-    console.log(' Connection URL:', process.env.DATABASE_URL ? '***CONFIGURED***' : 'NOT SET');
-    console.log('🛜 Using EXTERNAL database connection');
-    console.log('📊 Connection URL:', process.env.DATABASE_URL ? '***CONFIGURED***' : 'NOT SET');
-    return new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false,
-      },
-    });
-  }
-
-  console.log('🛜 Using ENV database connection');
-  console.log('📊 Host:', process.env.DB_HOST || 'localhost');
-  console.log('📊 User:', process.env.DB_USER || 'flow_space_user');
-  console.log('📊 Database:', process.env.DB_NAME || 'flow_space');
-  console.log('📊 Port:', process.env.DB_PORT || '5432');
-  
-  return new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'flow_space_user',
-    password: process.env.DB_PASSWORD || 'postgres',
-    database: process.env.DB_NAME || 'flow_space',
-    port: parseInt(process.env.DB_PORT) || 5432,
-    ssl: {
-      rejectUnauthorized: false,
-    },
-  });
-}
-
-export const pool = createPool();
-
-// Test database connection
-pool.on('connect', () => {
-  console.log('Connected to PostgreSQL database');
 });
 
 // Middleware to check if user has project-level permission
@@ -3678,7 +3653,6 @@ app.post('/api/v1/sign-off-reports/:id/approve', authenticateToken, async (req, 
     `, [JSON.stringify(updatedContent), id]);
     
     // Also store in digital_signatures table for tracking
-    const crypto = require('crypto');
     const signatureHash = crypto.createHash('sha256').update(digitalSignature).digest('hex');
     
     await pool.query(`
@@ -4055,7 +4029,6 @@ app.post('/api/v1/sign-off-reports/:id/signature', authenticateToken, async (req
     }
 
     // Generate signature hash
-    const crypto = require('crypto');
     const signatureHash = crypto.createHash('sha256').update(signatureData).digest('hex');
 
     // Store signature in database
