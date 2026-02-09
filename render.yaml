@@ -30,3 +30,25 @@ services:
       - path: /*
         name: Build-Timestamp
         value: "$(date)"
+
+  - type: web
+    name: flow-space-backend
+    env: node
+    buildCommand: |
+      echo "Running database migrations..."
+      node migrations/run-all.js
+    startCommand: |
+      echo "Starting backend server..."
+      node server.js
+    envVars:
+      - key: DB_CONNECTION_MODE
+        value: external
+      - key: DATABASE_URL
+        value: ${DATABASE_URL}
+      - key: JWT_SECRET
+        value: ${JWT_SECRET}
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    healthCheckPath: /api/v1/health
