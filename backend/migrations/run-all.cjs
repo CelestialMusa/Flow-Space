@@ -10,22 +10,22 @@ try {
   console.log('🚀 Running migrations only');
 
   // 1. Base tables
-  run('create-tables.js');
+  run('create-tables.cjs');
 
   // 1b. Ensure core tables exist regardless of previous issues
-  run('migrations/create_core_tables.js');
+  run('migrations/create_core_tables.cjs');
 
   // 2. Deliverables + signoff tables
-  run('migrations/create_signoff_deliverables_tables.js');
+  run('migrations/create_signoff_deliverables_tables.cjs');
 
   // 3. Fix any schema mismatches used by scheduler/queries
-  run('migrations/fix_signoff_schema.js');
+  run('migrations/fix_signoff_schema.cjs');
 
   // 4. New feature tables
-  run('migrations/create_new_features_tables.js');
+  run('migrations/create_new_features_tables.cjs');
 
   // 5. Tickets table (critical for sprint management)
-  run('migrations/create_tickets_table.js');
+  run('migrations/create_tickets_table.cjs');
 
   // 5b. Complete all tables (alternative to individual migrations)
   // Uncomment the line below to use the complete migration instead
@@ -33,7 +33,7 @@ try {
 
   // 6. Seeds (optional)
   try {
-    run('migrations/seed.js');
+    run('migrations/seed.cjs');
   } catch (e) {
     console.log('⚠️ Seed script failed — continuing deployment');
   }
