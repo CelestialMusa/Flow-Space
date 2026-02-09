@@ -9,6 +9,7 @@ import fs from 'fs';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 import pool from './dbPool.js'; // your Postgres pool connection
 import SendGridEmailService from './sendgridEmailService.js';
 import EmailService from './emailService.js';
