@@ -837,6 +837,22 @@ app.post('/api/v1/auth/logout', authenticateToken, async (req, res) => {
   }
 });
 
+// Refresh token endpoint (stub - returns 401 as expected)
+app.post('/api/v1/auth/refresh', async (req, res) => {
+  try {
+    return res.status(401).json({
+      success: false,
+      error: 'Not logged in yet - please login first'
+    });
+  } catch (error) {
+    console.error('Refresh error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
 // Resend verification email endpoint
 app.post('/api/v1/auth/resend-verification', async (req, res) => {
   try {
