@@ -274,7 +274,7 @@ const upload = multer({
 
 // PostgreSQL connection
 const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
+  user: process.env.DB_USER || 'flow_space_user', // Updated to use the permanent user
   host: process.env.DB_HOST || 'localhost',
   database: process.env.DB_NAME || 'flow_space',
   password: process.env.DB_PASSWORD || 'postgres',
