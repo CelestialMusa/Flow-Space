@@ -267,26 +267,21 @@ const upload = multer({
     fileSize: 50 * 1024 * 1024 // 50MB limit
   },
   fileFilter: function (req, file, cb) {
-    // Allow all file types for now
+    // Allow only image files
+    if (!file.originalname.match(/\.(jpg|JPG|jpeg|JPEG|png|PNG|gif|GIF)$/)) {
+      return cb(new Error('Only image files are allowed!'));
+    }
     cb(null, true);
   }
 });
-
-const express = require('express');
-const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
-const multer = require('multer');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const pkg = require('pg');
-const { Pool } = pkg;
 
 // Explicit DB connection mode - removes ambiguity and forces determinism
 function createPool() {
   const mode = process.env.DB_CONNECTION_MODE;
 
   if (mode === 'external') {
+    console.log(' Using EXTERNAL database connection');
+    console.log(' Connection URL:', process.env.DATABASE_URL ? '***CONFIGURED***' : 'NOT SET');
     console.log('🛜 Using EXTERNAL database connection');
     console.log('📊 Connection URL:', process.env.DATABASE_URL ? '***CONFIGURED***' : 'NOT SET');
     return new Pool({
