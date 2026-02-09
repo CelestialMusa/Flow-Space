@@ -7,6 +7,8 @@ function run(script) {
 }
 
 try {
+  console.log('🚀 Running migrations only');
+
   // 1. Base tables
   run('create-tables.js');
 
@@ -37,8 +39,8 @@ try {
   }
 
   console.log('\n🎉 All migrations executed successfully!');
-  console.log('🚀 Starting server...');
-  require('../server.js');
+  console.log('✅ Migrations complete');
+  process.exit(0); // 🔴 IMPORTANT: Exit cleanly, don't start server
 } catch (err) {
   console.error('\n❌ MIGRATION ERROR:', err.message);
   process.exit(1);
