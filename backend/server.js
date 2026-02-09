@@ -272,19 +272,82 @@ const upload = multer({
   }
 });
 
-// PostgreSQL connection
-const pool = new Pool({
-  user: process.env.DB_USER || 'flow_space_user', // Updated to use the permanent user
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'flow_space',
-  password: process.env.DB_PASSWORD || 'postgres',
-  port: parseInt(process.env.DB_PORT) || 5432,
-});
+const express = require('express');
+const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const pkg = require('pg');
+const { Pool } = pkg;
+
+// Explicit DB connection mode - removes ambiguity and forces determinism
+function createPool() {
+  const mode = process.env.DB_CONNECTION_MODE;
+
+  if (mode === 'external') {
+    console.log('🛜 Using EXTERNAL database connection');
+    console.log('📊 Connection URL:', process.env.DATABASE_URL ? '***CONFIGURED***' : 'NOT SET');
+    return new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: {
+        rejectUnauthorized: false,
+      },
+    });
+  }
+
+  console.log('🛜 Using ENV database connection');
+  console.log('📊 Host:', process.env.DB_HOST || 'localhost');
+  console.log('📊 User:', process.env.DB_USER || 'flow_space_user');
+  console.log('📊 Database:', process.env.DB_NAME || 'flow_space');
+  console.log('📊 Port:', process.env.DB_PORT || '5432');
+  
+  return new Pool({
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'flow_space_user',
+    password: process.env.DB_PASSWORD || 'postgres',
+    database: process.env.DB_NAME || 'flow_space',
+    port: parseInt(process.env.DB_PORT) || 5432,
+    ssl: {
+      rejectUnauthorized: false,
+    },
+  });
+}
+
+export const pool = createPool();
 
 // Test database connection
 pool.on('connect', () => {
   console.log('Connected to PostgreSQL database');
 });
+
+// Middleware to check if user has project-level permission
+const requireProjectPermission = (permissionName) => async (req, res, next) => {
+  try {
+    const projectId = req.params.projectId;
+    const userId = req.user.id;
+    const role = req.user.role;
+
+    const result = await pool.query(
+      `
+        SELECT 1
+        FROM project_members pm
+        JOIN projects p ON p.id = pm.project_id
+        WHERE pm.project_id = $1 AND pm.user_id = $2 AND pm.role = $3
+      `,
+      [projectId, userId, role]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({ error: 'Insufficient project permissions' });
+    }
+    next();
+  } catch (error) {
+    console.error('Project permission check error:', error);
+    return res.status(500).json({ error: 'Project permission check failed' });
+  }
+};
 
 // Initialize or update database schema
 async function initializeDatabase() {
