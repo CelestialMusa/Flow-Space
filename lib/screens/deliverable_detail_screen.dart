@@ -45,7 +45,9 @@ class _DeliverableDetailScreenState extends State<DeliverableDetailScreen> {
   String? _selectedPriority;
   DateTime? _selectedDueDate;
   String? _selectedProjectId;
+  String? _selectedOwnerId;
   List<Map<String, dynamic>> _projects = [];
+  List<Map<String, dynamic>> _users = [];
 
   @override
   void initState() {
@@ -54,6 +56,34 @@ class _DeliverableDetailScreenState extends State<DeliverableDetailScreen> {
     _initControllers();
     _loadDeliverableDetails();
     _loadProjects();
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    try {
+      final backendApiService = BackendApiService();
+      final response = await backendApiService.getUsers(limit: 100);
+      
+      if (response.isSuccess && response.data != null) {
+        List<dynamic> usersList = [];
+        if (response.data is List) {
+          usersList = response.data as List;
+        } else if (response.data is Map) {
+          final data = response.data as Map<String, dynamic>;
+          usersList = data['data'] as List? ?? data['users'] as List? ?? [];
+        }
+        
+        setState(() {
+          _users = usersList
+              .where((u) => u != null)
+              .map((u) => u is Map ? Map<String, dynamic>.from(u) : <String, dynamic>{})
+              .where((m) => m.isNotEmpty)
+              .toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading users: $e');
+    }
   }
 
   Future<void> _loadProjects() async {
@@ -96,6 +126,7 @@ class _DeliverableDetailScreenState extends State<DeliverableDetailScreen> {
     
     _selectedDueDate = _deliverable.dueDate;
     _selectedProjectId = _deliverable.projectId;
+    _selectedOwnerId = _deliverable.ownerId;
   }
 
   @override
@@ -138,17 +169,16 @@ class _DeliverableDetailScreenState extends State<DeliverableDetailScreen> {
         priority: _selectedPriority,
         dueDate: _selectedDueDate,
         projectId: _selectedProjectId,
+        ownerId: _selectedOwnerId,
       );
 
       if (response.isSuccess && mounted) {
+        // Reload details to get fully populated object (including owner name, etc.)
+        await _loadDeliverableDetails();
+        
         setState(() {
           _isEditing = false;
-          // Deliverable is updated via _loadDeliverableDetails called inside updateDeliverable if I changed service, 
-          // but here updateDeliverable returns the updated object in response.
-          if (response.data != null && response.data!['deliverable'] != null) {
-            _deliverable = response.data!['deliverable'] as Deliverable;
-            _initControllers();
-          }
+          _initControllers();
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Changes saved successfully')),
@@ -167,6 +197,48 @@ class _DeliverableDetailScreenState extends State<DeliverableDetailScreen> {
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Future<void> _toggleDoDItem(int index, bool? value) async {
+    if (value == null) return;
+
+    // Create new list with updated item
+    final newDoD = List<DoDItem>.from(_deliverable.definitionOfDone);
+    final item = newDoD[index];
+    newDoD[index] = DoDItem(text: item.text, isCompleted: value);
+
+    // Optimistic update
+    setState(() {
+      _deliverable = _deliverable.copyWith(definitionOfDone: newDoD);
+    });
+
+    try {
+      final response = await _deliverableService.updateDeliverable(
+        id: _deliverable.id,
+        definitionOfDone: newDoD,
+      );
+
+      if (!response.isSuccess) {
+        // Revert on failure
+        if (mounted) {
+          _loadDeliverableDetails(); // Reload to ensure consistency
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Failed to update: ${response.error}'),
+                backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        _loadDeliverableDetails();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error updating: $e'),
+              backgroundColor: Colors.red),
+        );
       }
     }
   }
@@ -599,6 +671,64 @@ class _DeliverableDetailScreenState extends State<DeliverableDetailScreen> {
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ],
+            if (_isEditing) ...[
+              const SizedBox(height: 16),
+              Builder(
+                builder: (context) {
+                  final displayUsers = List<Map<String, dynamic>>.from(_users);
+                  // Ensure selected owner is in the list to avoid dropdown crash
+                  if (_selectedOwnerId != null && 
+                      _selectedOwnerId!.isNotEmpty &&
+                      !displayUsers.any((u) => u['id'].toString() == _selectedOwnerId)) {
+                    displayUsers.add({
+                      'id': _selectedOwnerId,
+                      'name': _deliverable.ownerName ?? 'Current Owner',
+                      'email': 'Unknown',
+                    });
+                  }
+
+                  return DropdownButtonFormField<String>(
+                    value: _selectedOwnerId,
+                    decoration: const InputDecoration(
+                      labelText: 'Owner',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    items: [
+                      const DropdownMenuItem<String>(
+                        value: null,
+                        child: Text('Unassigned'),
+                      ),
+                      ...displayUsers.map((u) {
+                        String name = u['name'] ?? '';
+                        if (name.isEmpty) {
+                          final first = u['first_name'] ?? u['firstName'] ?? '';
+                          final last = u['last_name'] ?? u['lastName'] ?? '';
+                          if (first.isNotEmpty || last.isNotEmpty) {
+                            name = '$first $last'.trim();
+                          }
+                        }
+                        if (name.isEmpty) {
+                          name = u['email'] ?? 'Unknown';
+                        }
+                        
+                        return DropdownMenuItem<String>(
+                          value: u['id'].toString(),
+                          child: Text(name),
+                        );
+                      }),
+                    ],
+                    onChanged: (val) => setState(() => _selectedOwnerId = val),
+                  );
+                }
+              ),
+            ] else if (_deliverable.ownerName != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Owner: ${_deliverable.ownerName}',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
           ],
         ),
       ),
@@ -640,13 +770,17 @@ class _DeliverableDetailScreenState extends State<DeliverableDetailScreen> {
           style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 8),
-        ..._deliverable.definitionOfDone.map((dod) => CheckboxListTile(
-          value: dod.isCompleted,
-          title: Text(dod.text),
-          onChanged: null, // Read-only for now in this view
-          controlAffinity: ListTileControlAffinity.leading,
-          dense: true,
-        )),
+        ..._deliverable.definitionOfDone.asMap().entries.map((entry) {
+          final index = entry.key;
+          final dod = entry.value;
+          return CheckboxListTile(
+            value: dod.isCompleted,
+            title: Text(dod.text),
+            onChanged: (val) => _toggleDoDItem(index, val),
+            controlAffinity: ListTileControlAffinity.leading,
+            dense: true,
+          );
+        }),
       ],
     );
   }

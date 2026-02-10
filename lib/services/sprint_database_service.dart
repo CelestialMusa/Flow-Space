@@ -41,6 +41,7 @@ class SprintDatabaseService {
   Future<List<Map<String, dynamic>>> getSprints({String? projectId, String? projectKey}) async {
     try {
       final uri = Uri.parse('$_baseUrl/sprints').replace(queryParameters: {
+        'limit': '1000',
         if (projectId != null && projectId.isNotEmpty) 'project_id': projectId,
         if (projectKey != null && projectKey.isNotEmpty) 'project_key': projectKey,
       });
@@ -466,8 +467,8 @@ if (response.isSuccess) {
   /// Get all projects
   Future<List<Map<String, dynamic>>> getProjects() async {
     try {
-final response = await http.get(
-        Uri.parse('$_baseUrl/projects'),
+      final response = await http.get(
+        Uri.parse('$_baseUrl/projects').replace(queryParameters: {'limit': '1000'}),
         headers: _headers,
       );
       if (response.statusCode == 200) {

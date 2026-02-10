@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../models/project.dart';
 import '../models/deliverable.dart';
 import '../models/sprint.dart';
@@ -7,6 +8,7 @@ import '../models/user.dart';
 import '../widgets/glass_card.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/user_data_service.dart';
 
 class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
   final String? projectId;
@@ -53,7 +55,7 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
 
   Future<void> _initData() async {
     await _loadAvailableData();
-    if (widget.projectId != null) {
+    if (widget.projectId != null && widget.projectId != 'new') {
       _isEditing = true;
       await _loadProject();
     }
@@ -69,7 +71,7 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   }
 
   Future<void> _loadProject() async {
-    if (widget.projectId == null) return;
+    if (widget.projectId == null || widget.projectId == 'new') return;
     
     setState(() => _isLoading = true);
     try {
@@ -114,12 +116,22 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
     try {
       final deliverables = await ApiService.getDeliverables();
       final sprints = await ApiService.getSprints();
-      final users = await ApiService.getUsers();
+      final users = await UserDataService().getUsers(limit: 1000);
       
       setState(() {
         _availableDeliverables = deliverables.map((d) => Deliverable.fromJson(d)).toList();
         _availableSprints = sprints.map((s) => Sprint.fromJson(s)).toList();
-        _availableUsers = users.map((u) => User.fromJson(u)).toList();
+        _availableUsers = users;
+
+        // Set default owner if creating new project
+        if (!_isEditing && _selectedOwner == null) {
+           final currentUserId = AuthService().currentUser?.id;
+           if (currentUserId != null) {
+             try {
+               _selectedOwner = _availableUsers.firstWhere((u) => u.id == currentUserId);
+             } catch (_) {}
+           }
+        }
       });
     } catch (e) {
       _showErrorSnackBar('Failed to load available data: $e');
@@ -467,8 +479,14 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
           DropdownButtonFormField<User>(
             // ignore: deprecated_member_use
             value: _selectedOwner,
+            // Allow owner selection for System Admins or during editing
+            onChanged: (value) {
+              setState(() {
+                _selectedOwner = value;
+              });
+            },
             decoration: InputDecoration(
-              labelText: 'Project Owner',
+              labelText: 'Project Owner *',
               prefixIcon: Icon(Icons.person_outline, color: colorScheme.primary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -483,7 +501,7 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
                 borderSide: BorderSide(color: colorScheme.primary, width: 2),
               ),
               filled: true,
-              fillColor: colorScheme.surface.withAlpha(100),
+              fillColor: _isEditing ? colorScheme.surface.withAlpha(100) : colorScheme.surface.withAlpha(50), // Visual cue for disabled state
             ),
             style: TextStyle(
               fontSize: 16,
@@ -495,11 +513,6 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
                 child: Text(user.name),
               );
             }).toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedOwner = value;
-              });
-            },
             validator: (value) {
               if (value == null) {
                 return 'Project owner is required';
@@ -816,6 +829,7 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
     final currentUserId = AuthService().currentUser?.id;
     final isOwner = _selectedOwner?.id != null && _selectedOwner!.id == currentUserId;
     // Allow member assignment if it's a new project or if the current user is the owner
+    // User requirement: "only the project owner can assign users to projects."
     final canAssignMembers = !_isEditing || isOwner;
 
     return GlassCard(
@@ -854,7 +868,7 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 enabled: canAssignMembers,
                 filled: true,
-                fillColor: colorScheme.surface.withAlpha(100),
+                fillColor: canAssignMembers ? colorScheme.surface.withAlpha(100) : colorScheme.surface.withAlpha(50),
                 suffixIcon: Icon(Icons.arrow_drop_down, color: canAssignMembers ? colorScheme.primary : colorScheme.outline),
               ),
               child: _members.isEmpty
@@ -1048,7 +1062,13 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
           const SizedBox(width: 16),
           Expanded(
             child: OutlinedButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                } else {
+                  context.go('/sprint-console');
+                }
+              },
               style: OutlinedButton.styleFrom(
                 foregroundColor: colorScheme.onSurface,
                 side: BorderSide(color: colorScheme.outline),

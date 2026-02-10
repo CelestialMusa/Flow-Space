@@ -499,7 +499,11 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
               ),
             ],
             const SizedBox(height: 8),
-            buildStatusItem('Report Status', _report!.status.toString().split('.').last.toUpperCase()),
+              if (_report!.preparedByName != null && _report!.preparedByName!.isNotEmpty) ...[
+                buildStatusItem('Prepared By', _report!.preparedByName!),
+                const SizedBox(height: 8),
+              ],
+              buildStatusItem('Report Status', _report!.status.toString().split('.').last.toUpperCase()),
           ],
         ),
       ),

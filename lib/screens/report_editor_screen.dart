@@ -3,9 +3,13 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../models/sign_off_report.dart';
+import '../models/user.dart';
+import '../models/user_role.dart';
 import '../services/backend_api_service.dart';
 import '../services/deliverable_service.dart';
 import '../services/sprint_database_service.dart';
+import '../services/user_data_service.dart';
+import '../services/auth_service.dart';
 import '../services/api_client.dart';
 import '../theme/flownet_theme.dart';
 import '../widgets/flownet_logo.dart';
@@ -36,11 +40,15 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
   final BackendApiService _reportService = BackendApiService();
   final DeliverableService _deliverableService = DeliverableService();
   final SprintDatabaseService _sprintService = SprintDatabaseService();
+  final UserDataService _userService = UserDataService();
+  final AuthService _authService = AuthService();
   final ApiClient _apiClient = ApiClient();
   
   List<dynamic> _deliverables = [];
   List<dynamic> _sprints = [];
+  List<User> _users = [];
   String? _selectedDeliverableId;
+  String? _preparedById;
   List<String> _selectedSprintIds = [];
   String? _changeRequestDetails;
   bool _isLoading = false;
@@ -73,12 +81,27 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
     }
   }
 
+  Future<void> _loadUsers() async {
+    try {
+      final users = await _userService.getUsers(limit: 1000);
+      setState(() {
+        _users = users;
+        _preparedById ??= _authService.currentUser?.id;
+      });
+    } catch (e) {
+      debugPrint('Error loading users: $e');
+    }
+  }
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     
     try {
       // Load deliverables from backend (real-time data)
       await _loadDeliverables();
+      
+      // Load users
+      await _loadUsers();
       
       // Load sprints
       try {
@@ -119,6 +142,7 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
             _contentController.text = content['reportContent']?.toString() ?? '';
             _knownLimitationsController.text = content['knownLimitations']?.toString() ?? '';
             _nextStepsController.text = content['nextSteps']?.toString() ?? '';
+            _preparedById = content['preparedBy']?.toString() ?? _preparedById;
             _selectedSprintIds = (content['sprintIds'] as List?)?.map((e) => e.toString()).toList() ?? [];
             _changeRequestDetails = data['changeRequestDetails']?.toString();
             _existingPerformanceData = content['sprintPerformanceData']?.toString();
@@ -323,6 +347,8 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
             'knownLimitations': _knownLimitationsController.text,
           if (_nextStepsController.text.isNotEmpty) 
             'nextSteps': _nextStepsController.text,
+          if (_preparedById != null) 'preparedBy': _preparedById,
+          if (_preparedById != null) 'preparedByName': _users.firstWhere((u) => u.id == _preparedById, orElse: () => User(id: '', email: '', name: 'Unknown', role: UserRole.systemAdmin, createdAt: DateTime.now())).name,
         };
         debugPrint('📤 Update payload: $updateData');
         response = await _reportService.updateSignOffReport(
@@ -341,6 +367,8 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
             'knownLimitations': _knownLimitationsController.text,
           if (_nextStepsController.text.isNotEmpty) 
             'nextSteps': _nextStepsController.text,
+          if (_preparedById != null) 'preparedBy': _preparedById,
+          if (_preparedById != null) 'preparedByName': _users.firstWhere((u) => u.id == _preparedById, orElse: () => User(id: '', email: '', name: 'Unknown', role: UserRole.systemAdmin, createdAt: DateTime.now())).name,
         };
         debugPrint('📤 Create payload: $createData');
         response = await _reportService.createSignOffReport(createData);
@@ -988,6 +1016,43 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
                             ],
                           ),
                     const SizedBox(height: 16),
+
+                    // Prepared By (Author) Selection
+                    if (_users.isNotEmpty) ...[
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        // ignore: deprecated_member_use
+                        value: _preparedById,
+                        decoration: const InputDecoration(
+                          labelText: 'Prepared By *',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.person),
+                          helperText: 'Select the author of this report',
+                        ),
+                        items: _users.map((user) {
+                          return DropdownMenuItem<String>(
+                            value: user.id,
+                            child: Text(
+                              user.name,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _preparedById = value;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please select the author';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
 
                     // AI Assistance
                     Container(

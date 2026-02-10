@@ -5,12 +5,14 @@ class ProjectCard extends StatelessWidget {
   final Map<String, dynamic> project;
   final bool isSelected;
   final VoidCallback onTap;
+  final VoidCallback? onEdit;
 
   const ProjectCard({
     super.key,
     required this.project,
     required this.isSelected,
     required this.onTap,
+    this.onEdit,
   });
 
   @override
@@ -74,17 +76,27 @@ class ProjectCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (onEdit != null)
+                  IconButton(
+                    icon: Icon(Icons.edit, size: 16, color: onSurfaceColor.withAlpha(150)),
+                    onPressed: onEdit,
+                    tooltip: 'Edit Project',
+                    constraints: const BoxConstraints(),
+                    padding: EdgeInsets.zero,
+                  ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Text(
               project['key'] ?? '',
               style: TextStyle(
                 color: onSurfaceColor.withAlpha(179),  // 0.7 * 255 ≈ 179
                 fontSize: 12,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               project['project_type'] ?? 'software',
               style: TextStyle(
@@ -92,16 +104,22 @@ class ProjectCard extends StatelessWidget {
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             if (startDateStr != null || endDateStr != null)
-              Text(
-                '${formatDate(startDateStr).isNotEmpty ? formatDate(startDateStr) : 'No start date'}'
-                ' - '
-                '${formatDate(endDateStr).isNotEmpty ? formatDate(endDateStr) : 'No end date'}',
-                style: TextStyle(
-                  color: onSurfaceColor.withAlpha(179),
-                  fontSize: 11,
+              Expanded(
+                child: Text(
+                  '${formatDate(startDateStr).isNotEmpty ? formatDate(startDateStr) : 'No start date'}'
+                  ' - '
+                  '${formatDate(endDateStr).isNotEmpty ? formatDate(endDateStr) : 'No end date'}',
+                  style: TextStyle(
+                    color: onSurfaceColor.withAlpha(179),
+                    fontSize: 11,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
           ],

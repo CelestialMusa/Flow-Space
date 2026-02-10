@@ -18,6 +18,7 @@ const Project = require('./Project');
 const ApprovalRequest = require('./ApprovalRequest');
 const Ticket = require('./Ticket');
 const DeliverableArtifact = require('./DeliverableArtifact');
+const ProjectMember = require('./ProjectMember');
 
 // Function to initialize models with the database connection
 function initializeModels(sequelize) {
@@ -37,7 +38,8 @@ function initializeModels(sequelize) {
     Project: Project(sequelize, DataTypes),
     ApprovalRequest: ApprovalRequest(sequelize, DataTypes),
     Ticket: Ticket(sequelize, DataTypes),
-    DeliverableArtifact: DeliverableArtifact(sequelize, DataTypes)
+    DeliverableArtifact: DeliverableArtifact(sequelize, DataTypes),
+    ProjectMember: ProjectMember(sequelize, DataTypes)
   };
 
   // Set up associations

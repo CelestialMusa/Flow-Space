@@ -324,7 +324,7 @@ class BackendApiService {
   }
 
   // Project endpoints
-  Future<ApiResponse> getProjects({int page = 1, int limit = 20, String? search}) async {
+  Future<ApiResponse> getProjects({int page = 1, int limit = 1000, String? search}) async {
     final queryParams = <String, String>{
       'page': page.toString(),
       'limit': limit.toString(),

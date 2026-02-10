@@ -287,6 +287,7 @@ static final String baseUrl = Environment.apiBaseUrl;
       
       final headers = await _getHeaders();
       final uri = Uri.parse('$baseUrl/sprints').replace(queryParameters: {
+        'limit': '1000',
         if (projectId != null && projectId.isNotEmpty) 'project_id': projectId,
         if (projectKey != null && projectKey.isNotEmpty) 'project_key': projectKey,
       });

@@ -18,6 +18,8 @@ class SignOffReport {
   final String? sprintPerformanceData;
   final String? knownLimitations;
   final String? nextSteps;
+  final String? preparedBy;
+  final String? preparedByName;
   final ReportStatus status;
   final DateTime createdAt;
   final String createdBy;
@@ -42,6 +44,8 @@ class SignOffReport {
     this.sprintPerformanceData,
     this.knownLimitations,
     this.nextSteps,
+    this.preparedBy,
+    this.preparedByName,
     required this.status,
     required this.createdAt,
     required this.createdBy,
@@ -66,6 +70,8 @@ class SignOffReport {
     String? sprintPerformanceData,
     String? knownLimitations,
     String? nextSteps,
+    String? preparedBy,
+    String? preparedByName,
     ReportStatus? status,
     DateTime? createdAt,
     String? createdBy,
@@ -89,6 +95,8 @@ class SignOffReport {
       sprintPerformanceData: sprintPerformanceData ?? this.sprintPerformanceData,
       knownLimitations: knownLimitations ?? this.knownLimitations,
       nextSteps: nextSteps ?? this.nextSteps,
+      preparedBy: preparedBy ?? this.preparedBy,
+      preparedByName: preparedByName ?? this.preparedByName,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       createdBy: createdBy ?? this.createdBy,
@@ -115,6 +123,8 @@ class SignOffReport {
       'sprintPerformanceData': sprintPerformanceData,
       'knownLimitations': knownLimitations,
       'nextSteps': nextSteps,
+      'preparedBy': preparedBy,
+      'preparedByName': preparedByName,
       'status': status.name,
       'createdAt': createdAt.toIso8601String(),
       'createdBy': createdBy,
@@ -150,6 +160,9 @@ class SignOffReport {
     final String? sprintPerformanceData = (json['sprintPerformanceData'] ?? content['sprintPerformanceData'])?.toString();
     final String? knownLimitations = (json['knownLimitations'] ?? content['knownLimitations'] ?? content['limitations'])?.toString();
     final String? nextSteps = (json['nextSteps'] ?? content['nextSteps'])?.toString();
+
+    final String? preparedBy = (json['preparedBy'] ?? json['prepared_by'])?.toString();
+    final String? preparedByName = (json['preparedByName'] ?? json['prepared_by_name'])?.toString();
 
     final String statusStr = (json['status'] ?? json['review_status'] ?? content['status'] ?? '').toString();
     final ReportStatus status = ReportStatus.values.firstWhere(
@@ -188,6 +201,8 @@ class SignOffReport {
       sprintPerformanceData: sprintPerformanceData,
       knownLimitations: knownLimitations,
       nextSteps: nextSteps,
+      preparedBy: preparedBy,
+      preparedByName: preparedByName,
       status: status,
       createdAt: createdAt,
       createdBy: createdBy,

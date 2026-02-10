@@ -89,6 +89,8 @@ router.get('/', async (req, res) => {
           knownLimitations: c.knownLimitations || c.known_limitations,
           nextSteps: c.nextSteps || c.next_steps,
           status: row.status || 'draft',
+          preparedBy: c.preparedBy || c.prepared_by,
+          preparedByName: c.preparedByName || c.prepared_by_name,
           createdAt: row.created_at,
           createdBy: (row.created_by || '').toString(),
           createdByName: userMap.get(row.created_by) || null,
@@ -180,6 +182,8 @@ router.get('/:id', async (req, res) => {
         sprintPerformanceData: c.sprintPerformanceData || c.sprint_performance_data,
         knownLimitations: c.knownLimitations || c.known_limitations,
         nextSteps: c.nextSteps || c.next_steps,
+        preparedBy: c.preparedBy || c.prepared_by,
+        preparedByName: c.preparedByName || c.prepared_by_name,
         status: row.status || 'draft',
         createdAt: row.created_at,
         createdBy: (row.created_by || '').toString(),
@@ -258,6 +262,8 @@ router.post('/', async (req, res) => {
         knownLimitations: c.knownLimitations || c.known_limitations,
         nextSteps: c.nextSteps || c.next_steps,
         status: row.status || 'draft',
+        preparedBy: c.preparedBy || c.prepared_by,
+        preparedByName: c.preparedByName || c.prepared_by_name,
         createdAt: row.created_at,
         createdBy: (row.created_by || '').toString()
       };
@@ -329,6 +335,8 @@ router.put('/:id', async (req, res) => {
         knownLimitations: c.knownLimitations || c.known_limitations,
         nextSteps: c.nextSteps || c.next_steps,
         status: row.status || 'draft',
+        preparedBy: c.preparedBy || c.prepared_by,
+        preparedByName: c.preparedByName || c.prepared_by_name,
         createdAt: row.created_at,
         createdBy: (row.created_by || '').toString()
       };
