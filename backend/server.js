@@ -99,12 +99,15 @@ const emailService = process.env.SENDGRID_API_KEY
   ? new SendGridEmailService() 
   : new EmailService();
 
+// Test email connection and provide helpful feedback
 emailService
   .testConnection()
   .then((ok) => {
     if (!ok) {
       console.log('⚠️  Email configuration error: connection failed');
       console.log('💡 Email functionality will be limited until credentials are configured');
+      console.log('📧 To fix email: See EMAIL_SETUP_GUIDE.md for setup instructions');
+      console.log('🔑 Users can still register using verification codes shown in these logs');
     } else {
       console.log('✅ Email service initialized successfully');
     }
@@ -112,6 +115,8 @@ emailService
   .catch((err) => {
     console.log('⚠️  Email configuration error:', err.message);
     console.log('💡 Email functionality will be limited until credentials are configured');
+    console.log('📧 To fix email: See EMAIL_SETUP_GUIDE.md for setup instructions');
+    console.log('🔑 Users can still register using verification codes shown in these logs');
   });
 
 // Initialize Express app
@@ -919,6 +924,85 @@ app.post('/api/v1/auth/resend-verification', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Internal server error'
+    });
+  }
+});
+
+// SendGrid test endpoint
+app.get('/api/v1/test-email', async (req, res) => {
+  try {
+    console.log('🔍 Testing SendGrid configuration...');
+    
+    // Check environment variables
+    const sendGridKey = process.env.SENDGRID_API_KEY;
+    const fromEmail = process.env.FROM_EMAIL;
+    const fromName = process.env.FROM_NAME;
+    
+    console.log('📧 SendGrid Key:', sendGridKey ? 'CONFIGURED' : 'NOT SET');
+    console.log('📨 From Email:', fromEmail || 'NOT SET');
+    console.log('📝 From Name:', fromName || 'NOT SET');
+    
+    if (!sendGridKey) {
+      return res.json({
+        success: false,
+        error: 'SendGrid API key not configured',
+        config: {
+          sendGridKey: false,
+          fromEmail: !!fromEmail,
+          fromName: !!fromName
+        }
+      });
+    }
+    
+    // Test SendGrid connection
+    const sgMail = require('@sendgrid/mail');
+    sgMail.setApiKey(sendGridKey);
+    
+    // Create test email
+    const testEmail = {
+      to: 'test@example.com',
+      from: {
+        name: fromName || 'Flow-Space',
+        email: fromEmail || 'test@example.com'
+      },
+      subject: 'SendGrid Test - Flow-Space',
+      html: '<h1>SendGrid is working!</h1><p>This is a test email from Flow-Space.</p>'
+    };
+    
+    console.log('📤 Sending test email...');
+    const result = await sgMail.send(testEmail);
+    
+    console.log('✅ SendGrid test successful:', result[0].messageId);
+    
+    res.json({
+      success: true,
+      message: 'SendGrid is working',
+      messageId: result[0].messageId,
+      config: {
+        sendGridKey: true,
+        fromEmail: !!fromEmail,
+        fromName: !!fromName,
+        keyFormat: sendGridKey.startsWith('SG.') ? 'VALID' : 'INVALID'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ SendGrid test failed:', error.message);
+    
+    if (error.response) {
+      console.error('📧 SendGrid Response:', {
+        status: error.response.status,
+        body: error.response.body
+      });
+    }
+    
+    res.json({
+      success: false,
+      error: error.message,
+      details: error.response ? {
+        status: error.response.status,
+        body: error.response.body
+      } : null
     });
   }
 });
