@@ -50,6 +50,21 @@ class SendGridEmailService {
           status: error.response.status,
           body: error.response.body
         });
+        
+        // Specific error guidance
+        if (error.response.status === 401) {
+          console.error('🔑 SendGrid Error: Invalid API Key');
+          console.error('💡 Fix: Check SENDGRID_API_KEY in Render environment variables');
+        } else if (error.response.status === 403) {
+          console.error('📧 SendGrid Error: Sender not verified');
+          console.error('💡 Fix: Verify your sender email/domain in SendGrid dashboard');
+        } else if (error.response.status === 400) {
+          console.error('📧 SendGrid Error: Bad request - check FROM_EMAIL format');
+          console.error('💡 Fix: Ensure FROM_EMAIL matches verified sender');
+        }
+      } else if (error.code === 'ENOTFOUND') {
+        console.error('🌐 SendGrid Error: Network connection failed');
+        console.error('💡 Fix: Check internet connection and firewall settings');
       }
       
       // Fallback to SMTP if SendGrid fails
