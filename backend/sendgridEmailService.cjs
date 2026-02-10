@@ -43,6 +43,15 @@ class SendGridEmailService {
       return { success: true, messageId: result[0].messageId };
     } catch (error) {
       console.error('❌ Failed to send verification email via SendGrid:', error.message);
+      
+      // Better error debugging
+      if (error.response) {
+        console.error('📧 SendGrid API Response:', {
+          status: error.response.status,
+          body: error.response.body
+        });
+      }
+      
       // Fallback to SMTP if SendGrid fails
       return await this.sendViaSmtpFallback(toEmail, userName, verificationCode);
     }
