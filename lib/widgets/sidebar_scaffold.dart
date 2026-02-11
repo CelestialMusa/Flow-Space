@@ -245,7 +245,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 32),
                             child: _buildLogoutButton(),
                           ),
                         ],
