@@ -59,7 +59,7 @@ class VersionedHomePage extends StatelessWidget {
                         VersionControl.getFormattedVersionInfo(),
                         style: const TextStyle(
                           fontFamily: 'monospace',
-                          fontSize: 12,
+                          fontSize: 10,
                         ),
                       ),
                     ),
