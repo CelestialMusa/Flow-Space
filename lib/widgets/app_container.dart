@@ -33,7 +33,7 @@ class AppContainer extends StatelessWidget {
           // Version control in bottom left corner with proper z-index
           const Positioned(
             left: 16,
-            bottom: 16,
+            bottom: 80, // Moved higher to avoid logout button overlap
             child: Material(
               color: Colors.transparent,
               child: VersionDisplay(),
