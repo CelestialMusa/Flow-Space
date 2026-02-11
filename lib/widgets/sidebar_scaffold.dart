@@ -528,19 +528,29 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
   }
 
   Widget _buildLogoutButton() {
-    return SizedBox(
+    return Container(
       width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: FlownetColors.crimsonRed.withAlpha((0.1 * 255).round()),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: FlownetColors.crimsonRed.withAlpha((0.3 * 255).round()),
+          width: 1,
+        ),
+      ),
       child: TextButton.icon(
         onPressed: () => _handleLogout(context),
         icon: const Icon(
           Icons.logout,
-          color: FlownetColors.textSecondary,
+          color: FlownetColors.crimsonRed,
           size: 20,
         ),
         label: const Text(
           'Logout',
           style: TextStyle(
-            color: FlownetColors.textSecondary,
+            color: FlownetColors.crimsonRed,
+            fontWeight: FontWeight.w600,
           ),
         ),
         style: TextButton.styleFrom(
