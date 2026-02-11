@@ -170,7 +170,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                                     _collapsed
                                         ? Icons.chevron_right
                                         : Icons.chevron_left,
-                                    color: FlownetColors.coolGray,
+                                    color: FlownetColors.textSecondary,
                                     size: 20,
                                   ),
                                 ),
@@ -216,7 +216,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                                           item.icon,
                                           color: active
                                               ? FlownetColors.crimsonRed
-                                              : FlownetColors.coolGray,
+                                              : FlownetColors.textSecondary,
                                           size: 20,
                                         ),
                                       ),
@@ -313,7 +313,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                             Text(
                               _getPageTitle(routeLocation),
                               style: const TextStyle(
-                                color: FlownetColors.coolGray,
+                                color: FlownetColors.textSecondary,
                                 fontSize: 14,
                               ),
                             ),
@@ -446,7 +446,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                   child: ListTile(
                     leading: const Icon(
                       Icons.logout,
-                      color: FlownetColors.coolGray,
+                      color: FlownetColors.textSecondary,
                     ),
                     title: const Text(
                       'Logout',
@@ -505,7 +505,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                       Text(
                         _getPageTitle(routeLocation),
                         style: const TextStyle(
-                          color: FlownetColors.coolGray,
+                          color: FlownetColors.textSecondary,
                           fontSize: 14,
                         ),
                       ),
@@ -534,13 +534,13 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         onPressed: () => _handleLogout(context),
         icon: const Icon(
           Icons.logout,
-          color: FlownetColors.coolGray,
+          color: FlownetColors.textSecondary,
           size: 20,
         ),
         label: const Text(
           'Logout',
           style: TextStyle(
-            color: FlownetColors.coolGray,
+            color: FlownetColors.textSecondary,
           ),
         ),
         style: TextButton.styleFrom(
