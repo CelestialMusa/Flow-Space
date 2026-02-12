@@ -125,11 +125,20 @@ static String get _baseUrlWithVersion => Environment.apiBaseUrl;
   }
 
   // HTTP Methods
-  Future<ApiResponse> get(String endpoint, {Map<String, String>? queryParams}) async {
+  Future<ApiResponse> get(String endpoint, {Map<String, String>? queryParams, bool requireAuth = true}) async {
+    if (!requireAuth) {
+      // Make unauthenticated request
+      return await _makeUnauthenticatedRequest('GET', endpoint, queryParams: queryParams);
+    }
     return await _makeRequest('GET', endpoint, queryParams: queryParams);
   }
 
-  Future<ApiResponse> post(String endpoint, {Map<String, dynamic>? body, Map<String, String>? queryParams}) async {
+  Future<ApiResponse> post(String endpoint, {Map<String, dynamic>? body, Map<String, String>? queryParams, bool requireAuth = true}) async {
+    if (!requireAuth && queryParams != null && queryParams.containsKey('token')) {
+      // For token-based requests, we can skip auth but still need to pass token
+      // The token will be in query params, so we'll make a special request
+      return await _makeTokenBasedRequest('POST', endpoint, body: body, queryParams: queryParams);
+    }
     return await _makeRequest('POST', endpoint, body: body, queryParams: queryParams);
   }
 
@@ -269,6 +278,96 @@ static String get _baseUrlWithVersion => Environment.apiBaseUrl;
       return ApiResponse.error('HTTP error: ${e.message}');
     } catch (e) {
       debugPrint('API request error: $e');
+      return ApiResponse.error('An unexpected error occurred: $e');
+    }
+  }
+
+  Future<ApiResponse> _makeUnauthenticatedRequest(
+    String method,
+    String endpoint, {
+    Map<String, String>? queryParams,
+  }) async {
+    try {
+      // Build URL
+      String url = '$_baseUrlWithVersion$endpoint';
+      if (queryParams != null && queryParams.isNotEmpty) {
+        final uri = Uri.parse(url);
+        url = uri.replace(queryParameters: queryParams).toString();
+      }
+
+      // Prepare headers (no auth)
+      final headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      };
+
+      // Make request
+      http.Response response;
+      switch (method.toUpperCase()) {
+        case 'GET':
+          response = await http.get(Uri.parse(url), headers: headers).timeout(_timeout);
+          break;
+        default:
+          throw Exception('Unsupported HTTP method for unauthenticated request: $method');
+      }
+
+      return _handleResponse(response);
+    } on SocketException {
+      return ApiResponse.error('No internet connection. Please check your network.');
+    } on HttpException catch (e) {
+      return ApiResponse.error('HTTP error: ${e.message}');
+    } catch (e) {
+      debugPrint('Unauthenticated API request error: $e');
+      return ApiResponse.error('An unexpected error occurred: $e');
+    }
+  }
+
+  Future<ApiResponse> _makeTokenBasedRequest(
+    String method,
+    String endpoint, {
+    Map<String, dynamic>? body,
+    Map<String, String>? queryParams,
+  }) async {
+    try {
+      // Build URL
+      String url = '$_baseUrlWithVersion$endpoint';
+      if (queryParams != null && queryParams.isNotEmpty) {
+        final uri = Uri.parse(url);
+        url = uri.replace(queryParameters: queryParams).toString();
+      }
+
+      // Prepare headers (include token in header if present in query)
+      final headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      };
+      
+      // If token is in query params, also add it to header for backend compatibility
+      if (queryParams != null && queryParams.containsKey('token')) {
+        headers['x-review-token'] = queryParams['token']!;
+      }
+
+      // Make request
+      http.Response response;
+      switch (method.toUpperCase()) {
+        case 'POST':
+          response = await http.post(
+            Uri.parse(url),
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          ).timeout(_timeout);
+          break;
+        default:
+          throw Exception('Unsupported HTTP method for token-based request: $method');
+      }
+
+      return _handleResponse(response);
+    } on SocketException {
+      return ApiResponse.error('No internet connection. Please check your network.');
+    } on HttpException catch (e) {
+      return ApiResponse.error('HTTP error: ${e.message}');
+    } catch (e) {
+      debugPrint('Token-based API request error: $e');
       return ApiResponse.error('An unexpected error occurred: $e');
     }
   }

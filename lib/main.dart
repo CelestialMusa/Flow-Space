@@ -314,6 +314,17 @@ final GoRouter _router = GoRouter(
         );
       },
     ),
+    // Token-based client review route (no auth required)
+    GoRoute(
+      path: '/client-review-token/:token',
+      builder: (context, state) {
+        final token = state.pathParameters['token']!;
+        return ClientReviewScreen(
+          reportId: '', // Will be fetched via token
+          reviewToken: token,
+        );
+      },
+    ),
     GoRoute(
       path: '/enhanced-client-review/:reportId',
       builder: (context, state) {

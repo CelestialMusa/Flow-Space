@@ -14,12 +14,14 @@ class ClientReviewScreen extends ConsumerStatefulWidget {
   final String reportId;
   final SignOffReport? initialReport;
   final Deliverable? initialDeliverable;
+  final String? reviewToken; // Token for token-based access (no auth required)
   
   const ClientReviewScreen({
     super.key,
     required this.reportId,
     this.initialReport,
     this.initialDeliverable,
+    this.reviewToken,
   });
 
   @override
@@ -59,6 +61,60 @@ class _ClientReviewScreenState extends ConsumerState<ClientReviewScreen> {
   Future<void> _loadReportData() async {
     try {
       final api = BackendApiService();
+      
+      // If token is provided, use token-based endpoint
+      if (widget.reviewToken != null && widget.reviewToken!.isNotEmpty) {
+        final tokenResp = await api.getClientReviewByToken(widget.reviewToken!);
+        if (!mounted) return;
+        
+        if (tokenResp.isSuccess && tokenResp.data != null) {
+          final data = tokenResp.data!;
+          final reportJson = data['report'] ?? data;
+          final loadedReport = SignOffReport.fromJson(reportJson);
+          
+          Deliverable? loadedDeliverable;
+          if (data['deliverable'] != null) {
+            try {
+              loadedDeliverable = Deliverable.fromJson(data['deliverable']);
+            } catch (_) {}
+          }
+          
+          // Update sprint performance data if provided
+          if (data['performanceMetrics'] != null) {
+            final perfData = data['performanceMetrics'];
+            final updatedReport = loadedReport.copyWith(
+              sprintPerformanceData: perfData is String ? perfData : jsonEncode(perfData),
+            );
+            setState(() {
+              _report = updatedReport;
+              _deliverable = loadedDeliverable;
+            });
+          } else {
+            setState(() {
+              _report = loadedReport;
+              _deliverable = loadedDeliverable;
+            });
+          }
+        } else {
+          // Token expired or invalid
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(tokenResp.error ?? 'Invalid or expired review link'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+          setState(() {
+            _report = null;
+            _deliverable = null;
+          });
+        }
+        return;
+      }
+      
+      // Standard authenticated endpoint
       final reportResp = await api.getSignOffReport(widget.reportId);
       if (!mounted) return;
       if (reportResp.isSuccess && reportResp.data != null) {
@@ -84,6 +140,14 @@ class _ClientReviewScreenState extends ConsumerState<ClientReviewScreen> {
       }
     } catch (e) {
       if (!mounted) return;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading report: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       setState(() {
         _report = null;
         _deliverable = null;
@@ -146,10 +210,15 @@ class _ClientReviewScreenState extends ConsumerState<ClientReviewScreen> {
           }
           return;
         }
+        // If using token-based access, pass token in request
+        final reportId = widget.reviewToken != null && widget.reportId.isEmpty 
+            ? _report?.id ?? '' 
+            : widget.reportId;
         final response = await backendService.approveSignOffReport(
-          widget.reportId,
+          reportId,
           _commentController.text.isNotEmpty ? _commentController.text : null,
           signature,
+          reviewToken: widget.reviewToken,
         );
         if (response.isSuccess && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -171,9 +240,14 @@ class _ClientReviewScreenState extends ConsumerState<ClientReviewScreen> {
           );
         }
       } else if (_selectedAction == 'changeRequest') {
+        // If using token-based access, pass token in request
+        final reportId = widget.reviewToken != null && widget.reportId.isEmpty 
+            ? _report?.id ?? '' 
+            : widget.reportId;
         final response = await backendService.requestSignOffChanges(
-          widget.reportId,
+          reportId,
           _changeRequestController.text,
+          reviewToken: widget.reviewToken,
         );
         if (response.isSuccess && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
