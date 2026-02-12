@@ -164,9 +164,22 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
     setState(() => _isLoading = true);
 
     try {
+      // Derive a sensible project key if creating a new project
+      String deriveProjectKey() {
+        if (_isEditing && _currentProject != null) {
+          return _currentProject!.key;
+        }
+        final name = _nameController.text.trim();
+        if (name.isEmpty) return 'PRJ';
+        final parts = name.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+        final key = parts.map((p) => p[0]).take(4).join().toUpperCase();
+        return key.isEmpty ? 'PRJ' : key;
+      }
+
       final project = Project(
         id: _isEditing ? _currentProject!.id : DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text.trim(),
+        key: deriveProjectKey(),
         description: _descriptionController.text.trim(),
         clientName: _clientNameController.text.trim().isEmpty ? null : _clientNameController.text.trim(),
         status: _selectedStatus,

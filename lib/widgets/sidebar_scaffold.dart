@@ -5,6 +5,7 @@ import '../theme/flownet_theme.dart';
 import 'notification_center_widget.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../utils/app_icons.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 import 'background_image.dart';
@@ -28,56 +29,79 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
     final allItems = [
       // Work-focused items only
       const _NavItem(
-        label: 'Dashboard', 
+        label: 'Dashboard',
         icon: Icons.dashboard_outlined,
+        iconName: 'dashboard',
         route: '/dashboard',
-        requiredPermission: null, // All authenticated users can access dashboard
+        requiredPermission: null,
       ),
       const _NavItem(
-        label: 'Projects', 
-        icon: Icons.folder_outlined,
-        route: '/projects',
-        requiredPermission: null, // All authenticated users can access projects
-      ),
-      const _NavItem(
-        label: 'Sprints', 
-        icon: Icons.timer_outlined, 
+        label: 'Sprints',
+        icon: Icons.timer_outlined,
+        iconName: 'sprints',
         route: '/sprint-console',
         requiredPermission: 'view_sprints',
       ),
       const _NavItem(
-        label: 'Epics', 
-        icon: Icons.rocket_launch_outlined, 
-        route: '/epics',
-        requiredPermission: 'manage_sprints',
+        label: 'Notifications',
+        icon: Icons.notifications_outlined,
+        iconName: 'notifications',
+        route: '/notifications',
+        requiredPermission: null,
+      ),
+      const _NavItem(
+        label: 'Timeline',
+        icon: Icons.calendar_today_outlined,
+        iconName: 'timeline',
+        route: '/timeline',
+        requiredPermission: null,
       ),
       const _NavItem(
         label: 'Approval Requests',
         icon: Icons.assignment_outlined,
+        iconName: 'approval_requests',
         route: '/approval-requests',
         requiredPermission: 'view_approvals',
       ),
       const _NavItem(
-        label: 'Repository', 
-        icon: Icons.folder_outlined, 
+        label: 'Repository',
+        icon: Icons.folder_outlined,
+        iconName: 'repository',
         route: '/repository',
         requiredPermission: 'view_all_deliverables',
       ),
       const _NavItem(
-        label: 'Reports', 
-        icon: Icons.assessment_outlined, 
+        label: 'Reports',
+        icon: Icons.assessment_outlined,
+        iconName: 'reports',
         route: '/report-repository',
         requiredPermission: 'view_all_deliverables',
       ),
       const _NavItem(
         label: 'Role Management',
         icon: Icons.admin_panel_settings_outlined,
+        iconName: 'role_management',
         route: '/role-management',
         requiredPermission: 'manage_users',
       ),
       const _NavItem(
+        label: 'Settings',
+        icon: Icons.settings_outlined,
+        iconName: 'settings',
+        route: '/settings',
+        requiredPermission: null,
+      ),
+      const _NavItem(
+        label: 'Profile',
+        icon: Icons.person_outline,
+        iconName: 'account',
+        route: '/profile',
+        requiredPermission: null,
+      ),
+      const _NavItem(
         label: 'Project Workspace',
         icon: Icons.work_outline,
+        iconName: 'teams',
         route: '/project-workspace',
         requiredPermission: 'manage_projects',
       ),
@@ -212,12 +236,14 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                                       leading: SizedBox(
                                         width: 24,
                                         height: 24,
-                                        child: Icon(
-                                          item.icon,
+                                        child: AppIcons.getIconWidget(
+                                          item.iconName,
+                                          fallbackIcon: item.icon,
+                                          isActive: active,
+                                          size: 20,
                                           color: active
                                               ? FlownetColors.crimsonRed
                                               : FlownetColors.textSecondary,
-                                          size: 20,
                                         ),
                                       ),
                                       title: Text(
@@ -413,8 +439,11 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                               : null,
                         ),
                         child: ListTile(
-                          leading: Icon(
-                            item.icon,
+                          leading: AppIcons.getIconWidget(
+                            item.iconName,
+                            fallbackIcon: item.icon,
+                            isActive: active,
+                            size: 24,
                             color: active
                                 ? FlownetColors.crimsonRed
                                 : FlownetColors.coolGray,
@@ -541,10 +570,12 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
       ),
       child: TextButton.icon(
         onPressed: () => _handleLogout(context),
-        icon: const Icon(
-          Icons.logout,
-          color: FlownetColors.crimsonRed,
+        icon: AppIcons.getIconWidget(
+          'logout',
+          fallbackIcon: Icons.logout,
+          isActive: true,
           size: 20,
+          color: FlownetColors.crimsonRed,
         ),
         label: const Text(
           'Logout',
@@ -703,12 +734,14 @@ class _UserAvatarButton extends StatelessWidget {
 class _NavItem {
   final String label;
   final IconData icon;
+  final String iconName;
   final String route;
   final String? requiredPermission;
 
   const _NavItem({
     required this.label, 
-    required this.icon, 
+    required this.icon,
+    required this.iconName,
     required this.route,
     this.requiredPermission,
   });

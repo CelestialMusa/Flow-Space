@@ -24,6 +24,7 @@ dependencies:
 
   # Charts and Data Visualization
   fl_chart: ^1.1.1
+  table_calendar: ^3.2.0
 
   # Utilities
   shared_preferences: ^2.2.2
@@ -100,6 +101,7 @@ flutter:
     - assets/fonts/
     - assets/Icons/Red_Khono_Discs.png
     - assets/Icons/images/auth_background.png
+    - assets/icons/
 
   fonts:
     - family: Poppins
