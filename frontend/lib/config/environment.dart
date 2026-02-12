@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 class Environment {
   // Environment configuration
-  static const String _currentEnvironment = 'SIT'; // Changed from 'PROD' to 'SIT'
+  static const String _currentEnvironment = 'PROD'; // Temporarily use PROD to test
   
   // Environment URLs
   static const Map<String, String> _environmentUrls = {
