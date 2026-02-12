@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 
 class Environment {
   // Environment configuration
@@ -7,9 +7,9 @@ class Environment {
   // Environment URLs
   static const Map<String, String> _environmentUrls = {
     'PROD': 'https://flow-space.onrender.com/api/v1',
-    'SIT': 'http://localhost:8000/api/v1', // Using localhost for SIT testing
-    'DEV': 'http://localhost:8000/api/v1',
-    'LOCAL': 'http://localhost:8000/api/v1',
+    'SIT': 'http://localhost:3001/api/v1', // Fixed port to match backend
+    'DEV': 'http://localhost:3001/api/v1',
+    'LOCAL': 'http://localhost:3001/api/v1',
   };
   
   static String get apiBaseUrl => _environmentUrls[_currentEnvironment] ?? _environmentUrls['DEV']!;
@@ -23,10 +23,10 @@ class Environment {
   
   // Debug information
   static void logEnvironmentInfo() {
-    print('Current Environment: $_currentEnvironment');
-    print('API Base URL: $apiBaseUrl');
-    print('Is Production: $isProduction');
-    print('Is SIT: $isSIT');
-    print('Is Development: $isDevelopment');
+    debugPrint('Current Environment: $_currentEnvironment');
+    debugPrint('API Base URL: $apiBaseUrl');
+    debugPrint('Is Production: $isProduction');
+    debugPrint('Is SIT: $isSIT');
+    debugPrint('Is Development: $isDevelopment');
   }
 }
