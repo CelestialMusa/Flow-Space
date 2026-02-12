@@ -45,6 +45,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
       const _NavItem(
         label: 'Epics', 
         icon: Icons.rocket_launch_outlined, 
+        iconName: 'repository',
         route: '/epics',
         requiredPermission: 'manage_sprints',
       ),
@@ -107,6 +108,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
       const _NavItem(
         label: 'Project Workspace',
         icon: Icons.work_outline,
+        iconName: 'teams',
         route: '/project-workspace',
         requiredPermission: 'manage_projects',
       ),

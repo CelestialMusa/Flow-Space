@@ -12,9 +12,11 @@ import '../services/sign_off_report_service.dart';
 import '../services/notification_service.dart';
 import '../models/notification_item.dart';
 import '../models/deliverable.dart';
+import '../screens/deliverables_metrics/deliverables_metrics_screen.dart';
 import '../widgets/sprint_performance_chart.dart';
 import '../widgets/background_image.dart';
 import '../widgets/notification_center_widget.dart';
+import '../widgets/app_modal.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 
@@ -627,7 +629,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                   label: 'Deliverables Overview',
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const DeliverablesMetricsScreen()),
+                    MaterialPageRoute(builder: (context) => DeliverablesMetricsScreen()),
                   ),
                 ),
               ],
@@ -1093,47 +1095,9 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                               : '/sprint-console';
                           context.go(route);
                         },
-                child: Row(
-                  children: [
-                            const Icon(Icons.flag_outlined, size: 18),
-                    const SizedBox(width: 8),
-                            Expanded(child: Text(status.toString().isNotEmpty ? '$name • $status' : name)),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                ],
-              ),
-      ),
-    );
-  }
-
-  Widget _buildProjectsOverview() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: _isLoadingDashboardProjects
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildCardHeader(Icons.folder_outlined, 'Projects (${_dashboardProjects.length})', route: '/sprint-console'),
-                  const SizedBox(height: 8),
-                  ..._dashboardProjects.take(5).map((p) {
-                    final name = p['name'] ?? p['title'] ?? p['projectName'] ?? 'Untitled Project';
-                    final status = p['status'] ?? '';
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: InkWell(
-                        onTap: () {
-                          final projectKey = p['projectKey']?.toString() ?? p['key']?.toString() ?? p['slug']?.toString() ?? '';
-                          final route = projectKey.isNotEmpty ? '/sprint-console?projectKey=${Uri.encodeComponent(projectKey)}' : '/sprint-console';
-                          context.go(route);
-                        },
                         child: Row(
                           children: [
-                            const Icon(Icons.folder_outlined, size: 18),
+                            const Icon(Icons.flag_outlined, size: 18),
                             const SizedBox(width: 8),
                             Expanded(child: Text(status.toString().isNotEmpty ? '$name • $status' : name)),
                           ],
@@ -1143,77 +1107,6 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                   }),
                 ],
               ),
-      ),
-    );
-  }
-
-  Widget _buildPendingReviews() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: _isLoadingPendingReports
-            ? const Center(child: CircularProgressIndicator())
-            : (_pendingReportsError != null
-                ? Text(_pendingReportsError!)
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildCardHeader(Icons.fact_check_outlined, 'Pending Reviews (${_pendingReports.length})', route: '/approval-requests'),
-                      const SizedBox(height: 8),
-                      ..._pendingReports.take(5).map((r) {
-                        final title = (r['reportTitle'] ?? r['report_title'] ?? (r['content'] is Map ? (r['content']['reportTitle'] ?? r['content']['title']) : null) ?? r['title'] ?? 'Sign-Off Report').toString();
-                        final createdBy = (r['createdBy'] ?? r['created_by_name'] ?? r['created_by'] ?? '').toString();
-                        final id = (r['id'] ?? r['report_id'] ?? '').toString();
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: InkWell(
-                                  onTap: () {
-                                    if (id.isEmpty) return;
-                                    final titleText = title.isNotEmpty ? title : 'Sign-Off Report';
-                                    final createdByName = createdBy.isNotEmpty ? createdBy : 'Unknown';
-                                    final deliverableId = (r['deliverableId']?.toString() ?? r['deliverable_id']?.toString() ?? '').toString();
-                                    final report = SignOffReport(
-                                      id: id,
-                                      deliverableId: deliverableId,
-                                      reportTitle: titleText,
-                                      reportContent: '',
-                                      sprintIds: const [],
-                                      status: ReportStatus.submitted,
-                                      createdAt: DateTime.now(),
-                                      createdBy: createdByName,
-                                    );
-                                    GoRouter.of(context).push('/client-review/$id', extra: {'report': report});
-                                  },
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.description_outlined, size: 18),
-                                      const SizedBox(width: 8),
-                                      Expanded(child: Text(createdBy.isNotEmpty ? '$title • $createdBy' : title)),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              TextButton.icon(
-                                onPressed: id.isEmpty ? null : () => _approveReport(id),
-                                icon: const Icon(Icons.check_circle_outline, size: 18),
-                                label: const Text('Approve'),
-                              ),
-                              const SizedBox(width: 4),
-                              TextButton.icon(
-                                onPressed: id.isEmpty ? null : () => _promptChangeRequest(r),
-                                icon: const Icon(Icons.edit_note, size: 18),
-                                label: const Text('Request Changes'),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
-                  )),
       ),
     );
   }
@@ -1348,29 +1241,29 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                                   child: Row(
                                     children: [
                                       const Icon(Icons.assignment_turned_in_outlined, size: 18),
-              const SizedBox(width: 8),
+                                      const SizedBox(width: 8),
                                       Expanded(child: Text(createdBy.isNotEmpty ? '$title • $createdBy' : title)),
                                     ],
                                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              TextButton.icon(
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              TextButton.icon(
                                 onPressed: id.isEmpty ? null : () => _approveReport(id),
                                 icon: const Icon(Icons.check_circle_outline, size: 18),
                                 label: const Text('Approve'),
                               ),
                               const SizedBox(width: 4),
-              TextButton.icon(
+                              TextButton.icon(
                                 onPressed: id.isEmpty ? null : () => _promptChangeRequest(r),
                                 icon: const Icon(Icons.edit_note, size: 18),
                                 label: const Text('Request Changes'),
-              ),
-            ],
-          ),
+                              ),
+                            ],
+                          ),
                         );
                       }),
-        ],
+                    ],
                   )),
       ),
     );
@@ -1536,7 +1429,29 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     );
   }
 
-  Future<void> _editDeliverable(Map<String, dynamic> d) async {
+  Widget _ownerChip(String? ownerName, String? ownerId) {
+    final label = (ownerName != null && ownerName.isNotEmpty)
+        ? ownerName
+        : (ownerId != null && ownerId.isNotEmpty ? 'Owner $ownerId' : 'Unassigned');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.purple.withValues(alpha: 0.12),
+        border: Border.all(color: Colors.purple.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.person_outline, size: 14),
+          const SizedBox(width: 4),
+          Text(label),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editDeliverableDialog(Map<String, dynamic> d) async {
     final id = (d['id']?.toString() ?? d['uuid']?.toString() ?? '');
     if (id.isEmpty) return;
     final titleController = TextEditingController(text: (d['title'] ?? d['name'] ?? '').toString());
@@ -1567,7 +1482,9 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                     DropdownMenuItem(value: 'medium', child: Text('Medium')),
                     DropdownMenuItem(value: 'high', child: Text('High')),
                   ],
-                  onChanged: (v) { if (v != null) priority = v; },
+                  onChanged: (v) {
+                    if (v != null) priority = v;
+                  },
                   decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 8),
@@ -1578,7 +1495,12 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                   onTap: () async {
                     final now = DateTime.now();
                     final initial = dueController.text.isNotEmpty ? (DateTime.tryParse(dueController.text) ?? now) : now;
-                    final date = await showDatePicker(context: context, initialDate: initial, firstDate: now.subtract(const Duration(days: 365)), lastDate: now.add(const Duration(days: 365 * 3)),);
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: initial,
+                      firstDate: now.subtract(const Duration(days: 365)),
+                      lastDate: now.add(const Duration(days: 365 * 3)),
+                    );
                     if (date != null) dueController.text = date.toIso8601String();
                   },
                 ),
@@ -1589,8 +1511,8 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
             TextButton(onPressed: () => context.pop(false), child: const Text('Cancel')),
             ElevatedButton(onPressed: () => context.pop(true), child: const Text('Save')),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 

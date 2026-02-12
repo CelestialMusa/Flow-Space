@@ -11,10 +11,10 @@ class VersionDisplay extends StatelessWidget {
     final environment = versionInfo['environment'] as String;
     
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -24,27 +24,27 @@ class VersionDisplay extends StatelessWidget {
             versionInfo['version'].toString(),
             style: GoogleFonts.poppins(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 10,
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           // Environment indicator with color
           Container(
-            width: 8,
-            height: 8,
+            width: 5,
+            height: 5,
             decoration: BoxDecoration(
               color: _getEnvironmentColor(environment),
               shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 3),
           // Environment name
           Text(
             environment,
             style: GoogleFonts.poppins(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 10,
               fontWeight: FontWeight.w400,
             ),
           ),

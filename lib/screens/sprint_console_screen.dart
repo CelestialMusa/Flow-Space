@@ -1432,8 +1432,8 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                             ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                             : const Icon(Icons.auto_awesome),
                         label: const Text('Generate with AI'),
-                      ),
-                    ),
+              ),
+            ),
             const SizedBox(height: 16),
                   ],
             TextField(
@@ -1596,8 +1596,8 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                 }
                 if (titleController.text.isEmpty) {
                   _showSnackBar('Provide a ticket title (AI can help)', isError: true);
-                  return;
-                }
+                return;
+              }
                 final res = await _sprintService.createTicketAlt(
                   sprintId: _selectedSprintId!,
                   title: titleController.text,

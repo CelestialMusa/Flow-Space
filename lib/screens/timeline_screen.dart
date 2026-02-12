@@ -31,7 +31,6 @@ class _TimelineScreenState extends State<TimelineScreen> {
   
   // Events
   final List<TimelineEvent> _events = [];
-  final Set<String> _followedEventIds = {};
   
   // Calendar view constants
   static const int _startHour = 6; // 6 AM
@@ -138,16 +137,6 @@ class _TimelineScreenState extends State<TimelineScreen> {
   void _addEvent(TimelineEvent event) {
     setState(() {
       _events.add(event);
-    });
-  }
-
-  void _toggleFollow(TimelineEvent event) {
-    setState(() {
-      if (_followedEventIds.contains(event.id)) {
-        _followedEventIds.remove(event.id);
-      } else {
-        _followedEventIds.add(event.id);
-      }
     });
   }
 
@@ -569,8 +558,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                 ),
                               ),
                               // Events
-                              Padding(
-                                padding: const EdgeInsets.only(top: 56),
+                              Positioned.fill(
+                                top: 56,
                                 child: Stack(
                                   children: dayEvents.map((event) {
                                     final startTime = _getEventStartDateTime(event);
@@ -583,7 +572,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                       top: top,
                                       left: 4,
                                       right: 4,
-                                      height: height.clamp(20.0, double.infinity),
+                                      height: height.clamp(36.0, double.infinity),
                                       child: _buildWeekEventCard(event, color),
                                     );
                                   }).toList(),
@@ -611,7 +600,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
         onTap: () => _showEventDetails(event),
         borderRadius: BorderRadius.circular(6),
         child: Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: color.withOpacity(0.2),
             borderRadius: BorderRadius.circular(6),
@@ -626,17 +615,17 @@ class _TimelineScreenState extends State<TimelineScreen> {
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: FlownetColors.pureWhite,
-                      fontSize: 12,
+                      fontSize: 11,
                     ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 1),
               Text(
                 event.time,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: color,
-                      fontSize: 10,
+                      fontSize: 9,
                     ),
               ),
             ],
@@ -768,7 +757,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                             top: top,
                             left: 8,
                             right: 8,
-                            height: height.clamp(40.0, double.infinity),
+                            height: height.clamp(48.0, double.infinity),
                             child: _buildDayEventCard(event, color),
                           );
                         }).toList(),
@@ -791,7 +780,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
         onTap: () => _showEventDetails(event),
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: color.withOpacity(0.2),
             borderRadius: BorderRadius.circular(8),
@@ -801,47 +790,24 @@ class _TimelineScreenState extends State<TimelineScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      event.title,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: FlownetColors.pureWhite,
-                          ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+              Text(
+                event.title,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: FlownetColors.pureWhite,
+                      fontSize: 12,
                     ),
-                  ),
-                ],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Icon(Icons.access_time, size: 14, color: color),
-                  const SizedBox(width: 4),
-                  Text(
-                    event.time,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: color,
-                          fontSize: 12,
-                        ),
-                  ),
-                ],
+              const SizedBox(height: 2),
+              Text(
+                event.time,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: color,
+                      fontSize: 11,
+                    ),
               ),
-              if (event.project.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  event.project,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: FlownetColors.coolGray,
-                        fontSize: 11,
-                      ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
             ],
           ),
         ),
@@ -1044,137 +1010,140 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
   Widget _buildTimelineItem(TimelineEvent event) {
     final color = _getColorForTag(event.colorTag);
-    final isFollowing = _followedEventIds.contains(event.id);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 48,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(2),
+        onTap: () => _showEventDetails(event),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.1),
+              width: 1,
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Row(
+                      children: [
+                        Text(
+                          DateFormat('MMM d, yyyy').format(event.date),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: FlownetColors.coolGray,
+                              ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            event.priority.toUpperCase(),
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
                     Text(
-                      DateFormat('MMM d, yyyy').format(event.date),
+                      event.title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: FlownetColors.pureWhite,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${event.time} • ${event.project}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: FlownetColors.coolGray,
                           ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: color.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        event.priority.toUpperCase(),
-                        style: TextStyle(
-                          color: color,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  event.title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: FlownetColors.pureWhite,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${event.time} • ${event.project}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: FlownetColors.coolGray,
-                      ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          TextButton(
-            onPressed: () => _toggleFollow(event),
-            style: TextButton.styleFrom(
-              foregroundColor: isFollowing
-                  ? FlownetColors.coolGray
-                  : FlownetColors.crimsonRed,
-            ),
-            child: Text(isFollowing ? 'Following' : 'Follow'),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildEventChip(TimelineEvent event) {
     final color = _getColorForTag(event.colorTag);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1,
+        onTap: () => _showEventDetails(event),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: color.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      event.title,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: FlownetColors.pureWhite,
+                          ),
+                    ),
+                    Text(
+                      '${event.time} • ${event.project}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: FlownetColors.coolGray,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 32,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  event.title,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: FlownetColors.pureWhite,
-                      ),
-                ),
-                Text(
-                  '${event.time} • ${event.project}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: FlownetColors.coolGray,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1215,11 +1184,6 @@ class _TimelineScreenState extends State<TimelineScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildEventDetailRow(Icons.access_time, event.time),
-              _buildEventDetailRow(Icons.calendar_today, DateFormat('MMM d, yyyy').format(event.date)),
-              _buildEventDetailRow(Icons.folder, event.project),
-              _buildEventDetailRow(Icons.flag, event.priority.toUpperCase()),
-              const SizedBox(height: 16),
               Text(
                 'Description',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -1236,13 +1200,6 @@ class _TimelineScreenState extends State<TimelineScreen> {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => _toggleFollow(event),
-            child: Text(
-              _followedEventIds.contains(event.id) ? 'Following' : 'Follow',
-              style: const TextStyle(color: FlownetColors.coolGray),
-            ),
-          ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Close', style: TextStyle(color: FlownetColors.crimsonRed)),
@@ -1324,66 +1281,73 @@ class _TimelineScreenState extends State<TimelineScreen> {
     required String priority,
   }) {
     final isApproved = status == 'approved';
-    return GlassCard(
-      padding: const EdgeInsets.all(16),
-      borderRadius: 12.0,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => context.go('/repository'),
+        child: GlassCard(
+          padding: const EdgeInsets.all(16),
+          borderRadius: 12.0,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (isApproved)
-                const Icon(Icons.check_circle, color: FlownetColors.emeraldGreen, size: 20)
-              else
-                const SizedBox(width: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '$title • $status',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: FlownetColors.pureWhite,
-                      ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: FlownetColors.amberOrange.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.local_fire_department, size: 14, color: FlownetColors.amberOrange),
-                    const SizedBox(width: 4),
-                    Text(
-                      priority,
-                      style: const TextStyle(
-                        color: FlownetColors.amberOrange,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
+              Row(
+                children: [
+                  if (isApproved)
+                    const Icon(Icons.check_circle, color: FlownetColors.emeraldGreen, size: 20)
+                  else
+                    const SizedBox(width: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '$title • $status',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: FlownetColors.pureWhite,
+                          ),
                     ),
-                  ],
-                ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: FlownetColors.amberOrange.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.local_fire_department, size: 14, color: FlownetColors.amberOrange),
+                        const SizedBox(width: 4),
+                        Text(
+                          priority,
+                          style: const TextStyle(
+                            color: FlownetColors.amberOrange,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.calendar_today, size: 14, color: FlownetColors.coolGray),
+                  const SizedBox(width: 4),
+                  Text(
+                    'In $daysRemaining days',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: FlownetColors.coolGray,
+                        ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.calendar_today, size: 14, color: FlownetColors.coolGray),
-              const SizedBox(width: 4),
-              Text(
-                'In $daysRemaining days',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: FlownetColors.coolGray,
-                    ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
