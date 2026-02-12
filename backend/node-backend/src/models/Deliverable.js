@@ -32,6 +32,10 @@ module.exports = (sequelize, DataTypes) => {
     assigned_to: {
       type: DataTypes.STRING(255)
     },
+    project_id: {
+      type: DataTypes.UUID,
+      allowNull: true
+    },
     evidence_links: {
       type: DataTypes.JSON
     },
@@ -84,6 +88,11 @@ module.exports = (sequelize, DataTypes) => {
       through: models.DeliverableSprint,
       foreignKey: 'deliverable_id',
       as: 'contributing_sprints'
+    });
+
+    Deliverable.belongsTo(models.Project, {
+      foreignKey: 'project_id',
+      as: 'project'
     });
 
     Deliverable.hasMany(models.Signoff, {

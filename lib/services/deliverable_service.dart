@@ -159,6 +159,7 @@ class DeliverableService {
     DateTime? dueDate,
     String? assignedTo,
     String? sprintId,
+    String? projectId,
     List<String>? sprintIds,
     List<String>? evidenceLinks,
   }) async {
@@ -173,6 +174,7 @@ class DeliverableService {
         'created_by': _authService.currentUser?.id,
         'assigned_to': assignedTo,
         'sprint_id': sprintId,
+        'project_id': projectId,
         if (sprintIds != null) 'sprintIds': sprintIds,
         if (evidenceLinks != null) 'evidence_links': evidenceLinks,
       };
@@ -244,6 +246,7 @@ class DeliverableService {
       if (status != null) body['status'] = status;
       if (dueDate != null) body['due_date'] = dueDate.toIso8601String();
       if (assignedTo != null) body['assigned_to'] = assignedTo;
+      if (projectId != null) body['project_id'] = projectId;
 
       final response = await _apiClient.put('/deliverables/$id', body: body);
       

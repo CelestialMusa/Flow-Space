@@ -54,6 +54,11 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'project_id',
       as: 'sprints'
     });
+
+    Project.hasMany(models.Deliverable, {
+      foreignKey: 'project_id',
+      as: 'deliverables'
+    });
   };
 
   // Real-time event hooks

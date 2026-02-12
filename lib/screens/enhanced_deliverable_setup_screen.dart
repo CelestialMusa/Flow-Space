@@ -26,6 +26,8 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   final List<String> _evidenceLinks = [];
   final List<ReadinessItem> _readinessItems = [];
   List<Map<String, dynamic>> _availableSprints = [];
+  List<Map<String, dynamic>> _projects = [];
+  String? _selectedProjectId;
   
   bool _isSubmitting = false;
 
@@ -34,6 +36,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
     super.initState();
     _initializeReadinessItems();
     _loadSprints();
+    _loadProjects();
   }
 
   void _initializeReadinessItems() {
@@ -102,6 +105,37 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
     } catch (_) {
       setState(() {
         _availableSprints = [];
+      });
+    }
+  }
+
+  Future<void> _loadProjects() async {
+    try {
+      final response = await BackendApiService().getProjects();
+      if (response.isSuccess && response.data != null) {
+        List<dynamic> projectsList = [];
+        if (response.data is List) {
+          projectsList = response.data as List;
+        } else if (response.data is Map) {
+          final data = Map<String, dynamic>.from(response.data as Map);
+          projectsList = data['data'] as List? ?? data['projects'] as List? ?? [];
+        }
+        setState(() {
+          _projects = projectsList
+              .where((p) => p != null)
+              .map((p) => p is Map<String, dynamic> ? p : Map<String, dynamic>.from(p as Map))
+              .where((m) => m.isNotEmpty)
+              .toList();
+        });
+      } else {
+        setState(() {
+          _projects = [];
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading projects: $e');
+      setState(() {
+        _projects = [];
       });
     }
   }
@@ -255,10 +289,11 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
       final payload = {
         'title': _titleController.text.trim(),
         'description': _descriptionController.text.trim(),
-        'dueDate': (_dueDate ?? DateTime.now()).toIso8601String(),
+        'due_date': (_dueDate ?? DateTime.now()).toIso8601String(),
         'sprintIds': _selectedSprints,
-        'definitionOfDone': _definitionOfDone,
-        'evidenceLinks': _evidenceLinks,
+        'definition_of_done': _definitionOfDone,
+        'evidence_links': _evidenceLinks,
+        'project_id': _selectedProjectId,
       };
       final response = await backendService.createDeliverable(payload);
       if (response.isSuccess) {
@@ -319,10 +354,11 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
       final payload = {
         'title': _titleController.text.trim(),
         'description': _descriptionController.text.trim(),
-        'dueDate': (_dueDate ?? DateTime.now()).toIso8601String(),
+        'due_date': (_dueDate ?? DateTime.now()).toIso8601String(),
         'sprintIds': _selectedSprints,
-        'definitionOfDone': _definitionOfDone,
-        'evidenceLinks': _evidenceLinks,
+        'definition_of_done': _definitionOfDone,
+        'evidence_links': _evidenceLinks,
+        'project_id': _selectedProjectId,
       };
       final createResponse = await backendService.createDeliverable(payload);
       final createdDeliverableId = createResponse.data != null
@@ -460,6 +496,30 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
 
               // Basic Information
               _buildSectionHeader('Basic Information'),
+              const SizedBox(height: 16),
+
+              DropdownButtonFormField<String>(
+                value: _selectedProjectId,
+                decoration: const InputDecoration(
+                  labelText: 'Assign Project',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.folder_outlined),
+                ),
+                items: _projects.isEmpty 
+                    ? [const DropdownMenuItem(value: null, child: Text('No projects available'))]
+                    : _projects.map((project) {
+                        return DropdownMenuItem<String>(
+                          value: project['id']?.toString(),
+                          child: Text(project['name']?.toString() ?? 'Unnamed Project'),
+                        );
+                      }).toList(),
+                onChanged: _projects.isEmpty ? null : (value) {
+                  setState(() {
+                    _selectedProjectId = value;
+                  });
+                },
+                validator: (value) => value == null ? 'Please assign a project' : null,
+              ),
               const SizedBox(height: 16),
               
               TextFormField(
