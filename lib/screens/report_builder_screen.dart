@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:convert';
 import '../models/deliverable.dart' as model;
 import '../models/sprint_metrics.dart';
 import '../services/backend_api_service.dart';
@@ -344,11 +345,18 @@ Future<void> _generateTitleSuggestion() async {
 
     try {
       final backend = ref.read(backendApiServiceProvider);
+      
+      String? sprintPerformanceData;
+      if (_sprintMetrics.isNotEmpty) {
+        sprintPerformanceData = jsonEncode(_sprintMetrics.map((m) => m.toJson()).toList());
+      }
+
       final payload = {
         'deliverableId': _deliverable!.id,
         'reportTitle': _reportTitleController.text.trim(),
         'reportContent': _reportContentController.text.trim(),
         'sprintIds': _deliverable!.sprintIds,
+        'sprintPerformanceData': sprintPerformanceData,
         'knownLimitations': _knownLimitationsController.text.trim().isEmpty ? null : _knownLimitationsController.text.trim(),
         'nextSteps': _nextStepsController.text.trim().isEmpty ? null : _nextStepsController.text.trim(),
         'status': 'submitted',
@@ -357,13 +365,20 @@ Future<void> _generateTitleSuggestion() async {
       final response = await backend.createSignOffReport(payload);
       
       if (mounted) {
-        if (response.isSuccess) {
+        if (response.isSuccess && response.data != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Report generated successfully!'),
               backgroundColor: Colors.green,
             ),
           );
+          
+          // Navigate to report view screen
+          final reportData = response.data is Map ? (response.data['data'] ?? response.data['report'] ?? response.data) : response.data;
+          final reportId = reportData['id'];
+          if (reportId != null) {
+            context.go('/report-view/$reportId');
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

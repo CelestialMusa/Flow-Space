@@ -41,7 +41,6 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   List<Map<String, dynamic>> _auditLogs = [];
   List<Map<String, dynamic>> _filteredAuditLogs = [];
   final BackendApiService _backendService = BackendApiService();
-  final BackendApiService _backendApiService = BackendApiService();
   List<Map<String, dynamic>> _pendingReports = [];
   bool _isLoadingPendingReports = false;
   String? _pendingReportsError;
@@ -80,6 +79,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     _loadPendingReports();
     _loadClientReviewMetrics();
     _computeTeamMetrics();
+    _setupRealtimeListeners();
   }
   
   @override
@@ -128,7 +128,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   Future<void> _loadDashboardProjects() async {
     setState(() => _isLoadingDashboardProjects = true);
     try {
-      final resp = await _backendService.getProjects(page: 1, limit: 100);
+      final resp = await _backendService.getProjects(page: 1, limit: 1000);
       if (resp.isSuccess && resp.data != null) {
         final dynamic raw = resp.data;
         final List<dynamic> items = raw is Map ? (raw['items'] ?? raw['projects'] ?? raw['data'] ?? []) : (raw is List ? raw : []);
@@ -242,7 +242,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     });
 
     try {
-      final response = await _backendApiService.getAuditLogs(
+      final response = await _backendService.getAuditLogs(
         skip: skip,
         limit: _auditLogsPerPage,
         action: _selectedActionFilter,
@@ -592,6 +592,8 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
           const SizedBox(height: 24),
           _buildAdminFeatures(),
           const SizedBox(height: 24),
+          _buildProjectsOverview(),
+          const SizedBox(height: 24),
           _buildReminderQuickActions(),
         ],
       ),
@@ -850,49 +852,54 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                                 ],
                               ),
                               const SizedBox(height: 6),
-                              Row(
+                              Wrap(
+                                spacing: 4,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   TextButton.icon(
                                     onPressed: id.isEmpty ? null : () => _updateDeliverableStatus(id, 'in_progress'),
                                     icon: const Icon(Icons.play_circle_outline, size: 18),
                                     label: const Text('Start'),
+                                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
                                   ),
-                                  const SizedBox(width: 4),
                                   TextButton.icon(
                                     onPressed: id.isEmpty ? null : () => _updateDeliverableStatus(id, 'completed'),
                                     icon: const Icon(Icons.check_circle_outline, size: 18),
                                     label: const Text('Complete'),
+                                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
                                   ),
-                                  const SizedBox(width: 4),
                                   TextButton.icon(
                                     onPressed: id.isEmpty ? null : () => context.go('/report-builder/$id'),
                                     icon: const Icon(Icons.description_outlined, size: 18),
                                     label: const Text('Report'),
+                                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
                                   ),
-                                  const SizedBox(width: 4),
                                   TextButton.icon(
                                     onPressed: id.isEmpty ? null : () => _editDeliverable(d),
                                     icon: const Icon(Icons.edit_outlined, size: 18),
                                     label: const Text('Edit'),
+                                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
                                   ),
-                                  const Spacer(),
                                   IconButton(
-                                onPressed: () {
-                                  if (id.isNotEmpty) {
-                                    try {
-                                      final deliverable = Deliverable.fromJson(d);
-                                      context.push('/deliverable-detail', extra: deliverable);
-                                    } catch (e) {
-                                      debugPrint('Error parsing deliverable for navigation: $e');
-                                      context.go('/repository');
-                                    }
-                                  } else {
-                                    context.go('/repository');
-                                  }
-                                },
-                                icon: const Icon(Icons.open_in_new),
-                                tooltip: 'Open',
-                              ),
+                                    onPressed: () {
+                                      if (id.isNotEmpty) {
+                                        try {
+                                          final deliverable = Deliverable.fromJson(d);
+                                          context.push('/deliverable-detail', extra: deliverable);
+                                        } catch (e) {
+                                          debugPrint('Error parsing deliverable for navigation: $e');
+                                          context.go('/repository');
+                                        }
+                                      } else {
+                                        context.go('/repository');
+                                      }
+                                    },
+                                    icon: const Icon(Icons.open_in_new),
+                                    tooltip: 'Open',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
                                 ],
                               ),
                             ],
@@ -1184,21 +1191,25 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildCardHeader(Icons.folder_outlined, 'Projects Overview (${_dashboardProjects.length})', route: '/projects'),
+            _buildCardHeader(Icons.folder_outlined, 'Projects Overview (${_dashboardProjects.length})', route: null),
             const SizedBox(height: 8),
             if (_dashboardProjects.isEmpty)
               const Text('No active projects'),
             ..._dashboardProjects.take(3).map((p) {
               final title = p['name'] ?? 'Untitled Project';
               final status = (p['status'] ?? '').toString();
+              final id = p['id']?.toString() ?? '';
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  children: [
-                    const Icon(Icons.folder_open, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(status.isNotEmpty ? '$title • $status' : title)),
-                  ],
+                child: InkWell(
+                  onTap: id.isNotEmpty ? () => context.go('/project-workspace/$id') : null,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.folder_open, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(status.isNotEmpty ? '$title • $status' : title)),
+                    ],
+                  ),
                 ),
               );
             }),

@@ -94,6 +94,11 @@ module.exports = (sequelize, DataTypes) => {
       as: 'owner'
     });
 
+    Deliverable.belongsTo(models.Project, {
+      foreignKey: 'project_id',
+      as: 'project'
+    });
+
     Deliverable.hasMany(models.Signoff, {
       foreignKey: 'entity_id',
       constraints: false,

@@ -1,21 +1,60 @@
 const express = require('express');
 const router = express.Router();
-const { Project, Sprint, AuditLog, User } = require('../models');
+const { Project, Sprint, AuditLog, User, ProjectMember } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
 /**
  * @route GET /api/projects
- * @desc Get all projects with pagination
- * @access Public
+ * @desc Get all projects visible to the user (owner or member) with pagination
+ * @access Private
  */
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const { skip = 0, limit = 100 } = req.query;
+    const userId = req.user.id;
+
+    // 1. Find all projects where user is a member
+    const memberProjects = await ProjectMember.findAll({
+      where: { user_id: userId },
+      attributes: ['project_id']
+    });
+    
+    const memberProjectIds = memberProjects.map(mp => mp.project_id);
+
+    // Check if user is admin
+    console.log(`[DEBUG] GET /api/projects - User: ${req.user.email}, Role: '${req.user.role}'`);
+    
+    // Normalize role for comparison: remove spaces, lowercase
+    const normalizedRole = String(req.user.role || '').toLowerCase().replace(/[\s_-]+/g, '');
+    const isAdmin = ['admin', 'systemadmin'].includes(normalizedRole);
+    
+    console.log(`[DEBUG] Is Admin: ${isAdmin} (normalized: '${normalizedRole}')`);
+
+    // 2. Find projects where user is owner OR member OR creator (safety net)
+    // If admin, show all projects
+    const whereClause = isAdmin ? {} : {
+      [Op.or]: [
+        { owner_id: userId },
+        { created_by: userId },
+        { id: { [Op.in]: memberProjectIds } }
+      ]
+    };
+
+    console.log(`[DEBUG] Where Clause: ${JSON.stringify(whereClause)}`);
+
     const projects = await Project.findAll({
+      where: whereClause,
       offset: parseInt(skip),
       limit: parseInt(limit),
-      order: [['created_at', 'DESC']]
+      order: [['created_at', 'DESC']],
+      include: [
+        {
+          model: User,
+          as: 'owner',
+          attributes: ['id', 'first_name', 'last_name', 'email']
+        }
+      ]
     });
     
     res.json({
@@ -40,7 +79,26 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const project = await Project.findByPk(id);
+    const project = await Project.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: 'owner',
+          attributes: ['id', 'first_name', 'last_name', 'email']
+        },
+        {
+          model: ProjectMember,
+          as: 'members',
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['id', 'first_name', 'last_name', 'email']
+            }
+          ]
+        }
+      ]
+    });
     
     if (!project) {
       return res.status(404).json({ 
@@ -48,10 +106,27 @@ router.get('/:id', async (req, res) => {
         error: 'Project not found' 
       });
     }
+
+    // Transform for frontend compatibility
+    const projectJSON = project.toJSON();
+    
+    // Map members to flat structure expected by frontend
+    if (projectJSON.members) {
+      projectJSON.members = projectJSON.members.map(m => ({
+        userId: m.user_id,
+        userName: m.user ? `${m.user.first_name} ${m.user.last_name}`.trim() : 'Unknown',
+        userEmail: m.user ? m.user.email : '',
+        role: m.role,
+        assignedAt: m.added_at
+      }));
+    }
+
+    // Map snake_case to camelCase for critical fields
+    projectJSON.ownerId = projectJSON.owner_id;
     
     res.json({
       success: true,
-      data: project
+      data: projectJSON
     });
   } catch (error) {
     console.error('Error fetching project:', error);
@@ -78,14 +153,22 @@ router.post('/', authenticateToken, async (req, res) => {
         .substring(0, 20);
     }
     
+    // Default owner to creator if not provided
+    const ownerId = req.body.ownerId || req.body.owner_id || req.user.id;
+
     const projectData = {
       ...req.body,
+      client_name: req.body.clientName || req.body.client_name,
+      start_date: req.body.startDate || req.body.start_date,
+      end_date: req.body.endDate || req.body.end_date,
+      project_type: req.body.projectType || req.body.project_type,
+      owner_id: ownerId,
       key: projectKey,
       created_by: req.user.id
     };
     
     // Validate required fields
-    const requiredFields = ['name', 'key', 'description', 'client_name', 'start_date', 'end_date'];
+    const requiredFields = ['name', 'key', 'description', 'client_name', 'start_date', 'end_date', 'owner_id'];
     const missingFields = requiredFields.filter(field => !projectData[field]);
     
     if (missingFields.length > 0) {
@@ -98,6 +181,43 @@ router.post('/', authenticateToken, async (req, res) => {
     console.log('Creating project with data:', projectData);
     
     const project = await Project.create(projectData);
+
+    // Handle members assignment
+    if (req.body.members && Array.isArray(req.body.members)) {
+      const membersToCreate = req.body.members.map(member => {
+        const userId = typeof member === 'object' ? (member.userId || member.user_id) : member;
+        return {
+          project_id: project.id,
+          user_id: userId,
+          role: (typeof member === 'object' && member.role) ? member.role : 'contributor'
+        };
+      });
+      
+      // Also add owner as a member with 'owner' role if not already included
+      if (projectData.owner_id) {
+         const ownerIndex = membersToCreate.findIndex(m => m.user_id === projectData.owner_id);
+         if (ownerIndex >= 0) {
+           membersToCreate[ownerIndex].role = 'owner';
+         } else {
+           membersToCreate.push({
+             project_id: project.id,
+             user_id: projectData.owner_id,
+             role: 'owner'
+           });
+         }
+      }
+
+      if (membersToCreate.length > 0) {
+        await ProjectMember.bulkCreate(membersToCreate);
+      }
+    } else if (projectData.owner_id) {
+       // If no members list but owner is specified, add owner as member
+       await ProjectMember.create({
+         project_id: project.id,
+         user_id: projectData.owner_id,
+         role: 'owner'
+       });
+    }
 
     // Log the project creation
     await AuditLog.create({
@@ -166,7 +286,14 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const updateData = {
+      ...req.body,
+      client_name: req.body.clientName || req.body.client_name,
+      start_date: req.body.startDate || req.body.start_date,
+      end_date: req.body.endDate || req.body.end_date,
+      project_type: req.body.projectType || req.body.project_type,
+      owner_id: req.body.ownerId || req.body.owner_id,
+    };
     
     const project = await Project.findByPk(id);
     
@@ -179,6 +306,60 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     // Store old values for audit logging
     const oldValues = project.toJSON();
+
+    // Check for member assignment restriction
+    if (updateData.members) {
+      // Allow if user is owner OR if user is creator (fallback) OR if user is admin
+      const isOwner = project.owner_id && req.user.id === project.owner_id;
+      
+      // Normalize role for comparison: remove spaces, lowercase
+      const normalizedRole = String(req.user.role || '').toLowerCase().replace(/[\s_-]+/g, '');
+      const isAdmin = ['admin', 'systemadmin'].includes(normalizedRole);
+      
+      if (!isOwner && !isAdmin && project.owner_id) { // Only restrict if there IS an owner
+         return res.status(403).json({
+           success: false,
+           error: 'Only the project owner can assign members'
+         });
+      }
+      
+      if (Array.isArray(updateData.members)) {
+        // Replace members
+        // First delete existing (except maybe owner?)
+        // For simplicity, we can remove all and re-add.
+        await ProjectMember.destroy({
+          where: { project_id: id }
+        });
+        
+        const membersToCreate = updateData.members.map(member => {
+          const userId = typeof member === 'object' ? (member.userId || member.user_id) : member;
+          return {
+            project_id: id,
+            user_id: userId,
+            role: (typeof member === 'object' && member.role) ? member.role : 'contributor'
+          };
+        });
+        
+        // Ensure owner is kept as owner
+        const currentOwnerId = updateData.owner_id || project.owner_id;
+        if (currentOwnerId) {
+           const ownerIndex = membersToCreate.findIndex(m => m.user_id === currentOwnerId);
+           if (ownerIndex >= 0) {
+             membersToCreate[ownerIndex].role = 'owner';
+           } else {
+             membersToCreate.push({
+               project_id: id,
+               user_id: currentOwnerId,
+               role: 'owner'
+             });
+           }
+        }
+        
+        if (membersToCreate.length > 0) {
+          await ProjectMember.bulkCreate(membersToCreate);
+        }
+      }
+    }
     
     await project.update(updateData);
 

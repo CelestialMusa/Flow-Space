@@ -79,6 +79,8 @@ class Project {
   final DateTime createdAt;
   final DateTime? updatedAt;
   final String? updatedBy;
+  final String? ownerId;
+  final String? key;
   final Map<String, dynamic> metadata;
 
   const Project({
@@ -100,6 +102,8 @@ class Project {
     required this.createdAt,
     this.updatedAt,
     this.updatedBy,
+    this.ownerId,
+    this.key,
     this.metadata = const {},
   });
 
@@ -121,6 +125,7 @@ class Project {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? updatedBy,
+    String? ownerId,
     Map<String, dynamic>? metadata,
   }) {
     return Project(
@@ -142,6 +147,7 @@ class Project {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       updatedBy: updatedBy ?? this.updatedBy,
+      ownerId: ownerId ?? this.ownerId,
       metadata: metadata ?? this.metadata,
     );
   }
@@ -166,6 +172,7 @@ class Project {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       'updatedBy': updatedBy,
+      'ownerId': ownerId,
       'metadata': metadata,
     };
   }
@@ -198,6 +205,8 @@ class Project {
       createdAt: DateTime.parse(json['createdAt']?.toString() ?? DateTime.now().toIso8601String()),
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']?.toString() ?? '') : null,
       updatedBy: json['updatedBy']?.toString(),
+      ownerId: json['ownerId']?.toString(),
+      key: json['key']?.toString(),
       metadata: Map<String, dynamic>.from(json['metadata'] ?? {}),
     );
   }

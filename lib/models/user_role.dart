@@ -179,6 +179,11 @@ class PermissionManager {
       description: 'Manage user accounts and roles',
       allowedRoles: [UserRole.systemAdmin],
     ),
+    'manage_projects': Permission(
+      name: 'Manage Projects',
+      description: 'Create and manage projects',
+      allowedRoles: [UserRole.systemAdmin, UserRole.projectManager, UserRole.deliveryLead],
+    ),
     'view_audit_logs': Permission(
       name: 'View Audit Logs',
       description: 'View system audit logs',
@@ -202,12 +207,12 @@ class PermissionManager {
     'update_tickets': Permission(
       name: 'Update Tickets',
       description: 'Move ticket progress status',
-      allowedRoles: [UserRole.teamMember, UserRole.deliveryLead],
+      allowedRoles: [UserRole.teamMember, UserRole.deliveryLead, UserRole.systemAdmin],
     ),
     'update_sprint_status': Permission(
       name: 'Update Sprint Status',
       description: 'Change sprint progress status',
-      allowedRoles: [UserRole.teamMember, UserRole.deliveryLead],
+      allowedRoles: [UserRole.teamMember, UserRole.deliveryLead, UserRole.systemAdmin],
     ),
   };
 

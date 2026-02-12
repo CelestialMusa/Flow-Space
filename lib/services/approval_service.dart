@@ -87,7 +87,7 @@ class ApprovalService {
       };
 
       debugPrint('🔍 Fetching approval requests with params: $queryParams');
-      final response = await _apiClient.get('/approval-requests', queryParams: queryParams);
+      final response = await _apiClient.get('/approvals', queryParams: queryParams);
 
       debugPrint('📡 Approval requests response: ${response.statusCode} - ${response.isSuccess}');
       
@@ -141,7 +141,7 @@ class ApprovalService {
       if (token == null) {
         return ApiResponse.error('No authentication token available');
       }
-      final uri = Uri.parse('$_baseUrl/approval-requests');
+      final uri = Uri.parse('$_baseUrl/approvals');
       final response = await http.post(
         uri,
         headers: {

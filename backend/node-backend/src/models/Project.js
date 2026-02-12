@@ -21,6 +21,18 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.TEXT,
       allowNull: true
     },
+    client_name: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    start_date: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    end_date: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
     project_type: {
       type: DataTypes.STRING,
       allowNull: true,
@@ -30,6 +42,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: true,
       defaultValue: 'active'
+    },
+    owner_id: {
+      type: DataTypes.UUID,
+      allowNull: true
     },
     created_by: {
       type: DataTypes.UUID,
@@ -66,10 +82,20 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'created_by',
       as: 'creator'
     });
+
+    Project.belongsTo(models.User, {
+      foreignKey: 'owner_id',
+      as: 'owner'
+    });
     
     Project.hasMany(models.Sprint, {
       foreignKey: 'project_id',
       as: 'sprints'
+    });
+
+    Project.hasMany(models.ProjectMember, {
+      foreignKey: 'project_id',
+      as: 'members'
     });
   };
 

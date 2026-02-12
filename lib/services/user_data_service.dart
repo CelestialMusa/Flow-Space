@@ -21,7 +21,7 @@ class UserDataService {
     String? searchQuery,
     UserRole? filterRole,
     int page = 1,
-    int limit = 50,
+    int limit = 1000,
   }) async {
     // Check cache first if not forcing refresh
     if (!forceRefresh && _isCacheValid()) {
