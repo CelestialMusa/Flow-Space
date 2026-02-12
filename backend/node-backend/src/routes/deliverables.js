@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Deliverable, DeliverableSprint, AuditLog, User, DeliverableArtifact } = require('../models');
+const { Deliverable, DeliverableSprint, AuditLog, User, DeliverableArtifact, Project } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
@@ -169,6 +169,11 @@ router.post('/', authenticateToken, async (req, res) => {
     // Ensure created_by is set to current user if not provided
     if (!deliverableData.created_by && req.user) {
       deliverableData.created_by = req.user.id;
+    }
+
+    // Validation: Project must be assigned
+    if (!deliverableData.project_id) {
+      return res.status(400).json({ error: 'Deliverable must be assigned to a project' });
     }
 
     // Validation: Owner must be selected before marking as Active (or any non-draft status)

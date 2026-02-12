@@ -16,6 +16,7 @@ import 'screens/sprint_metrics_screen.dart';
 import 'screens/report_builder_screen.dart';
 import 'screens/client_review_workflow_screen.dart';
 import 'screens/report_editor_screen.dart';
+import 'screens/report_view_screen.dart';
 import 'screens/client_review_screen.dart';
 import 'models/sign_off_report.dart';
 import 'models/deliverable.dart';
@@ -222,6 +223,18 @@ final GoRouter _router = GoRouter(
           route: '/report-editor',
           child: SidebarScaffold(
             child: ReportEditorScreen(deliverableId: deliverableId),
+          ),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/report-view/:reportId',
+      builder: (context, state) {
+        final reportId = state.pathParameters['reportId']!;
+        return RouteGuard(
+          route: '/report-builder', // Using same guard as builder for now
+          child: SidebarScaffold(
+            child: ReportViewScreen(reportId: reportId),
           ),
         );
       },

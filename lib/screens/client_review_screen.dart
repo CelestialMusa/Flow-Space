@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:convert';
 import '../models/deliverable.dart';
 import '../models/sign_off_report.dart';
 import '../services/backend_api_service.dart';
 import '../theme/flownet_theme.dart';
 import '../widgets/flownet_logo.dart';
 import '../widgets/signature_capture_widget.dart';
+import '../widgets/sprint_performance_chart.dart';
 
 class ClientReviewScreen extends ConsumerStatefulWidget {
   final String reportId;
@@ -293,50 +295,240 @@ class _ClientReviewScreenState extends ConsumerState<ClientReviewScreen> {
   }
 
   Widget buildReportContent() {
-    return Card(
-      color: FlownetColors.graphiteGray,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Column(
+      children: [
+        Card(
+          color: FlownetColors.graphiteGray,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
-                  Icons.description,
-                  color: FlownetColors.electricBlue,
-                  size: 24,
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.description,
+                      color: FlownetColors.electricBlue,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Sign-Off Report',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: FlownetColors.pureWhite,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  'Sign-Off Report',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: FlownetColors.pureWhite,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _report!.reportContent,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black,
+                      height: 1.6,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                _report!.reportContent,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.black,
-                  height: 1.6,
+          ),
+        ),
+        const SizedBox(height: 24),
+        _buildPerformanceVisuals(),
+      ],
+    );
+  }
+
+  Widget _buildPerformanceVisuals() {
+    if (_report?.sprintPerformanceData == null || _report!.sprintPerformanceData!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    try {
+      final List<dynamic> rawData = jsonDecode(_report!.sprintPerformanceData!);
+      final List<Map<String, dynamic>> sprints = rawData.map((e) => Map<String, dynamic>.from(e)).toList();
+
+      if (sprints.isEmpty) return const SizedBox.shrink();
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Performance Metrics',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: FlownetColors.pureWhite,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Velocity Chart
+          SizedBox(
+            height: 300,
+            child: SprintPerformanceChart(
+              sprints: sprints,
+              chartType: 'velocity',
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Burndown Chart
+          SizedBox(
+            height: 300,
+            child: SprintPerformanceChart(
+              sprints: sprints,
+              chartType: 'burndown',
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Burnup Chart
+          SizedBox(
+            height: 300,
+            child: SprintPerformanceChart(
+              sprints: sprints,
+              chartType: 'burnup',
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Committed vs Completed (Scope Completion)
+          SizedBox(
+            height: 300,
+            child: SprintPerformanceChart(
+              sprints: sprints,
+              chartType: 'committed_vs_completed',
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Defects Trend
+          SizedBox(
+            height: 300,
+            child: SprintPerformanceChart(
+              sprints: sprints,
+              chartType: 'defects',
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Test Pass Rate
+          SizedBox(
+            height: 300,
+            child: SprintPerformanceChart(
+              sprints: sprints,
+              chartType: 'test_pass_rate',
+            ),
+          ),
+        ],
+      );
+    } catch (e) {
+      debugPrint('Error parsing sprint performance data: $e');
+      return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildChangeRequestHistory() {
+    if ((_report?.changeRequestHistory == null || _report!.changeRequestHistory!.isEmpty) && 
+        _report?.changeRequestDetails == null) {
+      return const SizedBox.shrink();
+    }
+    
+    final history = _report?.changeRequestHistory ?? [];
+    final List<dynamic> historyList = history;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.1),
+        border: Border.all(color: Colors.orange),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.history, color: Colors.orange),
+              const SizedBox(width: 12),
+              Text(
+                'Change Request History (Action List)',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.orange,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_report?.changeRequestDetails != null) ...[
+             _buildHistoryItem(
+               details: _report!.changeRequestDetails!,
+               date: _report!.reviewedAt,
+               user: _report!.reviewedBy,
+               isLatest: true,
+             ),
+             if (historyList.isNotEmpty) const Divider(color: Colors.orange, height: 24),
+          ],
+          ...historyList.map((item) {
+             final i = item is Map ? item : {'details': item.toString()};
+             return _buildHistoryItem(
+               details: i['details'] ?? '',
+               date: i['requestedAt'] != null ? DateTime.parse(i['requestedAt']) : null,
+               user: i['requestedBy'],
+               isLatest: false,
+             );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryItem({
+    required String details,
+    DateTime? date,
+    String? user,
+    required bool isLatest,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              isLatest ? 'Latest Request' : 'Previous Request',
+              style: TextStyle(
+                color: isLatest ? Colors.orange : Colors.white70,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
             ),
+            if (date != null)
+              Text(
+                formatDate(date),
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              ),
           ],
         ),
-      ),
+        const SizedBox(height: 4),
+        Text(
+          details,
+          style: const TextStyle(color: Colors.white),
+        ),
+        if (user != null) ...[
+           const SizedBox(height: 4),
+           Text(
+             'Requested by: $user',
+             style: const TextStyle(color: Colors.white38, fontSize: 11, fontStyle: FontStyle.italic),
+           ),
+        ],
+        const SizedBox(height: 12),
+      ],
     );
   }
 
@@ -411,9 +603,9 @@ class _ClientReviewScreenState extends ConsumerState<ClientReviewScreen> {
                   labelText: 'Change Request Details *',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.edit),
-                  hintText: 'Describe the required changes...',
+                  hintText: 'List the required changes (e.g.,\n1. Update charts\n2. Fix typo in summary)',
                 ),
-                maxLines: 4,
+                maxLines: 6,
                 validator: (value) {
                   if (_selectedAction == 'changeRequest' && (value?.isEmpty ?? true)) {
                     return 'Please provide change request details';
@@ -529,12 +721,104 @@ class _ClientReviewScreenState extends ConsumerState<ClientReviewScreen> {
               buildReportContent(),
             const SizedBox(height: 24),
 
-            // Review Actions
-            buildReviewActions(),
-            const SizedBox(height: 24),
+            // Change Request History
+            if (_report?.changeRequestHistory?.isNotEmpty == true || _report?.changeRequestDetails != null)
+              _buildChangeRequestHistory(),
 
-            // Digital Signature Section
-            buildDigitalSignatureSection(),
+            // Review Actions
+            if (_report?.status == ReportStatus.approved)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  border: Border.all(color: Colors.green),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.green),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Report Approved',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Text(
+                            'This report has been approved and sealed.',
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                          if (_report?.approvedBy != null)
+                            Text(
+                              'Approved by: ${_report!.approvedBy} on ${formatDate(_report!.approvedAt ?? DateTime.now())}',
+                              style: const TextStyle(color: Colors.white54, fontSize: 12),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (_report?.status == ReportStatus.changeRequested)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  border: Border.all(color: Colors.orange),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning, color: Colors.orange),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Change Requested',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Colors.orange,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Text(
+                            'Changes have been requested. The team will review and resubmit.',
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                          if (_report?.changeRequestDetails != null) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.black26,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                _report!.changeRequestDetails!,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else ...[
+              buildReviewActions(),
+              const SizedBox(height: 24),
+              buildDigitalSignatureSection(),
+            ],
           ],
         ),
       ),

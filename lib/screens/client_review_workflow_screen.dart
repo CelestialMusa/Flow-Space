@@ -128,6 +128,11 @@ class _ClientReviewWorkflowScreenState extends ConsumerState<ClientReviewWorkflo
             })(),
             createdBy: (data['createdByName'] ?? data['created_by_name'] ?? data['created_by'])?.toString() ?? 'Unknown',
             digitalSignature: content['digitalSignature'] as String?,
+            sprintPerformanceData: (data['sprintPerformanceData'] ?? data['sprint_performance_data'])?.toString(),
+            changeRequestHistory: data['changeRequestHistory'] ?? data['change_request_history'],
+            changeRequestDetails: (data['changeRequestDetails'] ?? data['change_request_details'])?.toString(),
+            reviewedBy: (data['reviewedBy'] ?? data['reviewed_by'])?.toString(),
+            reviewedAt: data['reviewedAt'] != null ? DateTime.tryParse(data['reviewedAt'].toString()) : null,
           );
           
           _reviews = reviews.cast<Map<String, dynamic>>();

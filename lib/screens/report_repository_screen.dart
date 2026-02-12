@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../models/sign_off_report.dart';
 import '../models/repository_file.dart';
 import '../models/user_role.dart';
@@ -13,7 +14,6 @@ import '../theme/flownet_theme.dart';
 import '../widgets/flownet_logo.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/document_preview_widget.dart';
-import '../widgets/audit_history_widget.dart';
 import 'report_editor_screen.dart';
 import 'client_review_workflow_screen.dart';
 
@@ -53,7 +53,8 @@ class _ReportRepositoryScreenState extends ConsumerState<ReportRepositoryScreen>
     super.initState();
     _loadReports();
     _loadReportDocuments();
-Future.microtask(() async {
+    _loadFilterOptions();
+    Future.microtask(() async {
       try {
         await AuthService().initialize();
       } catch (_) {}
@@ -247,6 +248,49 @@ Future.microtask(() async {
     }
   }
 
+  Future<void> _loadFilterOptions() async {
+    try {
+      final api = BackendApiService();
+      
+      // Fetch filter data in parallel
+      final results = await Future.wait([
+        api.getProjects(),
+        api.getSprints(), // Assuming this exists or similar
+        api.getDeliverables(limit: 100), // Fetch top 100 deliverables for filter
+      ]);
+
+      if (mounted) {
+        setState(() {
+          // Process Projects
+          if (results[0].isSuccess && results[0].data != null) {
+            final data = results[0].data;
+            final list = (data is Map ? (data['data'] ?? data['projects']) : data) as List? ?? [];
+            _projects.clear();
+            _projects.addAll(list.map((e) => Map<String, dynamic>.from(e)));
+          }
+
+          // Process Sprints
+          if (results[1].isSuccess && results[1].data != null) {
+            final data = results[1].data;
+            final list = (data is Map ? (data['data'] ?? data['sprints']) : data) as List? ?? [];
+            _sprints.clear();
+            _sprints.addAll(list.map((e) => Map<String, dynamic>.from(e)));
+          }
+
+          // Process Deliverables
+          if (results[2].isSuccess && results[2].data != null) {
+            final data = results[2].data;
+            final list = (data is Map ? (data['data'] ?? data['deliverables']) : data) as List? ?? [];
+            _deliverables.clear();
+            _deliverables.addAll(list.map((e) => Map<String, dynamic>.from(e)));
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading filter options: $e');
+    }
+  }
+
   DateTime? _parseDateTime(dynamic dateValue) {
     if (dateValue == null) return null;
     try {
@@ -305,200 +349,7 @@ Future.microtask(() async {
   }
 
   void _showReportDetails(SignOffReport report) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: FlownetColors.graphiteGray,
-        title: Text(report.reportTitle),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildDetailRow('Status', report.statusDisplayName, report.statusColor),
-                _buildDetailRow('Created By', report.createdBy),
-                _buildDetailRow('Created At', _formatDate(report.createdAt)),
-                if (report.submittedAt != null)
-                  _buildDetailRow('Submitted At', _formatDate(report.submittedAt!)),
-                if (report.reviewedAt != null)
-                  _buildDetailRow('Reviewed At', _formatDate(report.reviewedAt!)),
-                if (report.approvedAt != null)
-                  _buildDetailRow('Approved At', _formatDate(report.approvedAt!)),
-                if (report.clientComment != null) ...[
-                  const SizedBox(height: 8),
-                  const Text('Client Comment:', style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text(report.clientComment!),
-                ],
-                if (report.changeRequestDetails != null) ...[
-                  const SizedBox(height: 8),
-                  const Text('Change Request:', style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text(report.changeRequestDetails!),
-                ],
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close', style: TextStyle(color: FlownetColors.pureWhite)),
-          ),
-          if (report.status == ReportStatus.submitted || report.status == ReportStatus.underReview) ...[
-            TextButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                _sendReminder(report);
-              },
-              icon: const Icon(Icons.alarm, color: FlownetColors.electricBlue, size: 18),
-              label: const Text('Send Reminder'),
-            ),
-            TextButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                _escalateReport(report);
-              },
-              icon: const Icon(Icons.warning, color: FlownetColors.amberOrange, size: 18),
-              label: const Text('Escalate'),
-            ),
-          ],
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(context);
-              _showAuditHistory(report.id);
-            },
-            icon: const Icon(Icons.history, size: 18),
-            label: const Text('Audit History'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: FlownetColors.electricBlue,
-              foregroundColor: FlownetColors.pureWhite,
-            ),
-          ),
-          // Allow editing for draft and change_requested reports
-          if (report.status == ReportStatus.draft || report.status == ReportStatus.changeRequested)
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ReportEditorScreen(reportId: report.id),
-                  ),
-                ).then((_) => _loadReports());
-              },
-              icon: const Icon(Icons.edit, size: 18),
-              label: const Text('Edit Report'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: FlownetColors.electricBlue,
-                foregroundColor: FlownetColors.pureWhite,
-              ),
-            ),
-          // Show review workflow for submitted reports
-          if ((report.status == ReportStatus.submitted || report.status == ReportStatus.underReview) &&
-              AuthService().currentUser?.role == UserRole.clientReviewer)
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ClientReviewWorkflowScreen(reportId: report.id),
-                  ),
-                ).then((_) => _loadReports());
-              },
-              icon: const Icon(Icons.rate_review, size: 18),
-              label: const Text('Review'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: FlownetColors.amberOrange,
-                foregroundColor: FlownetColors.pureWhite,
-              ),
-            ),
-          // Allow client feedback on any submitted/reviewed report
-          if ((report.status == ReportStatus.submitted || 
-              report.status == ReportStatus.underReview ||
-              report.status == ReportStatus.approved) &&
-              AuthService().currentUser?.role == UserRole.clientReviewer)
-            TextButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                _showClientFeedbackDialog(report);
-              },
-              icon: const Icon(Icons.comment, size: 18),
-              label: const Text('Add Feedback'),
-              style: TextButton.styleFrom(
-                foregroundColor: FlownetColors.electricBlue,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value, [Color? valueColor]) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              '$label:',
-              style: const TextStyle(fontWeight: FontWeight.bold, color: FlownetColors.pureWhite),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(color: valueColor ?? FlownetColors.coolGray),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAuditHistory(String reportId) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: FlownetColors.graphiteGray,
-        child: Container(
-          width: 600,
-          height: 500,
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Audit History',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: FlownetColors.pureWhite,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: FlownetColors.pureWhite),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const Divider(color: FlownetColors.slate),
-              Expanded(
-                child: AuditHistoryWidget(
-                  reportId: reportId,
-                  reportService: _reportService,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    context.go('/report-view/${report.id}');
   }
 
   void _showClientFeedbackDialog(SignOffReport report) {
@@ -1289,13 +1140,27 @@ Future.microtask(() async {
               Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      report.reportTitle,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            report.reportTitle,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (report.status == ReportStatus.approved) ...[
+                          const SizedBox(width: 8),
+                          const Tooltip(
+                            message: 'Sealed (Approved)',
+                            child: Icon(Icons.lock, color: FlownetColors.emeraldGreen, size: 16),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   Container(
@@ -1606,26 +1471,6 @@ Future.microtask(() async {
           ),
         ),
       ],
-    );
-  }
-
-  void _sendReminder(SignOffReport report) {
-    // Placeholder implementation for sending reminder
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Reminder sent for report: ${report.id}'),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
-
-  void _escalateReport(SignOffReport report) {
-    // Placeholder implementation for escalating report
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Report escalated: ${report.id}'),
-        backgroundColor: Colors.orange,
-      ),
     );
   }
 

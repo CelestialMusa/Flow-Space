@@ -233,7 +233,7 @@ class BackendApiService {
   }
 
   // Sign-off report endpoints
-  Future<ApiResponse> getSignOffReports({int page = 1, int limit = 20, String? status, String? search}) async {
+  Future<ApiResponse> getSignOffReports({int page = 1, int limit = 20, String? status, String? search, String? deliverableId}) async {
     final queryParams = <String, String>{
       'page': page.toString(),
       'limit': limit.toString(),
@@ -243,6 +243,9 @@ class BackendApiService {
     }
     if (search != null && search.isNotEmpty) {
       queryParams['search'] = search;
+    }
+    if (deliverableId != null && deliverableId.isNotEmpty) {
+      queryParams['deliverableId'] = deliverableId;
     }
     final resp = await _apiClient.get('/sign-off-reports', queryParams: queryParams);
     if (resp.isSuccess && resp.data != null) {
@@ -321,7 +324,7 @@ class BackendApiService {
   }
 
   // Project endpoints
-  Future<ApiResponse> getProjects({int page = 1, int limit = 20, String? search}) async {
+  Future<ApiResponse> getProjects({int page = 1, int limit = 1000, String? search}) async {
     final queryParams = <String, String>{
       'page': page.toString(),
       'limit': limit.toString(),

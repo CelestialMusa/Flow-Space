@@ -291,6 +291,62 @@ class SignOffReportService {
     }
   }
 
+  // Seal report
+  Future<ApiResponse> sealReport(String reportId) async {
+    try {
+      final token = _authService.accessToken;
+      if (token == null) {
+        return ApiResponse.error('Not authenticated');
+      }
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/$reportId/seal'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return ApiResponse.success(data, response.statusCode);
+      } else {
+        final data = jsonDecode(response.body);
+        return ApiResponse.error(data['error'] ?? 'Failed to seal report');
+      }
+    } catch (e) {
+      return ApiResponse.error('Error sealing report: $e');
+    }
+  }
+
+  // Archive report
+  Future<ApiResponse> archiveReport(String reportId) async {
+    try {
+      final token = _authService.accessToken;
+      if (token == null) {
+        return ApiResponse.error('Not authenticated');
+      }
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/$reportId/archive'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return ApiResponse.success(data, response.statusCode);
+      } else {
+        final data = jsonDecode(response.body);
+        return ApiResponse.error(data['error'] ?? 'Failed to archive report');
+      }
+    } catch (e) {
+      return ApiResponse.error('Error archiving report: $e');
+    }
+  }
+
   // Request changes
   Future<ApiResponse> requestChanges(String reportId, String changeRequestDetails) async {
     try {

@@ -10,6 +10,7 @@ const { QueryTypes } = require('sequelize');
 const analyticsService = require('../services/analyticsService');
 const { loggingService } = require('../services/loggingService');
 const schedulerService = require('../services/schedulerService');
+const socketService = require('../services/socketService');
 
 const router = express.Router();
 
@@ -171,6 +172,7 @@ router.post('/simulate-report-reminder', authenticateToken, requireRole(['system
     return res.json({ success: true, created_notifications: createdCount });
   } catch (error) {
     console.error('Error simulating report reminder:', error);
+    if (error.stack) console.error(error.stack);
     res.status(500).json({ success: false, error: 'Failed to simulate report reminder', details: error && error.message ? error.message : undefined });
   }
 });

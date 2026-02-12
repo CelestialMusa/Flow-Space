@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import '../theme/flownet_theme.dart';
 import '../widgets/project_card.dart';
 import 'sprint_board_screen.dart';
-import '../services/api_service.dart';
 import '../services/backend_api_service.dart';
 import '../services/realtime_service.dart';
 import '../services/auth_service.dart';
@@ -33,218 +32,18 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
   final List<Map<String, dynamic>> _projects = [];
   String? _selectedProjectKey;
   String? _selectedSprintId;
-  bool _isAiSuggesting = false;
   bool _useAiForTicket = false;
   final bool _isGeneratingAiTicket = false;
   final GlobalKey _sprintsSectionKey = GlobalKey();
 
   final List<Map<String, dynamic>> _sprints = [];
   final List<Map<String, dynamic>> _tickets = [];
-  final _nameController = TextEditingController();
-  final _keyController = TextEditingController();
-  final _descriptionController = TextEditingController();
   bool _isLoading = false;
 
   late RealtimeService _realtime;
-  // Method to show create project dialog
-  void _showCreateProjectDialog() {
-    final formKey = GlobalKey<FormState>();
-    _nameController.clear();
-    _keyController.clear();
-    _descriptionController.clear();
-    final TextEditingController clientEmailController = TextEditingController();
-    DateTime? startDate;
-    DateTime? endDate;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Create New Project'),
-          content: StatefulBuilder(
-            builder: (context, setState) {
-              return Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        controller: _nameController,
-
-                        decoration: const InputDecoration(
-                          labelText: 'Project Name',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter a project name';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _keyController,
-                        decoration: const InputDecoration(
-                          labelText: 'Project Key',
-                          hintText: 'e.g., PROJ',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter a project key';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _descriptionController,
-                        maxLines: 3,
-                        decoration: const InputDecoration(
-                          labelText: 'Description (Optional)',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: clientEmailController,
-                        decoration: const InputDecoration(
-                          labelText: 'Client Email (optional)',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: InkWell(
-                              onTap: () async {
-                                final picked = await showDatePicker(
-                                  context: context,
-                                  initialDate: startDate ?? DateTime.now(),
-                                  firstDate: DateTime(2000),
-                                  lastDate: DateTime(2100),
-                                );
-                                if (picked != null) {
-                                  setState(() {
-                                    startDate = picked;
-                                    if (endDate != null && endDate!.isBefore(startDate!)) {
-                                      endDate = startDate;
-                                    }
-                                  });
-                                }
-                              },
-                              child: InputDecorator(
-                                decoration: const InputDecoration(
-                                  labelText: 'Start Date',
-                                  border: OutlineInputBorder(),
-                                ),
-                                child: Text(
-                                  startDate != null
-                                      ? '${startDate!.day}/${startDate!.month}/${startDate!.year}'
-                                      : 'Select start date',
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: InkWell(
-                              onTap: () async {
-                                final picked = await showDatePicker(
-                                  context: context,
-                                  initialDate: endDate ?? (startDate ?? DateTime.now()),
-                                  firstDate: DateTime(2000),
-                                  lastDate: DateTime(2100),
-                                );
-                                if (picked != null) {
-                                  setState(() {
-                                    endDate = picked;
-                                  });
-                                }
-                              },
-                              child: InputDecorator(
-                                decoration: const InputDecoration(
-                                  labelText: 'End Date',
-                                  border: OutlineInputBorder(),
-                                ),
-                                child: Text(
-                                  endDate != null
-                                      ? '${endDate!.day}/${endDate!.month}/${endDate!.year}'
-                                      : 'Select end date (optional)',
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final ctx = context;
-                if (formKey.currentState!.validate()) {
-                  try {
-                    final created = await _sprintService.createProject(
-                      name: _nameController.text,
-                      key: _keyController.text,
-                      description: _descriptionController.text,
-                      startDate: startDate,
-                      endDate: endDate,
-                      clientEmail: clientEmailController.text.isNotEmpty
-                          ? clientEmailController.text
-                          : null,
-                    );
-
-                    if (created != null) {
-                      if (!ctx.mounted) return;
-                      Navigator.of(ctx).pop();
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(
-                          content: Text('Project created successfully!'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                      if (mounted) {
-                        await _loadData();
-                      }
-                    } else if (ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(
-                          content: Text('Failed to create project'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(
-                          content: Text('Failed to create project: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                }
-              },
-              child: const Text('Create'),
-            ),
-          ],
-        );
-      },
-    );
+  // Navigate to project creation screen
+  void _navigateToCreateProject() {
+    context.push('/project-workspace/new');
   }
 
   @override
@@ -262,9 +61,6 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
       _realtime.offAll('ticket_updated');
       _realtime.offAll('ticket_deleted');
     } catch (_) {}
-    _nameController.dispose();
-    _keyController.dispose();
-    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -492,11 +288,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
 
     try {
       final auth = AuthService();
-      if (auth.isSystemAdmin) {
-        _showSnackBar('System admin can view/comment only');
-        return;
-      }
-      if (!(auth.isTeamMember || auth.isDeliveryLead)) {
+      if (!(auth.isTeamMember || auth.isDeliveryLead || auth.isSystemAdmin)) {
         _showSnackBar('You do not have permission to update sprint status', isError: true);
         return;
       }
@@ -740,7 +532,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
             ),
             GlassButton(
               text: 'Create Project',
-              onPressed: _showCreateProjectDialog,
+              onPressed: () => _navigateToCreateProject(),
               icon: const Icon(Icons.add, size: 16),
               height: 40,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -829,6 +621,12 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
           project: project,
           isSelected: isSelected,
           onTap: () => _selectProject(project),
+          onEdit: () {
+            final projectId = project['id']?.toString();
+            if (projectId != null) {
+              context.push('/project-workspace/$projectId');
+            }
+          },
         );
       },
     );
@@ -843,6 +641,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
     final projectKey = project['key']?.toString();
 
     return Column(
+      key: _sprintsSectionKey,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
@@ -1150,68 +949,6 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
       ),
     );
   }
-
-  Future<void> aiSuggestProjectName(TextEditingController nameController, TextEditingController descriptionController) async {
-    if (_isAiSuggesting) return;
-    setState(() => _isAiSuggesting = true);
-    try {
-      final messages = [
-        {'role': 'system', 'content': 'Propose a concise professional project name.'},
-        {'role': 'user', 'content': 'Description: ${descriptionController.text}'}
-      ];
-      final resp = await BackendApiService().aiChat(messages, temperature: 0.6, maxTokens: 20);
-      if (resp.isSuccess && resp.data != null) {
-        final data = resp.data is Map ? Map<String, dynamic>.from(resp.data as Map) : {};
-        final content = (data['content'] ?? (data['data']?['content']))?.toString() ?? '';
-        if (content.isNotEmpty) nameController.text = content.trim();
-      }
-    } catch (_) {}
-    finally {
-      if (mounted) setState(() => _isAiSuggesting = false);
-    }
-  }
-
-  Future<void> aiSuggestProjectKey(TextEditingController nameController, TextEditingController keyController) async {
-    if (_isAiSuggesting) return;
-    setState(() => _isAiSuggesting = true);
-    try {
-      final messages = [
-        {'role': 'system', 'content': 'Generate a 2-6 letter uppercase project key derived from the name.'},
-        {'role': 'user', 'content': 'Name: ${nameController.text}'}
-      ];
-      final resp = await BackendApiService().aiChat(messages, temperature: 0.4, maxTokens: 8);
-      if (resp.isSuccess && resp.data != null) {
-        final data = resp.data is Map ? Map<String, dynamic>.from(resp.data as Map) : {};
-        final content = (data['content'] ?? (data['data']?['content']))?.toString() ?? '';
-        if (content.isNotEmpty) keyController.text = content.trim().replaceAll(RegExp('[^A-Z]'), '');
-      }
-    } catch (_) {}
-    finally {
-      if (mounted) setState(() => _isAiSuggesting = false);
-    }
-  }
-
-  Future<void> aiSuggestProjectDescription(TextEditingController nameController, TextEditingController descriptionController) async {
-    if (_isAiSuggesting) return;
-    setState(() => _isAiSuggesting = true);
-    try {
-      final messages = [
-        {'role': 'system', 'content': 'Write a clear project description with scope and outcomes.'},
-        {'role': 'user', 'content': 'Name: ${nameController.text}'}
-      ];
-      final resp = await BackendApiService().aiChat(messages, temperature: 0.7, maxTokens: 120);
-      if (resp.isSuccess && resp.data != null) {
-        final data = resp.data is Map ? Map<String, dynamic>.from(resp.data as Map) : {};
-        final content = (data['content'] ?? (data['data']?['content']))?.toString() ?? '';
-        if (content.isNotEmpty) descriptionController.text = content.trim();
-      }
-    } catch (_) {}
-    finally {
-      if (mounted) setState(() => _isAiSuggesting = false);
-    }
-  }
-
-  
 
   void viewSprintBoard(Map<String, dynamic> sprint) {
     // Navigate to sprint board screen with sprint name
@@ -1623,43 +1360,6 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
         );
       },
     );
-  }
-
-  Future<void> createProject(String name, String key, String description) async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      // Create project via backend API
-      final result = await ApiService.createProject(
-        name: name,
-        key: key,
-        description: description,
-      );
-
-      if (result != null) {
-        _showSnackBar('Project created successfully!');
-        setState(() {
-          _selectedProjectKey = key;
-        });
-        if (!mounted) return;
-        try {
-          GoRouter.of(context).go('/sprint-console?projectKey=${Uri.encodeComponent(key)}');
-        } catch (_) {
-          Navigator.of(context).pushNamed('/sprint-console?projectKey=${Uri.encodeComponent(key)}');
-        }
-        await _loadData();
-      } else {
-        _showSnackBar('Failed to create project', isError: true);
-      }
-    } catch (e) {
-      _showSnackBar('Error creating project: $e', isError: true);
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
   }
 
   // Event handlers

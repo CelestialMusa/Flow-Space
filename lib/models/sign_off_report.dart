@@ -18,6 +18,8 @@ class SignOffReport {
   final String? sprintPerformanceData;
   final String? knownLimitations;
   final String? nextSteps;
+  final String? preparedBy;
+  final String? preparedByName;
   final ReportStatus status;
   final DateTime createdAt;
   final String createdBy;
@@ -27,8 +29,10 @@ class SignOffReport {
   final String? reviewedBy;
   final String? clientComment;
   final String? changeRequestDetails;
+  final List<dynamic>? changeRequestHistory;
   final DateTime? approvedAt;
   final String? approvedBy;
+
   final String? digitalSignature;
 
   const SignOffReport({
@@ -40,6 +44,8 @@ class SignOffReport {
     this.sprintPerformanceData,
     this.knownLimitations,
     this.nextSteps,
+    this.preparedBy,
+    this.preparedByName,
     required this.status,
     required this.createdAt,
     required this.createdBy,
@@ -49,6 +55,7 @@ class SignOffReport {
     this.reviewedBy,
     this.clientComment,
     this.changeRequestDetails,
+    this.changeRequestHistory,
     this.approvedAt,
     this.approvedBy,
     this.digitalSignature,
@@ -63,6 +70,8 @@ class SignOffReport {
     String? sprintPerformanceData,
     String? knownLimitations,
     String? nextSteps,
+    String? preparedBy,
+    String? preparedByName,
     ReportStatus? status,
     DateTime? createdAt,
     String? createdBy,
@@ -72,6 +81,7 @@ class SignOffReport {
     String? reviewedBy,
     String? clientComment,
     String? changeRequestDetails,
+    List<dynamic>? changeRequestHistory,
     DateTime? approvedAt,
     String? approvedBy,
     String? digitalSignature,
@@ -85,6 +95,8 @@ class SignOffReport {
       sprintPerformanceData: sprintPerformanceData ?? this.sprintPerformanceData,
       knownLimitations: knownLimitations ?? this.knownLimitations,
       nextSteps: nextSteps ?? this.nextSteps,
+      preparedBy: preparedBy ?? this.preparedBy,
+      preparedByName: preparedByName ?? this.preparedByName,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       createdBy: createdBy ?? this.createdBy,
@@ -94,6 +106,7 @@ class SignOffReport {
       reviewedBy: reviewedBy ?? this.reviewedBy,
       clientComment: clientComment ?? this.clientComment,
       changeRequestDetails: changeRequestDetails ?? this.changeRequestDetails,
+      changeRequestHistory: changeRequestHistory ?? this.changeRequestHistory,
       approvedAt: approvedAt ?? this.approvedAt,
       approvedBy: approvedBy ?? this.approvedBy,
       digitalSignature: digitalSignature ?? this.digitalSignature,
@@ -110,6 +123,8 @@ class SignOffReport {
       'sprintPerformanceData': sprintPerformanceData,
       'knownLimitations': knownLimitations,
       'nextSteps': nextSteps,
+      'preparedBy': preparedBy,
+      'preparedByName': preparedByName,
       'status': status.name,
       'createdAt': createdAt.toIso8601String(),
       'createdBy': createdBy,
@@ -119,6 +134,7 @@ class SignOffReport {
       'reviewedBy': reviewedBy,
       'clientComment': clientComment,
       'changeRequestDetails': changeRequestDetails,
+      'changeRequestHistory': changeRequestHistory,
       'approvedAt': approvedAt?.toIso8601String(),
       'approvedBy': approvedBy,
       'digitalSignature': digitalSignature,
@@ -145,6 +161,9 @@ class SignOffReport {
     final String? knownLimitations = (json['knownLimitations'] ?? content['knownLimitations'] ?? content['limitations'])?.toString();
     final String? nextSteps = (json['nextSteps'] ?? content['nextSteps'])?.toString();
 
+    final String? preparedBy = (json['preparedBy'] ?? json['prepared_by'])?.toString();
+    final String? preparedByName = (json['preparedByName'] ?? json['prepared_by_name'])?.toString();
+
     final String statusStr = (json['status'] ?? json['review_status'] ?? content['status'] ?? '').toString();
     final ReportStatus status = ReportStatus.values.firstWhere(
       (e) => e.name == statusStr,
@@ -166,6 +185,7 @@ class SignOffReport {
 
     final String? clientComment = (json['clientComment'] ?? content['clientComment'] ?? json['comments'])?.toString();
     final String? changeRequestDetails = (json['changeRequestDetails'] ?? content['changeRequestDetails'])?.toString();
+    final List<dynamic>? changeRequestHistory = (json['changeRequestHistory'] ?? content['changeRequestHistory']);
 
     final String approvedAtStr = (json['approvedAt'] ?? json['approved_at'] ?? '').toString();
     final DateTime? approvedAt = approvedAtStr.isNotEmpty ? DateTime.parse(approvedAtStr) : null;
@@ -181,6 +201,8 @@ class SignOffReport {
       sprintPerformanceData: sprintPerformanceData,
       knownLimitations: knownLimitations,
       nextSteps: nextSteps,
+      preparedBy: preparedBy,
+      preparedByName: preparedByName,
       status: status,
       createdAt: createdAt,
       createdBy: createdBy,
@@ -190,6 +212,7 @@ class SignOffReport {
       reviewedBy: reviewedBy,
       clientComment: clientComment,
       changeRequestDetails: changeRequestDetails,
+      changeRequestHistory: changeRequestHistory,
       approvedAt: approvedAt,
       approvedBy: approvedBy,
       digitalSignature: digitalSignature,
