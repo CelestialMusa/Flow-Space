@@ -2,6 +2,7 @@
 
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 // ignore: depend_on_referenced_packages
@@ -180,6 +181,7 @@ class _DeliverableDetailScreenState extends State<DeliverableDetailScreen> {
           _isEditing = false;
           _initControllers();
         });
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Changes saved successfully')),
         );
@@ -253,10 +255,12 @@ class _DeliverableDetailScreenState extends State<DeliverableDetailScreen> {
     
     for (final file in files) {
       try {
+        final bytes = await file.readAsBytes();
         final response = await _deliverableService.uploadArtifact(
             deliverableId: _deliverable.id,
             filePath: file.path,
             fileName: file.name,
+            fileBytes: bytes,
         );
         
         if (response.isSuccess) {
@@ -291,14 +295,15 @@ class _DeliverableDetailScreenState extends State<DeliverableDetailScreen> {
     try {
       final FilePickerResult? result = await FilePicker.platform.pickFiles();
 
-      if (result != null && result.files.single.path != null) {
+      if (result != null && (result.files.single.path != null || result.files.single.bytes != null)) {
         setState(() => _isUploading = true);
         
         final file = result.files.single;
         final response = await _deliverableService.uploadArtifact(
           deliverableId: _deliverable.id,
-          filePath: file.path!,
+          filePath: file.path ?? '',
           fileName: file.name,
+          fileBytes: file.bytes,
         );
 
         if (mounted) {
@@ -431,6 +436,15 @@ class _DeliverableDetailScreenState extends State<DeliverableDetailScreen> {
       }
 
       final String csvData = const ListToCsvConverter().convert(rows);
+      
+      if (kIsWeb) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('CSV export is not supported on web')),
+          );
+        }
+        return;
+      }
       
       final String? outputFile = await FilePicker.platform.saveFile(
         dialogTitle: 'Save Audit Log CSV',
