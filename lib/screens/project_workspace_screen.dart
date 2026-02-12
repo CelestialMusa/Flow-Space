@@ -23,7 +23,7 @@ class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
 class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
+    final _descriptionController = TextEditingController();
   final _clientNameController = TextEditingController();
   final _tagsController = TextEditingController();
   
@@ -127,6 +127,36 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
     );
   }
 
+  String _generateProjectKey(String projectName) {
+    // Remove spaces and special characters, convert to uppercase
+    String cleanName = projectName
+        .replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    
+    // Take first 3-4 letters of each word
+    List<String> words = cleanName.split(' ');
+    String key = '';
+    
+    for (String word in words) {
+      if (word.isNotEmpty) {
+        key += word.length >= 3 ? word.substring(0, 3).toUpperCase() : word.toUpperCase();
+      }
+    }
+    
+    // Limit to 10 characters and ensure it starts with a letter
+    if (key.length > 10) {
+      key = key.substring(0, 10);
+    }
+    
+    // If key is empty or doesn't start with a letter, use a default
+    if (key.isEmpty || !RegExp(r'^[A-Z]').hasMatch(key)) {
+      key = 'PRJ${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+    }
+    
+    return key;
+  }
+
   Future<void> _saveProject() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -138,6 +168,7 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
       final project = Project(
         id: _isEditing ? _currentProject!.id : DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text.trim(),
+        key: _isEditing ? _currentProject!.key : _generateProjectKey(_nameController.text.trim()),
         description: _descriptionController.text.trim(),
         clientName: _clientNameController.text.trim().isEmpty ? null : _clientNameController.text.trim(),
         status: _selectedStatus,
@@ -187,7 +218,7 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
                 userEmail: user.email,
                 role: role,
                 assignedAt: DateTime.now(),
-              ));
+              ),);
             }
           });
         },
@@ -775,7 +806,7 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
                 onPressed: () => _removeMember(member.userId),
                 icon: const Icon(Icons.remove, color: Colors.red),
               ),
-            )),
+            ),),
         ],
       ),
     );

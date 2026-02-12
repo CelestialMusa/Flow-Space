@@ -7,7 +7,7 @@ import '../widgets/metrics_card.dart';
 import '../widgets/sprint_performance_chart.dart';
 import '../providers/dashboard_provider.dart';
 import '../widgets/notification_center_widget.dart';
-import '../widgets/app_modal.dart';
+import '../services/backend_api_service.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -329,7 +329,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showCreateDeliverableDialog() {
-    showAppDialog(
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Create New Deliverable'),
@@ -369,7 +369,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showSettingsDialog() {
-    showAppDialog(
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Settings'),
@@ -385,7 +385,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showSprintManagementDialog() {
-    showAppDialog(
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Sprint Management'),
@@ -401,7 +401,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showAllDeliverablesDialog() {
-    showAppDialog(
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('All Deliverables'),
@@ -417,7 +417,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showDeliverableDetailsDialog(Deliverable deliverable) {
-    showAppDialog(
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(deliverable.title),
@@ -433,7 +433,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _handleLogout() {
-    showAppDialog(
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Logout'),
@@ -444,9 +444,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(context).pop();
-              context.go('/');
+              
+              // Call backend logout API and clear local tokens
+              try {
+                await BackendApiService().signOut();
+              } catch (e) {
+                // Even if backend logout fails, clear local tokens
+                debugPrint('Logout error: $e');
+              }
+              
+              // Navigate to login screen using a different approach
+              if (mounted) {
+                // Use WidgetsBinding to safely navigate after async operation
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    GoRouter.of(context).go('/');
+                  }
+                });
+              }
             },
             child: const Text('Logout'),
           ),
@@ -455,4 +472,3 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 }
-

@@ -1,124 +1,25 @@
-// Load environment variables
-require('dotenv').config();
-process.on('uncaughtException', (err) => {
-  console.error('UNCAUGHT EXCEPTION:', err);
-});
+// server.js (lines 2–102) — ES Module compatible
 
-process.on('unhandledRejection', (err) => {
-  console.error('UNHANDLED REJECTION:', err);
-});
-
-const express = require('express');
-const cors = require('cors');
-const { Pool } = require('pg');
-const bcrypt = require('bcryptjs');
-const { v4: uuidv4 } = require('uuid');
-const jwt = require('jsonwebtoken');
-const ProfessionalEmailService = require('./emailServiceProfessional');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const http = require('http');
-const { Server } = require('socket.io');
-
-// OpenAI for AI-powered readiness analysis
-let OpenAI = null;
-let openai = null;
-try {
-  OpenAI = require('openai');
-  if (process.env.OPENAI_API_KEY) {
-    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    console.log('✅ OpenAI initialized (GPT-3.5-turbo)');
-  } else {
-    console.log('⚠️  OPENAI_API_KEY not set - AI features will use fallback analysis');
-  }
-} catch (error) {
-  console.log('⚠️  OpenAI package not installed - AI features will use fallback analysis');
-}
-
-const app = express();
-const PORT = process.env.PORT || 8000;
-const httpServer = http.createServer(app);
-const io = new Server(httpServer, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    credentials: true,
-  },
-});
-
-io.on('connection', (socket) => {
-  console.log('Socket.IO client connected:', socket.id);
-  
-  socket.on('disconnect', () => {
-    console.log('Socket.IO client disconnected:', socket.id);
-  });
-});
-
-// Middleware to check if user has project-level permission
-async function checkProjectPermission(req, res, next) {
-  try {
-    const { projectId } = req.params;
-    const userId = req.user.id;
-    
-    // Get user's role in this project
-    const memberResult = await pool.query(`
-      SELECT role FROM project_members 
-      WHERE project_id = $1 AND user_id = $2
-    `, [projectId, userId]);
-    
-    if (memberResult.rows.length === 0) {
-      return res.status(403).json({
-        success: false,
-        error: 'You are not a member of this project'
-      });
-    }
-    
-    const userRole = memberResult.rows[0].role;
-    const requiredPermission = req.requiredPermission;
-    
-    // Define project permissions
-    const projectPermissions = {
-      'edit_project_setup': ['owner'],
-      'manage_team_members': ['owner'],
-      'create_deliverables': ['owner', 'contributor'],
-      'edit_deliverables': ['owner', 'contributor'],
-      'delete_deliverables': ['owner', 'contributor'],
-      'manage_sprints': ['owner', 'contributor'],
-      'submit_for_review': ['owner', 'contributor'],
-      'view_analytics': ['owner', 'contributor'],
-      'export_data': ['owner', 'contributor'],
-      'view_project': ['owner', 'contributor', 'viewer'],
-      'view_deliverables': ['owner', 'contributor', 'viewer'],
-      'view_sprints': ['owner', 'contributor', 'viewer'],
-    };
-    
-    const allowedRoles = projectPermissions[requiredPermission] || [];
-    
-    if (!allowedRoles.includes(userRole)) {
-      return res.status(403).json({
-        success: false,
-        error: `Insufficient permissions. Required: ${requiredPermission}`
-      });
-    }
-    
-    req.projectRole = userRole;
-    next();
-  } catch (error) {
-    console.error('Permission check error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Permission check failed'
-    });
-  }
-}
+// Imports (ES Module syntax)
+import express from 'express';
+import cors from 'cors';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
+import pool from './dbPool.js'; // your Postgres pool connection
+import SendGridEmailService from './sendgridEmailService.js';
+import EmailService from './emailService.js';
 
 // JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
 // Authentication middleware
-const authenticateToken = (req, res, next) => {
+export const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -135,13 +36,15 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Default role permissions (in-memory fallback)
 const defaultRolePermissions = {
   teammember: new Set(['view_sprints', 'update_tickets', 'update_sprint_status']),
   deliverylead: new Set(['view_sprints', 'update_tickets', 'update_sprint_status']),
   clientreviewer: new Set(['view_sprints'])
 };
 
-const requirePermission = (permissionName) => async (req, res, next) => {
+// Permission middleware
+export const requirePermission = (permissionName) => async (req, res, next) => {
   try {
     const role = req.user && req.user.role ? String(req.user.role) : null;
     if (!role) {
@@ -149,19 +52,21 @@ const requirePermission = (permissionName) => async (req, res, next) => {
     }
 
     const normalizedRole = role.toLowerCase();
-    // Explicitly forbid admin from update operations
     const pn = String(permissionName).toLowerCase();
+
+    // Forbid admin update operations
     if ((pn.startsWith('update_')) && ['systemadmin', 'admin', 'system_admin'].includes(normalizedRole)) {
       return res.status(403).json({ error: 'Forbidden: admin cannot update statuses' });
     }
+
     try {
       const result = await pool.query(
         `
-          SELECT 1
-          FROM user_roles ur
-          JOIN role_permissions rp ON rp.role_id = ur.id
-          JOIN permissions p ON p.id = rp.permission_id
-          WHERE ur.user_id = $1 AND p.name = $2
+        SELECT 1
+        FROM user_roles ur
+        JOIN role_permissions rp ON rp.role_id = ur.id
+        JOIN permissions p ON p.id = rp.permission_id
+        WHERE ur.user_id = $1 AND p.name = $2
         `,
         [req.user.id, permissionName]
       );
@@ -169,10 +74,10 @@ const requirePermission = (permissionName) => async (req, res, next) => {
       if (result.rows.length === 0) {
         return res.status(403).json({ error: 'Insufficient permissions' });
       }
+
       next();
     } catch (dbError) {
-      // If permissions tables don't exist, fall back to default role permissions
-      if (dbError.code === '42P01') {
+      if (dbError.code === '42P01') { // table does not exist
         const permissions = defaultRolePermissions[normalizedRole];
         if (permissions && permissions.has(permissionName)) {
           next();
@@ -190,20 +95,19 @@ const requirePermission = (permissionName) => async (req, res, next) => {
 };
 
 // Email Configuration - Use SendGrid with SMTP fallback
-const SendGridEmailService = require('./sendgridEmailService');
-const EmailService = require('./emailService');
-
-// Try SendGrid first, fallback to SMTP
 const emailService = process.env.SENDGRID_API_KEY 
   ? new SendGridEmailService() 
   : new EmailService();
 
+// Test email connection and provide helpful feedback
 emailService
   .testConnection()
   .then((ok) => {
     if (!ok) {
       console.log('⚠️  Email configuration error: connection failed');
       console.log('💡 Email functionality will be limited until credentials are configured');
+      console.log('📧 To fix email: See EMAIL_SETUP_GUIDE.md for setup instructions');
+      console.log('🔑 Users can still register using verification codes shown in these logs');
     } else {
       console.log('✅ Email service initialized successfully');
     }
@@ -211,7 +115,12 @@ emailService
   .catch((err) => {
     console.log('⚠️  Email configuration error:', err.message);
     console.log('💡 Email functionality will be limited until credentials are configured');
+    console.log('📧 To fix email: See EMAIL_SETUP_GUIDE.md for setup instructions');
+    console.log('🔑 Users can still register using verification codes shown in these logs');
   });
+
+// Initialize Express app
+const app = express();
 
 // Middleware - Configure CORS for Flutter Web
 app.use(cors({
@@ -267,24 +176,40 @@ const upload = multer({
     fileSize: 50 * 1024 * 1024 // 50MB limit
   },
   fileFilter: function (req, file, cb) {
-    // Allow all file types for now
+    // Allow only image files
+    if (!file.originalname.match(/\.(jpg|JPG|jpeg|JPEG|png|PNG|gif|GIF)$/)) {
+      return cb(new Error('Only image files are allowed!'));
+    }
     cb(null, true);
   }
 });
 
-// PostgreSQL connection
-const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'flow_space',
-  password: process.env.DB_PASSWORD || 'postgres',
-  port: parseInt(process.env.DB_PORT) || 5432,
-});
+// Middleware to check if user has project-level permission
+const requireProjectPermission = (permissionName) => async (req, res, next) => {
+  try {
+    const projectId = req.params.projectId;
+    const userId = req.user.id;
+    const role = req.user.role;
 
-// Test database connection
-pool.on('connect', () => {
-  console.log('Connected to PostgreSQL database');
-});
+    const result = await pool.query(
+      `
+        SELECT 1
+        FROM project_members pm
+        JOIN projects p ON p.id = pm.project_id
+        WHERE pm.project_id = $1 AND pm.user_id = $2 AND pm.role = $3
+      `,
+      [projectId, userId, role]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({ error: 'Insufficient project permissions' });
+    }
+    next();
+  } catch (error) {
+    console.error('Project permission check error:', error);
+    return res.status(500).json({ error: 'Project permission check failed' });
+  }
+};
 
 // Initialize or update database schema
 async function initializeDatabase() {
@@ -918,6 +843,22 @@ app.post('/api/v1/auth/logout', authenticateToken, async (req, res) => {
   }
 });
 
+// Refresh token endpoint (stub - returns 401 as expected)
+app.post('/api/v1/auth/refresh', async (req, res) => {
+  try {
+    return res.status(401).json({
+      success: false,
+      error: 'Not logged in yet - please login first'
+    });
+  } catch (error) {
+    console.error('Refresh error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
 // Resend verification email endpoint
 app.post('/api/v1/auth/resend-verification', async (req, res) => {
   try {
@@ -983,6 +924,85 @@ app.post('/api/v1/auth/resend-verification', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Internal server error'
+    });
+  }
+});
+
+// SendGrid test endpoint
+app.get('/api/v1/test-email', async (req, res) => {
+  try {
+    console.log('🔍 Testing SendGrid configuration...');
+    
+    // Check environment variables
+    const sendGridKey = process.env.SENDGRID_API_KEY;
+    const fromEmail = process.env.FROM_EMAIL;
+    const fromName = process.env.FROM_NAME;
+    
+    console.log('📧 SendGrid Key:', sendGridKey ? 'CONFIGURED' : 'NOT SET');
+    console.log('📨 From Email:', fromEmail || 'NOT SET');
+    console.log('📝 From Name:', fromName || 'NOT SET');
+    
+    if (!sendGridKey) {
+      return res.json({
+        success: false,
+        error: 'SendGrid API key not configured',
+        config: {
+          sendGridKey: false,
+          fromEmail: !!fromEmail,
+          fromName: !!fromName
+        }
+      });
+    }
+    
+    // Test SendGrid connection
+    const sgMail = require('@sendgrid/mail');
+    sgMail.setApiKey(sendGridKey);
+    
+    // Create test email
+    const testEmail = {
+      to: 'test@example.com',
+      from: {
+        name: fromName || 'Flow-Space',
+        email: fromEmail || 'test@example.com'
+      },
+      subject: 'SendGrid Test - Flow-Space',
+      html: '<h1>SendGrid is working!</h1><p>This is a test email from Flow-Space.</p>'
+    };
+    
+    console.log('📤 Sending test email...');
+    const result = await sgMail.send(testEmail);
+    
+    console.log('✅ SendGrid test successful:', result[0].messageId);
+    
+    res.json({
+      success: true,
+      message: 'SendGrid is working',
+      messageId: result[0].messageId,
+      config: {
+        sendGridKey: true,
+        fromEmail: !!fromEmail,
+        fromName: !!fromName,
+        keyFormat: sendGridKey.startsWith('SG.') ? 'VALID' : 'INVALID'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ SendGrid test failed:', error.message);
+    
+    if (error.response) {
+      console.error('📧 SendGrid Response:', {
+        status: error.response.status,
+        body: error.response.body
+      });
+    }
+    
+    res.json({
+      success: false,
+      error: error.message,
+      details: error.response ? {
+        status: error.response.status,
+        body: error.response.body
+      } : null
     });
   }
 });
@@ -1302,13 +1322,19 @@ app.get('/api/v1/projects', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const userRole = req.user.role;
 
-    let query = `SELECT p.* FROM projects p`;
+    let query = `
+      SELECT 
+        p.*,
+        u.name as owner_name
+      FROM projects p
+      LEFT JOIN users u ON p.owner_id = u.id
+    `;
     const params = [];
 
     if (userRole === 'teamMember') {
       query += `
         LEFT JOIN project_members pm ON pm.project_id = p.id
-        WHERE p.owner_id = $1 OR p.created_by = $1 OR pm.user_id = $1
+        WHERE p.owner_id = $1 OR pm.user_id = $1
       `;
       params.push(userId);
     }
@@ -1712,18 +1738,11 @@ app.post('/api/v1/sprints/backfill-projects', authenticateToken, async (req, res
       });
     }
     
-    // Find sprints without project_id and associate them with existing projects
+    // Find sprints without project_id and leave them unassociated (removed project association logic)
     const result = await pool.query(`
       UPDATE sprints 
-      SET project_id = (
-        SELECT id 
-        FROM projects 
-        WHERE created_by = sprints.created_by 
-        LIMIT 1
-      ),
-      updated_at = NOW()
-      WHERE project_id IS NULL 
-        AND created_by IS NOT NULL
+      SET updated_at = NOW()
+      WHERE project_id IS NULL
       RETURNING id, name, project_id, updated_at
     `);
     
@@ -3735,7 +3754,6 @@ app.post('/api/v1/sign-off-reports/:id/approve', authenticateToken, async (req, 
     `, [JSON.stringify(updatedContent), id]);
     
     // Also store in digital_signatures table for tracking
-    const crypto = require('crypto');
     const signatureHash = crypto.createHash('sha256').update(digitalSignature).digest('hex');
     
     await pool.query(`
@@ -4112,7 +4130,6 @@ app.post('/api/v1/sign-off-reports/:id/signature', authenticateToken, async (req
     }
 
     // Generate signature hash
-    const crypto = require('crypto');
     const signatureHash = crypto.createHash('sha256').update(signatureData).digest('hex');
 
     // Store signature in database
@@ -5377,6 +5394,7 @@ async function checkProjectPermission(req, res, next) {
   }
 }
 
+
 // Get all members of a project
 app.get('/api/v1/projects/:projectId/members', authenticateToken, async (req, res) => {
   try {
@@ -6128,22 +6146,13 @@ app.get('/api/v1/projects/:projectId/sprints', authenticateToken, async (req, re
       SELECT 
         s.id,
         s.name,
-        s.description,
         s.status,
         s.start_date,
         s.end_date,
         s.created_at,
-        s.updated_at,
-        u.name as created_by_name,
-        COUNT(t.id) as ticket_count,
-        COUNT(CASE WHEN t.status = 'done' THEN 1 END) as completed_tickets,
-        SUM(t.points) as total_points,
-        SUM(CASE WHEN t.status = 'done' THEN t.points ELSE 0 END) as completed_points
+        s.updated_at
       FROM sprints s
-      LEFT JOIN users u ON s.created_by = u.id
-      LEFT JOIN tickets t ON s.id = t.sprint_id
       WHERE s.project_id = $1
-      GROUP BY s.id, u.name
       ORDER BY s.created_at DESC
     `;
     
@@ -6315,16 +6324,14 @@ app.post('/api/v1/projects/:projectId/sprints/new', authenticateToken, async (re
     
     // Create the sprint linked to the project
     const result = await pool.query(`
-      INSERT INTO sprints (name, description, start_date, end_date, project_id, created_by, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      INSERT INTO sprints (name, start_date, end_date, project_id, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, NOW(), NOW())
       RETURNING *
     `, [
       name.trim(),
-      description || null,
       start_date ? new Date(start_date) : null,
       end_date ? new Date(end_date) : null,
-      projectId,
-      userId
+      projectId
     ]);
     
     // Log the action
@@ -6472,16 +6479,11 @@ app.get('/api/v1/projects/:projectId/available-sprints', authenticateToken, asyn
       SELECT 
         s.id,
         s.name,
-        s.description,
         s.status,
         s.start_date,
         s.end_date,
-        s.created_at,
-        u.name as created_by_name,
-        COUNT(t.id) as ticket_count
+        s.created_at
       FROM sprints s
-      LEFT JOIN users u ON s.created_by = u.id
-      LEFT JOIN tickets t ON s.id = t.sprint_id
       WHERE (s.project_id IS NULL OR s.project_id != $1)
     `;
     
@@ -6489,18 +6491,12 @@ app.get('/api/v1/projects/:projectId/available-sprints', authenticateToken, asyn
     
     // Add search filter if provided
     if (search && search.trim()) {
-      query += ` AND (s.name ILIKE $2 OR s.description ILIKE $2)`;
+      query += ` AND (s.name ILIKE $2 OR s.status ILIKE $2)`;
       params.push(`%${search.trim()}%`);
     }
     
-    // Filter by user role - team members can only see their own sprints
-    if (req.user.role === 'teamMember') {
-      query += ` AND s.created_by = $${params.length + 1}`;
-      params.push(userId);
-    }
-    
     query += `
-      GROUP BY s.id, u.name
+      GROUP BY s.id
       ORDER BY s.created_at DESC 
       LIMIT 50
     `;
@@ -6521,7 +6517,8 @@ app.get('/api/v1/projects/:projectId/available-sprints', authenticateToken, asyn
 });
 
 // Start the server
-httpServer.listen(PORT, () => {
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Dashboard: http://localhost:${PORT}`);
   console.log(`🔗 API Base: http://localhost:${PORT}/api/v1`);

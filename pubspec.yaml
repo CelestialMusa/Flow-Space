@@ -17,13 +17,13 @@ dependencies:
   google_fonts: ^6.1.0
   flutter_animate: ^4.5.0
   page_transition: ^2.1.0
+  flutter_speed_dial: ^7.0.0
 
   # State Management
   provider: ^6.1.1
 
   # Charts and Data Visualization
   fl_chart: ^1.1.1
-  table_calendar: ^3.1.2
 
   # Utilities
   shared_preferences: ^2.2.2
@@ -99,8 +99,7 @@ flutter:
     - assets/logo.png
     - assets/fonts/
     - assets/Icons/Red_Khono_Discs.png
-    - assets/icons/
-    - assets/Icons/
+    - assets/Icons/images/auth_background.png
 
   fonts:
     - family: Poppins

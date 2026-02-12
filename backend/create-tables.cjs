@@ -1,7 +1,7 @@
 const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
-const dbConfig = require('./database-config');
+const dbConfig = require('./database-config.cjs');
 
 function splitSqlStatements(sql) {
   const statements = [];

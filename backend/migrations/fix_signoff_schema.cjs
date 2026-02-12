@@ -1,5 +1,5 @@
 const { Pool } = require('pg');
-const dbConfig = require('../database-config');
+const dbConfig = require('../database-config.cjs');
 
 async function run() {
   console.log('🛠️ Fixing sign_off_reports schema (adding report_title if missing)...');
