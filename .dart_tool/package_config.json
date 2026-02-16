@@ -344,6 +344,12 @@
       "languageVersion": "2.19"
     },
     {
+      "name": "flutter_speed_dial",
+      "rootUri": "file:///C:/Users/User/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_speed_dial-7.0.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
       "name": "flutter_svg",
       "rootUri": "file:///C:/Users/User/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_svg-2.2.3",
       "packageUri": "lib/",

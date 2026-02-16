@@ -63,6 +63,7 @@ class ProjectMember {
 class Project {
   final String id;
   final String name;
+  final String key;
   final String description;
   final String? clientName;
   final ProjectStatus status;
@@ -85,6 +86,7 @@ class Project {
   const Project({
     required this.id,
     required this.name,
+    required this.key,
     required this.description,
     this.clientName,
     required this.status,
@@ -129,6 +131,7 @@ class Project {
     return Project(
       id: id ?? this.id,
       name: name ?? this.name,
+      key: key,
       description: description ?? this.description,
       clientName: clientName ?? this.clientName,
       status: status ?? this.status,
@@ -153,6 +156,7 @@ class Project {
     return {
       'id': id,
       'name': name,
+      'key': key,
       'description': description,
       'clientName': clientName,
       'status': status.name,
@@ -177,6 +181,7 @@ class Project {
     return Project(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
+      key: json['key']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
       clientName: json['clientName']?.toString(),
       status: ProjectStatus.values.firstWhere(

@@ -34,6 +34,12 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         requiredPermission: null, // All authenticated users can access dashboard
       ),
       const _NavItem(
+        label: 'Projects', 
+        icon: Icons.folder_outlined,
+        route: '/projects',
+        requiredPermission: null, // All authenticated users can access projects
+      ),
+      const _NavItem(
         label: 'Sprints', 
         icon: Icons.timer_outlined, 
         route: '/sprint-console',
@@ -164,7 +170,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                                     _collapsed
                                         ? Icons.chevron_right
                                         : Icons.chevron_left,
-                                    color: FlownetColors.coolGray,
+                                    color: FlownetColors.textSecondary,
                                     size: 20,
                                   ),
                                 ),
@@ -210,7 +216,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                                           item.icon,
                                           color: active
                                               ? FlownetColors.crimsonRed
-                                              : FlownetColors.coolGray,
+                                              : FlownetColors.textSecondary,
                                           size: 20,
                                         ),
                                       ),
@@ -239,7 +245,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 32),
                             child: _buildLogoutButton(),
                           ),
                         ],
@@ -307,7 +313,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                             Text(
                               _getPageTitle(routeLocation),
                               style: const TextStyle(
-                                color: FlownetColors.coolGray,
+                                color: FlownetColors.textSecondary,
                                 fontSize: 14,
                               ),
                             ),
@@ -440,7 +446,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                   child: ListTile(
                     leading: const Icon(
                       Icons.logout,
-                      color: FlownetColors.coolGray,
+                      color: FlownetColors.textSecondary,
                     ),
                     title: const Text(
                       'Logout',
@@ -499,7 +505,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                       Text(
                         _getPageTitle(routeLocation),
                         style: const TextStyle(
-                          color: FlownetColors.coolGray,
+                          color: FlownetColors.textSecondary,
                           fontSize: 14,
                         ),
                       ),
@@ -522,19 +528,29 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
   }
 
   Widget _buildLogoutButton() {
-    return SizedBox(
+    return Container(
       width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: FlownetColors.crimsonRed.withAlpha((0.1 * 255).round()),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: FlownetColors.crimsonRed.withAlpha((0.3 * 255).round()),
+          width: 1,
+        ),
+      ),
       child: TextButton.icon(
         onPressed: () => _handleLogout(context),
         icon: const Icon(
           Icons.logout,
-          color: FlownetColors.coolGray,
+          color: FlownetColors.crimsonRed,
           size: 20,
         ),
         label: const Text(
           'Logout',
           style: TextStyle(
-            color: FlownetColors.coolGray,
+            color: FlownetColors.crimsonRed,
+            fontWeight: FontWeight.w600,
           ),
         ),
         style: TextButton.styleFrom(

@@ -7,6 +7,7 @@ void main() {
       final project = Project(
         id: 'test-project-1',
         name: 'Test Project',
+        key: 'TEST',
         description: 'A test project for unit testing',
         status: ProjectStatus.planning,
         priority: ProjectPriority.medium,
@@ -31,6 +32,7 @@ void main() {
       final originalProject = Project(
         id: 'test-project-1',
         name: 'Test Project',
+        key: 'TEST',
         description: 'A test project',
         status: ProjectStatus.planning,
         priority: ProjectPriority.medium,
@@ -58,6 +60,7 @@ void main() {
       final originalProject = Project(
         id: 'test-project-1',
         name: 'Test Project',
+        key: 'TEST',
         description: 'A test project',
         clientName: 'Test Client',
         status: ProjectStatus.active,
@@ -103,6 +106,7 @@ void main() {
       final project = Project(
         id: 'test-project',
         name: 'Test Project',
+        key: 'TEST',
         description: 'A test project',
         status: ProjectStatus.planning,
         priority: ProjectPriority.medium,
@@ -131,6 +135,7 @@ void main() {
       final project = Project(
         id: 'test-project',
         name: 'Test Project',
+        key: 'TEST',
         description: 'A test project',
         status: ProjectStatus.planning,
         priority: ProjectPriority.low,
@@ -156,6 +161,7 @@ void main() {
       final overdueProject = Project(
         id: 'overdue-project',
         name: 'Overdue Project',
+        key: 'OVERDUE',
         description: 'This project is overdue',
         status: ProjectStatus.active,
         priority: ProjectPriority.medium,
@@ -169,6 +175,7 @@ void main() {
       final notOverdueProject = Project(
         id: 'not-overdue-project',
         name: 'Not Overdue Project',
+        key: 'NOTOVERDUE',
         description: 'This project is not overdue',
         status: ProjectStatus.active,
         priority: ProjectPriority.medium,
@@ -182,6 +189,7 @@ void main() {
       final completedProject = Project(
         id: 'completed-project',
         name: 'Completed Project',
+        key: 'COMPLETED',
         description: 'This project is completed',
         status: ProjectStatus.completed,
         priority: ProjectPriority.medium,
@@ -201,6 +209,7 @@ void main() {
       final futureProject = Project(
         id: 'future-project',
         name: 'Future Project',
+        key: 'FUTURE',
         description: 'This project ends in the future',
         status: ProjectStatus.active,
         priority: ProjectPriority.medium,
@@ -214,6 +223,7 @@ void main() {
       final noEndDateProject = Project(
         id: 'no-end-date-project',
         name: 'No End Date Project',
+        key: 'NOENDDATE',
         description: 'This project has no end date',
         status: ProjectStatus.active,
         priority: ProjectPriority.medium,
@@ -231,6 +241,7 @@ void main() {
       final activeProject = Project(
         id: 'active-project',
         name: 'Active Project',
+        key: 'ACTIVE',
         description: 'This project is active',
         status: ProjectStatus.active,
         priority: ProjectPriority.medium,
@@ -243,6 +254,7 @@ void main() {
       final planningProject = Project(
         id: 'planning-project',
         name: 'Planning Project',
+        key: 'PLANNING',
         description: 'This project is in planning',
         status: ProjectStatus.planning,
         priority: ProjectPriority.medium,
@@ -284,6 +296,7 @@ void main() {
       final project = Project(
         id: 'test-project',
         name: 'Test Project',
+        key: 'TEST',
         description: 'A test project',
         status: ProjectStatus.active,
         priority: ProjectPriority.medium,
@@ -308,6 +321,7 @@ void main() {
       final project = Project(
         id: 'test-project',
         name: 'Test Project',
+        key: 'TEST',
         description: 'A test project',
         status: ProjectStatus.active,
         priority: ProjectPriority.high,

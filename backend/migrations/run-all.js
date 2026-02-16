@@ -1,45 +1,14 @@
-const { execSync } = require('child_process');
-
-function run(script) {
-  console.log(`\n▶️ Running: ${script}`);
-  // Scripts are resolved relative to backend/ (Render runs from backend/)
-  execSync(`node ${script}`, { stdio: 'inherit' });
-}
+// ES Module wrapper for CommonJS migration script
+import { execSync } from 'child_process';
 
 try {
-  // 1. Base tables
-  run('create-tables.js');
-
-  // 1b. Ensure core tables exist regardless of previous issues
-  run('migrations/create_core_tables.js');
-
-  // 2. Deliverables + signoff tables
-  run('migrations/create_signoff_deliverables_tables.js');
-
-  // 3. Fix any schema mismatches used by scheduler/queries
-  run('migrations/fix_signoff_schema.js');
-
-  // 4. New feature tables
-  run('migrations/create_new_features_tables.js');
-
-  // 5. Tickets table (critical for sprint management)
-  run('migrations/create_tickets_table.js');
-
-  // 5b. Complete all tables (alternative to individual migrations)
-  // Uncomment the line below to use the complete migration instead
-  // run('migrations/create_all_tables.js');
-
-  // 6. Seeds (optional)
-  try {
-    run('migrations/seed.js');
-  } catch (e) {
-    console.log('⚠️ Seed script failed — continuing deployment');
-  }
-
-  console.log('\n🎉 All migrations executed successfully!');
-  console.log('🚀 Starting server...');
-  require('../server.js');
+  console.log('🚀 Running migrations (ES Module wrapper)...');
+  
+  // Run the actual CommonJS migration script
+  execSync('node migrations/run-all.cjs', { stdio: 'inherit' });
+  
+  console.log('✅ Migration wrapper completed successfully');
 } catch (err) {
-  console.error('\n❌ MIGRATION ERROR:', err.message);
+  console.error('❌ Migration wrapper failed:', err.message);
   process.exit(1);
 }

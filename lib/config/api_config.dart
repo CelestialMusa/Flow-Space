@@ -1,5 +1,5 @@
 class ApiConfig {
-  // Base API configuration
+  // Base API configuration - prioritize production URL for deployed apps
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'http://localhost:3001/api',
@@ -64,6 +64,9 @@ class ApiConfig {
   static const String fileUpload = '/files/upload';
   static const String fileDelete = '/files/{id}';
 
+  // Authentication
+  static String authToken = '';
+  
   // Helper methods
   static String getFullUrl(String endpoint) {
     return '$baseUrl$apiVersion$endpoint';
@@ -73,9 +76,11 @@ class ApiConfig {
     return endpoint.replaceAll('{$parameter}', value);
   }
 
-  // Environment detection
-  static bool get isDevelopment => const bool.fromEnvironment('dart.vm.product') == false;
-  static bool get isProduction => const bool.fromEnvironment('dart.vm.product') == true;
+  // Environment detection - improved logic
+  static bool get isDevelopment => const bool.fromEnvironment('dart.vm.product') == false && 
+                                   const String.fromEnvironment('FLUTTER_WEB', defaultValue: '') == '';
+  static bool get isProduction => const bool.fromEnvironment('dart.vm.product') == true ||
+                                   const String.fromEnvironment('FLUTTER_WEB', defaultValue: '') != '';
 
   // Get environment-specific base URL
   static String get environmentBaseUrl {

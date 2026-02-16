@@ -150,7 +150,7 @@ class QANotifier extends Notifier<QAState> {
   // Placeholder methods for QA data fetching
   Future<List<Map<String, dynamic>>> _fetchTestQueue() async {
     // Placeholder implementation
-    await Future.delayed(Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 500));
     return [
       {'id': '1', 'name': 'Test Case 1', 'status': 'pending'},
       {'id': '2', 'name': 'Test Case 2', 'status': 'running'},
@@ -159,7 +159,7 @@ class QANotifier extends Notifier<QAState> {
 
   Future<Map<String, dynamic>> _fetchQualityMetrics() async {
     // Placeholder implementation
-    await Future.delayed(Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 300));
     return {
       'pass_rate': 85.5,
       'total_tests': 150,
@@ -170,7 +170,7 @@ class QANotifier extends Notifier<QAState> {
 
   Future<List<Map<String, dynamic>>> _fetchBugReports() async {
     // Placeholder implementation
-    await Future.delayed(Duration(milliseconds: 400));
+    await Future.delayed(const Duration(milliseconds: 400));
     return [
       {'id': '1', 'title': 'Bug 1', 'severity': 'high', 'status': 'open'},
       {'id': '2', 'title': 'Bug 2', 'severity': 'medium', 'status': 'resolved'},
@@ -179,7 +179,7 @@ class QANotifier extends Notifier<QAState> {
 
   Future<Map<String, dynamic>> _fetchTestCoverage() async {
     // Placeholder implementation
-    await Future.delayed(Duration(milliseconds: 350));
+    await Future.delayed(const Duration(milliseconds: 350));
     return {
       'code_coverage': 78.2,
       'test_coverage': 82.1,

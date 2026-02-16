@@ -122,7 +122,7 @@ class _EnvironmentSwitcherState extends State<EnvironmentSwitcher> {
                         child: Text(
                           VersionControl.generateVersionNumber(),
                           style: GoogleFonts.poppins(
-                            fontSize: 16,
+                            fontSize: 10,
                             color: Colors.white,
                             fontWeight: FontWeight.w400,
                           ),

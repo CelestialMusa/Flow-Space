@@ -19,6 +19,7 @@
         "flutter_local_notifications",
         "flutter_pdfview",
         "flutter_riverpod",
+        "flutter_speed_dial",
         "flutter_svg",
         "freezed_annotation",
         "go_router",
@@ -497,6 +498,13 @@
         "collection",
         "flutter",
         "nested"
+      ]
+    },
+    {
+      "name": "flutter_speed_dial",
+      "version": "7.0.0",
+      "dependencies": [
+        "flutter"
       ]
     },
     {

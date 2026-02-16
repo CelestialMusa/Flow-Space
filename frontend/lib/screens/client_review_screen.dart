@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/audit_log.dart';
-import '../models/sprint.dart';
 
 class ClientReviewScreen extends StatefulWidget {
   const ClientReviewScreen({super.key});
@@ -15,7 +14,7 @@ class ClientReviewScreen extends StatefulWidget {
 class _ClientReviewScreenState extends State<ClientReviewScreen> {
   final _changeRequestController = TextEditingController();
   
-  List<Sprint> _sprints = [];
+  List<dynamic> _sprints = [];
   List<Map<String, dynamic>> _signoffs = [];
   String? _selectedSprintId;
   bool _isLoading = false;
@@ -299,8 +298,8 @@ class _ClientReviewScreenState extends State<ClientReviewScreen> {
                     ),
                     items: _sprints.map((sprint) {
                       return DropdownMenuItem<String?>(
-                        value: sprint.id,
-                        child: Text(sprint.name),
+                        value: sprint['id']?.toString(),
+                        child: Text(sprint['name']?.toString() ?? 'Unknown Sprint'),
                       );
                     }).toList(),
                     onChanged: (value) {

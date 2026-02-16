@@ -21,7 +21,7 @@ class DeliverableSelector extends StatefulWidget {
 
 class _DeliverableSelectorState extends State<DeliverableSelector> {
   List<Map<String, dynamic>> _availableDeliverables = [];
-  List<Map<String, dynamic>> _selectedDeliverables = [];
+  final List<Map<String, dynamic>> _selectedDeliverables = [];
   Set<String> _selectedIds = {};
   bool _isLoading = false;
   String _searchQuery = '';
@@ -300,7 +300,6 @@ class _DeliverableSelectorState extends State<DeliverableSelector> {
   }
 
   Widget _buildSelectedDeliverableTile(Map<String, dynamic> deliverable) {
-    final isSelected = _selectedIds.contains(deliverable['id'] as String);
     final status = deliverable['status'] as String?;
     final priority = deliverable['priority'] as String?;
     

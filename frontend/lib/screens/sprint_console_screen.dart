@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../services/api_service.dart';
 import '../services/project_sprint_service.dart';
 import '../models/sprint.dart';
@@ -170,6 +171,26 @@ class _SprintConsoleScreenState extends ConsumerState<SprintConsoleScreen> {
                     );
                   },
                 ),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.purple.withAlpha((0.3 * 255).round()),
+              spreadRadius: 2,
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: () => context.go('/project-setup'),
+          backgroundColor: Colors.purple,
+          foregroundColor: Colors.white,
+          icon: const Icon(Icons.add_business, size: 24),
+          label: const Text('Create Project', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ),
+      ),
     );
   }
 
@@ -208,21 +229,13 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _plannedPointsController = TextEditingController();
-  final _committedPointsController = TextEditingController();
   final _completedPointsController = TextEditingController();
   final _carriedOverPointsController = TextEditingController();
-  final _addedDuringSprintController = TextEditingController();
-  final _removedDuringSprintController = TextEditingController();
   final _testPassRateController = TextEditingController();
   final _codeCoverageController = TextEditingController();
   final _escapedDefectsController = TextEditingController();
   final _defectsOpenedController = TextEditingController();
   final _defectsClosedController = TextEditingController();
-  final _defectSeverityMixController = TextEditingController();
-  final _codeReviewCompletionController = TextEditingController();
-  final _documentationStatusController = TextEditingController();
-  final _uatNotesController = TextEditingController();
-  final _uatPassRateController = TextEditingController();
   final _risksIdentifiedController = TextEditingController();
   final _risksMitigatedController = TextEditingController();
   final _blockersController = TextEditingController();
@@ -382,278 +395,14 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _plannedPointsController,
-                      decoration: const InputDecoration(
-                        labelText: 'Planned Points',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.trending_up),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter planned points';
-                        }
-                        if (int.tryParse(value) == null) {
-                          return 'Please enter a valid number';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _completedPointsController,
-                      decoration: const InputDecoration(
-                        labelText: 'Completed Points',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.check_circle),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter completed points';
-                        }
-                        if (int.tryParse(value) == null) {
-                          return 'Please enter a valid number';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Quality Metrics',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _testPassRateController,
-                      decoration: const InputDecoration(
-                        labelText: 'Test Pass Rate (%)',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.verified),
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _codeCoverageController,
-                      decoration: const InputDecoration(
-                        labelText: 'Code Coverage (%)',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.code),
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _escapedDefectsController,
-                      decoration: const InputDecoration(
-                        labelText: 'Escaped Defects',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.bug_report),
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _defectsOpenedController,
-                      decoration: const InputDecoration(
-                        labelText: 'Defects Opened',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.warning),
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _defectsClosedController,
-                      decoration: const InputDecoration(
-                        labelText: 'Defects Closed',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.check_circle_outline),
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _codeReviewCompletionController,
-                      decoration: const InputDecoration(
-                        labelText: 'Code Review (%)',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.reviews),
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _defectSeverityMixController,
-                decoration: const InputDecoration(
-                  labelText: 'Defect Severity Mix',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.priority_high),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _documentationStatusController,
-                decoration: const InputDecoration(
-                  labelText: 'Documentation Status',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.description),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _uatNotesController,
-                decoration: const InputDecoration(
-                  labelText: 'UAT Notes',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.note),
-                ),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _uatPassRateController,
-                decoration: const InputDecoration(
-                  labelText: 'UAT Pass Rate (%)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.verified_user),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Risk & Decision Tracking',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _risksIdentifiedController,
-                      decoration: const InputDecoration(
-                        labelText: 'Risks Identified',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.warning),
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _risksMitigatedController,
-                      decoration: const InputDecoration(
-                        labelText: 'Risks Mitigated',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.shield),
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _blockersController,
-                decoration: const InputDecoration(
-                  labelText: 'Blockers',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.block),
-                ),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _decisionsController,
-                decoration: const InputDecoration(
-                  labelText: 'Key Decisions',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.assignment_turned_in),
-                ),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _saveSprint,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: const Text(
-                    'Create Sprint',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ),
+              ElevatedButton(
+                onPressed: _saveSprint,
+                child: const Text('Create Sprint'),
               ),
             ],
           ),
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
-    _plannedPointsController.dispose();
-    _committedPointsController.dispose();
-    _completedPointsController.dispose();
-    _carriedOverPointsController.dispose();
-    _addedDuringSprintController.dispose();
-    _removedDuringSprintController.dispose();
-    _testPassRateController.dispose();
-    _codeCoverageController.dispose();
-    _escapedDefectsController.dispose();
-    _defectsOpenedController.dispose();
-    _defectsClosedController.dispose();
-    _defectSeverityMixController.dispose();
-    _codeReviewCompletionController.dispose();
-    _documentationStatusController.dispose();
-    _uatNotesController.dispose();
-    _uatPassRateController.dispose();
-    _risksIdentifiedController.dispose();
-    _risksMitigatedController.dispose();
-    _blockersController.dispose();
-    _decisionsController.dispose();
-    super.dispose();
   }
 }

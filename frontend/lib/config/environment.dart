@@ -7,7 +7,7 @@ class Environment {
   // Environment URLs
   static const Map<String, String> _environmentUrls = {
     'PROD': 'https://flow-space.onrender.com/api/v1',
-    'SIT': 'http://localhost:3001/api/v1', // Fixed port to match backend
+    'SIT': 'http://localhost:3001/api/v1', // Using port 3001 for SIT testing
     'DEV': 'http://localhost:3001/api/v1',
     'LOCAL': 'http://localhost:3001/api/v1',
   };

@@ -24,7 +24,7 @@ class VersionDisplay extends StatelessWidget {
             versionInfo['version'].toString(),
             style: GoogleFonts.poppins(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 10,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -44,7 +44,7 @@ class VersionDisplay extends StatelessWidget {
             environment,
             style: GoogleFonts.poppins(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 10,
               fontWeight: FontWeight.w400,
             ),
           ),
