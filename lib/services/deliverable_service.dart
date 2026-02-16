@@ -203,6 +203,7 @@ class DeliverableService {
     required String fileName,
     String? title,
     String? description,
+    List<int>? fileBytes,
   }) async {
     try {
       final token = _authService.accessToken;
@@ -222,6 +223,7 @@ class DeliverableService {
         fileName,
         fileType,
         fields: fields,
+        fileBytes: fileBytes,
       );
 
       if (response.isSuccess) {

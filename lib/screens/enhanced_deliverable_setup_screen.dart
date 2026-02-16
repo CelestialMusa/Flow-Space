@@ -37,7 +37,9 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   bool _hasInternalApproval = false;
   List<Map<String, dynamic>> _availableSprints = [];
   List<Map<String, dynamic>> _users = [];
+  List<Map<String, dynamic>> _projects = [];
   String? _ownerId;
+  String? _selectedProjectId;
   
   bool _isSubmitting = false;
 
@@ -47,6 +49,34 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
     _initializeReadinessItems();
     _loadSprints();
     _loadUsers();
+    _loadProjects();
+  }
+
+  Future<void> _loadProjects() async {
+    try {
+      final backendApiService = BackendApiService();
+      final response = await backendApiService.getProjects();
+      
+      if (response.isSuccess && response.data != null) {
+        List<dynamic> projectsList = [];
+        if (response.data is List) {
+          projectsList = response.data as List;
+        } else if (response.data is Map) {
+          final data = response.data as Map<String, dynamic>;
+          projectsList = data['data'] as List? ?? data['projects'] as List? ?? [];
+        }
+        
+        setState(() {
+          _projects = projectsList
+              .where((p) => p != null)
+              .map((p) => p is Map ? Map<String, dynamic>.from(p) : <String, dynamic>{})
+              .where((m) => m.isNotEmpty)
+              .toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading projects: $e');
+    }
   }
 
   void _initializeReadinessItems() {
@@ -401,18 +431,19 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
     if (_attachedFiles.isEmpty) return uploadedUrls;
 
     for (var file in _attachedFiles) {
-      if (file.path == null) continue;
+      if (file.path == null && file.bytes == null) continue;
       
       try {
         // Upload to /files/upload
         final response = await _apiClient.uploadFile(
           '/files/upload', 
-          file.path!, 
+          file.path ?? '', 
           file.name, 
           'application/octet-stream', // Or determine mime type
           fields: {
             'prefix': 'deliverables',
-          }
+          },
+          fileBytes: file.bytes,
         );
         
         if (response.isSuccess && response.data != null) {
@@ -539,6 +570,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
         sprintIds: _selectedSprints,
         evidenceLinks: allEvidenceLinks,
         ownerId: _ownerId,
+        projectId: _selectedProjectId,
       );
       
       if (mounted) {
@@ -745,6 +777,42 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
                   setState(() {
                     _ownerId = value;
                   });
+                },
+              ),
+              const SizedBox(height: 16),
+
+              DropdownButtonFormField<String>(
+                // ignore: deprecated_member_use
+                value: _selectedProjectId,
+                decoration: const InputDecoration(
+                  labelText: 'Assign Project *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.folder),
+                  helperText: 'Select the project this deliverable belongs to',
+                ),
+                items: [
+                  DropdownMenuItem<String>(
+                    value: null,
+                    child: Text(_projects.isEmpty ? 'No projects available' : 'Select Project'),
+                  ),
+                  ..._projects.map((project) {
+                    final name = project['name'] ?? project['key'] ?? 'Unknown Project';
+                    return DropdownMenuItem<String>(
+                      value: project['id'].toString(),
+                      child: Text(name),
+                    );
+                  }),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedProjectId = value;
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please assign a project';
+                  }
+                  return null;
                 },
               ),
               const SizedBox(height: 16),
