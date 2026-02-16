@@ -80,7 +80,6 @@ class Project {
   final DateTime? updatedAt;
   final String? updatedBy;
   final String? ownerId;
-  final String? key;
   final Map<String, dynamic> metadata;
 
   const Project({
@@ -103,7 +102,6 @@ class Project {
     this.updatedAt,
     this.updatedBy,
     this.ownerId,
-    this.key,
     this.metadata = const {},
   });
 
@@ -206,7 +204,6 @@ class Project {
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']?.toString() ?? '') : null,
       updatedBy: json['updatedBy']?.toString(),
       ownerId: json['ownerId']?.toString(),
-      key: json['key']?.toString(),
       metadata: Map<String, dynamic>.from(json['metadata'] ?? {}),
     );
   }
