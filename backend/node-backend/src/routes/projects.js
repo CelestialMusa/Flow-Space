@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { Project, Sprint, AuditLog, User, ProjectMember } = require('../models');
+const { Project, Sprint, AuditLog, User, ProjectMember, Notification, sequelize } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
-const { Op } = require('sequelize');
+const { Op, QueryTypes } = require('sequelize');
 
 /**
  * @route GET /api/projects
@@ -748,6 +748,83 @@ router.delete('/:projectId/sprints/:sprintId', authenticateToken, async (req, re
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 
+    });
+  }
+});
+
+router.post('/:id/remind-owner', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const project = await Project.findByPk(id);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        error: 'Project not found'
+      });
+    }
+
+    if (!project.owner_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Project has no owner assigned'
+      });
+    }
+
+    const userId = req.user.id;
+    const normalizedRole = String(req.user.role || '').toLowerCase().replace(/[\s_-]+/g, '');
+    const isAdmin = ['admin', 'systemadmin'].includes(normalizedRole);
+    const isOwner = project.owner_id && String(project.owner_id) === String(userId);
+    const isCreator = project.created_by && String(project.created_by) === String(userId);
+
+    if (!isAdmin && !isOwner && !isCreator) {
+      return res.status(403).json({
+        success: false,
+        error: 'Not authorized to send reminder for this project'
+      });
+    }
+
+    const body = req.body || {};
+    const force = Boolean(body.force);
+
+    if (!force) {
+      const recent = await sequelize.query(
+        "SELECT id FROM notifications WHERE type = 'system' AND payload->>'project_id' = :id AND created_at >= NOW() - INTERVAL '1 day'",
+        { type: QueryTypes.SELECT, replacements: { id: String(project.id) } }
+      );
+      if (recent && recent.length > 0) {
+        return res.json({
+          success: true,
+          data: { message: 'Recent reminder already sent for this project' }
+        });
+      }
+    }
+
+    const notification = await Notification.create({
+      recipient_id: project.owner_id,
+      sender_id: userId,
+      type: 'system',
+      message: `Reminder: Please review and update project "${project.name}" which is at or past its due date.`,
+      payload: {
+        project_id: project.id,
+        project_name: project.name,
+        end_date: project.end_date,
+        status: project.status,
+        reason: 'manual_project_due_date'
+      },
+      is_read: false,
+      created_at: new Date()
+    });
+
+    return res.json({
+      success: true,
+      data: notification
+    });
+  } catch (error) {
+    console.error('Error sending project owner reminder:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
     });
   }
 });

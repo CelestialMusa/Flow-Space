@@ -618,7 +618,7 @@ class ApiService {
     );
     
     final responseData = jsonDecode(response.body);
-    final List<dynamic> data = responseData['data'] as List<dynamic>;
+    final List<dynamic> data = _extractListFromResponse(responseData, ['data', 'sprints', 'items']) ?? [];
     return data.map((json) => Sprint.fromJson(json)).toList();
   }
   
@@ -629,8 +629,19 @@ class ApiService {
       body: jsonEncode(sprint.toJson()),
     );
     
+    debugPrint('Create sprint response status: ${response.statusCode}');
+    debugPrint('Create sprint response body: ${response.body}');
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      final errorData = jsonDecode(response.body);
+      throw Exception(errorData['error'] ?? errorData['message'] ?? 'Failed to create sprint: ${response.statusCode}');
+    }
+    
     final responseData = jsonDecode(response.body);
-    return Sprint.fromJson(responseData);
+    final data = responseData is Map && responseData.containsKey('data') 
+        ? responseData['data'] 
+        : responseData;
+    return Sprint.fromJson(data);
   }
   
   static Future<Sprint> updateSprint(int id, SprintUpdate sprint) async {

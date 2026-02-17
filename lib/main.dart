@@ -35,6 +35,7 @@ import 'screens/profile_screen.dart';
 import 'screens/sprint_board_screen.dart';
 import 'screens/system_metrics_screen.dart';
 import 'screens/system_health_screen.dart';
+import 'screens/projects_overview_screen.dart';
 import 'screens/audit_logs_screen.dart';
 // Removed imports for non-existent screens to resolve analyzer errors
 import 'widgets/sidebar_scaffold.dart';
@@ -503,6 +504,15 @@ final GoRouter _router = GoRouter(
         route: '/project-workspace',
         child: SidebarScaffold(
           child: ProjectWorkspaceScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/projects',
+      builder: (context, state) => const RouteGuard(
+        route: '/projects',
+        child: SidebarScaffold(
+          child: ProjectsOverviewScreen(),
         ),
       ),
     ),

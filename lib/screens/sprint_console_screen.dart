@@ -42,8 +42,12 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
 
   late RealtimeService _realtime;
   // Navigate to project creation screen
-  void _navigateToCreateProject() {
-    context.push('/project-workspace/new');
+  Future<void> _navigateToCreateProject() async {
+    final result = await context.push<bool>('/project-workspace/new');
+    if (!mounted) return;
+    if (result == true) {
+      await _loadData();
+    }
   }
 
   @override
@@ -975,8 +979,11 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
     }
 
     final selectedProject = _projects.firstWhere(
-      (p) => p['key'] == _selectedProjectKey,
-      orElse: () => {},
+      (p) {
+        final keyOrId = p['key']?.toString() ?? p['id']?.toString();
+        return keyOrId == _selectedProjectKey;
+      },
+      orElse: () => <String, dynamic>{},
     );
     final projectId = selectedProject['id']?.toString();
     final projectName = selectedProject['name']?.toString();

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/environment.dart';
 import '../models/project.dart';
+import 'api_service.dart';
 
 class ProjectService {
   static Future<List<Project>> getProjects({int limit = 100, int offset = 0}) async {
@@ -11,14 +12,16 @@ class ProjectService {
         headers: _getHeaders(),
       );
 
+      final data = json.decode(response.body);
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          final List<dynamic> projectsData = data['data'];
+        if (data is Map && data['success'] == true) {
+          final List<dynamic> projectsData = data['data'] ?? [];
           return projectsData.map((project) => Project.fromJson(project)).toList();
+        } else if (data is List) {
+          return data.map((project) => Project.fromJson(project)).toList();
         }
       }
-      throw Exception('Failed to load projects');
+      throw Exception(data['error'] ?? data['message'] ?? 'Failed to load projects: ${response.statusCode}');
     } catch (e) {
       throw Exception('Error fetching projects: $e');
     }
@@ -131,10 +134,10 @@ class ProjectService {
     };
     
     // Add Authorization header if token is available
-    // TODO: Implement proper token management
-    // if (ApiService.accessToken != null) {
-    //   headers['Authorization'] = 'Bearer ${ApiService.accessToken}';
-    // }
+    final token = ApiService.accessToken;
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
     
     return headers;
   }

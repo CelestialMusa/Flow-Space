@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
 import '../services/project_sprint_service.dart';
+import '../services/project_service.dart';
 import '../models/sprint.dart';
+import '../models/project.dart';
+import 'project_setup_screen.dart';
 
 String initialStatusValue(String display) {
   final d = display.toLowerCase();
@@ -26,42 +29,73 @@ class SprintConsoleScreen extends ConsumerStatefulWidget {
 
 class _SprintConsoleScreenState extends ConsumerState<SprintConsoleScreen> {
   List<Sprint> _sprints = [];
+  List<Project> _projects = [];
+  String? _selectedProjectId;
+  String? _selectedProjectName;
   bool _isLoading = true;
+  bool _isLoadingSprints = false;
 
   @override
   void initState() {
     super.initState();
-    _loadSprints();
+    _selectedProjectId = widget.projectId;
+    _selectedProjectName = widget.projectName;
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    setState(() => _isLoading = true);
+    try {
+      // Load all projects
+      final projects = await ProjectService.getProjects();
+      setState(() {
+        _projects = projects;
+        if (_selectedProjectId == null && _projects.isNotEmpty) {
+          _selectedProjectId = _projects.first.id;
+          _selectedProjectName = _projects.first.name;
+        }
+      });
+      
+      if (_selectedProjectId != null) {
+        await _loadSprints();
+      }
+    } catch (e) {
+      debugPrint('Error loading initial data: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _loadSprints() async {
+    if (_selectedProjectId == null) return;
+    
+    setState(() => _isLoadingSprints = true);
     try {
-      List<Sprint> sprints;
-      
-      if (widget.projectId != null) {
-        // Load project-specific sprints
-        final projectSprintsData = await ProjectSprintService.getProjectSprints(widget.projectId!);
-        sprints = projectSprintsData.map((data) => Sprint.fromJson(data)).toList();
-      } else {
-        // Load all sprints
-        sprints = await ApiService.getSprints(limit: 100);
-      }
-      
+      final projectSprintsData = await ProjectSprintService.getProjectSprints(_selectedProjectId!);
       setState(() {
-        _sprints = sprints;
-        _isLoading = false;
+        _sprints = projectSprintsData.map((data) => Sprint.fromJson(data)).toList();
       });
-    } catch (_) {
-      setState(() {
-        _isLoading = false;
-      });
+    } catch (e) {
+      debugPrint('Error loading sprints: $e');
+      setState(() => _sprints = []);
+    } finally {
+      setState(() => _isLoadingSprints = false);
     }
   }
 
   Future<void> _createSprint() async {
+    if (_selectedProjectId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a project first')),
+      );
+      return;
+    }
+    
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const CreateSprintScreen()),
+      MaterialPageRoute(
+        builder: (context) => CreateSprintScreen(projectId: _selectedProjectId),
+      ),
     );
     if (result == true) {
       _loadSprints();
@@ -72,8 +106,8 @@ class _SprintConsoleScreenState extends ConsumerState<SprintConsoleScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.projectName != null 
-            ? '${widget.projectName} Sprints' 
+        title: Text(_selectedProjectName != null 
+            ? '$_selectedProjectName Sprints' 
             : 'Sprint Console'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
@@ -86,90 +120,187 @@ class _SprintConsoleScreenState extends ConsumerState<SprintConsoleScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _sprints.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.timeline, size: 64, color: Colors.grey),
-                      const SizedBox(height: 16),
-                      Text(
-                        widget.projectId != null 
-                            ? 'No sprints linked to this project' 
-                            : 'No sprints found',
-                        style: const TextStyle(fontSize: 18, color: Colors.grey),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        widget.projectId != null 
-                            ? 'Link existing sprints or create new ones for this project'
-                            : 'Create your first sprint to get started',
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: _createSprint,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Create Sprint'),
-                      ),
-                    ],
+          : Row(
+              children: [
+                // Project Sidebar
+                Container(
+                  width: 250,
+                  decoration: BoxDecoration(
+                    border: Border(right: BorderSide(color: Colors.grey[300]!)),
                   ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _sprints.length,
-                  itemBuilder: (context, index) {
-                    final sprint = _sprints[index];
-                    final name = sprint.name;
-                    final status = sprint.statusText.toLowerCase();
-                    final planned = sprint.plannedPoints;
-                    final completed = sprint.completedPoints;
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    name,
-                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: _statusColor(status),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    status.toUpperCase(),
-                                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            LinearProgressIndicator(
-                              value: planned > 0 ? completed / planned : 0,
-                              backgroundColor: Colors.grey[300],
-                              valueColor: AlwaysStoppedAnimation<Color>(_progressColor(completed, planned)),
-                            ),
-                            const SizedBox(height: 8),
                             Text(
-                              '${planned > 0 ? ((completed / planned) * 100).toStringAsFixed(1) : '0.0'}% Complete',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              'MY PROJECTS',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[600],
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.add_circle_outline, size: 20),
+                              onPressed: () async {
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const ProjectSetupScreen()),
+                                );
+                                if (result == true) {
+                                  _loadInitialData();
+                                }
+                              },
+                              tooltip: 'New Project',
                             ),
                           ],
                         ),
                       ),
-                    );
-                  },
+                      const Divider(height: 1),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: _projects.length,
+                          itemBuilder: (context, index) {
+                            final project = _projects[index];
+                            final isSelected = project.id == _selectedProjectId;
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: isSelected 
+                                    ? Theme.of(context).colorScheme.primary 
+                                    : Colors.grey[200],
+                                radius: 12,
+                                child: Text(
+                                  project.key[0],
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isSelected ? Colors.white : Colors.grey[600],
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                project.name,
+                                style: TextStyle(
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                                ),
+                              ),
+                              selected: isSelected,
+                              onTap: () {
+                                setState(() {
+                                  _selectedProjectId = project.id;
+                                  _selectedProjectName = project.name;
+                                });
+                                _loadSprints();
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                // Sprints Content
+                Expanded(
+                  child: _isLoadingSprints
+                      ? const Center(child: CircularProgressIndicator())
+                      : _sprints.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.timeline, size: 64, color: Colors.grey),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _selectedProjectId != null 
+                                        ? 'No sprints linked to $_selectedProjectName' 
+                                        : 'Select a project to see sprints',
+                                    style: const TextStyle(fontSize: 18, color: Colors.grey),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  if (_selectedProjectId != null)
+                                    ElevatedButton.icon(
+                                      onPressed: _createSprint,
+                                      icon: const Icon(Icons.add),
+                                      label: const Text('Create Sprint'),
+                                    ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _sprints.length,
+                              itemBuilder: (context, index) {
+                                final sprint = _sprints[index];
+                                return _buildSprintCard(sprint);
+                              },
+                            ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildSprintCard(Sprint sprint) {
+    final name = sprint.name;
+    final status = sprint.statusText.toLowerCase();
+    final planned = sprint.plannedPoints;
+    final completed = sprint.completedPoints;
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    name,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _statusColor(status),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    status.toUpperCase(),
+                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            LinearProgressIndicator(
+              value: planned > 0 ? completed / planned : 0,
+              backgroundColor: Colors.grey[300],
+              valueColor: AlwaysStoppedAnimation<Color>(_progressColor(completed, planned)),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${planned > 0 ? ((completed / planned) * 100).toStringAsFixed(1) : '0.0'}% Complete',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  'Points: $completed / $planned',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -197,7 +328,8 @@ class _SprintConsoleScreenState extends ConsumerState<SprintConsoleScreen> {
 }
 
 class CreateSprintScreen extends StatefulWidget {
-  const CreateSprintScreen({super.key});
+  final String? projectId;
+  const CreateSprintScreen({super.key, this.projectId});
 
   @override
   State<CreateSprintScreen> createState() => _CreateSprintScreenState();
@@ -268,6 +400,7 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
     }
     try {
       final create = SprintCreate(
+        projectId: widget.projectId,
         name: _nameController.text,
         startDate: _startDate!,
         endDate: _endDate!,

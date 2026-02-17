@@ -7,6 +7,7 @@ import '../models/system_metrics.dart';
 import '../models/project.dart';
 import 'backend_api_service.dart';
 import '../config/environment.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
 static final String baseUrl = Environment.apiBaseUrl;
@@ -256,23 +257,39 @@ static final String baseUrl = Environment.apiBaseUrl;
   // Database methods for projects
   static Future<List<Map<String, dynamic>>> getProjects() async {
     try {
-      debugPrint('Fetching projects from database');
-      
-      final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/projects'),
-        headers: headers,
-      );
-      
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          debugPrint('✅ Fetched ${data['data'].length} projects from database');
-          return List<Map<String, dynamic>>.from(data['data']);
+      debugPrint('Fetching projects from database via BackendApiService');
+      final backendService = BackendApiService();
+      final response = await backendService.getProjects();
+
+      if (response.isSuccess && response.data != null) {
+        final dynamic raw = response.data;
+        final List<dynamic> items = <dynamic>[];
+
+        if (raw is List) {
+          items.addAll(raw);
+        } else if (raw is Map) {
+          final dynamic inner = raw['data'] ?? raw['projects'] ?? raw['items'];
+          if (inner is List) {
+            items.addAll(inner);
+          } else if (inner is Map) {
+            items.add(inner);
+          }
         }
+
+        final List<Map<String, dynamic>> projects = [];
+        for (final item in items) {
+          if (item is Map<String, dynamic>) {
+            projects.add(Map<String, dynamic>.from(item));
+          } else if (item is Map) {
+            projects.add(Map<String, dynamic>.from(item.cast<String, dynamic>()));
+          }
+        }
+
+        debugPrint('✅ Fetched ${projects.length} projects from database');
+        return projects;
       }
-      
-      debugPrint('❌ Failed to fetch projects: ${response.statusCode}');
+
+      debugPrint('❌ Failed to fetch projects: ${response.statusCode} - ${response.error}');
       return [];
     } catch (e) {
       debugPrint('Error fetching projects: $e');
@@ -1130,9 +1147,53 @@ if (response.statusCode == 200 || response.statusCode == 201) {
   static Future<bool> createProjectModel(Project project) async {
     try {
       final backendService = BackendApiService();
-      final response = await backendService.createProject(project.toJson());
+      final Map<String, dynamic> body = Map<String, dynamic>.from(project.toJson());
+
+      // For project creation, let the backend generate the UUID id
+      body.remove('id');
+
+      final response = await backendService.createProject(body);
 
       if (response.isSuccess) {
+        try {
+          final raw = response.data;
+          Map<String, dynamic>? created;
+
+          if (raw is Map<String, dynamic>) {
+            final body = raw['data'] ?? raw['project'] ?? raw;
+            if (body is Map) {
+              created = Map<String, dynamic>.from(body);
+            }
+          } else if (raw is Map) {
+            final body = raw['data'] ?? raw['project'] ?? raw;
+            if (body is Map) {
+              created = Map<String, dynamic>.from(body);
+            }
+          } else if (raw is List && raw.isNotEmpty) {
+            created = Map<String, dynamic>.from(raw.first as Map);
+          }
+
+          if (created != null) {
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              final existingStr = prefs.getString('local_created_projects');
+              final List<Map<String, dynamic>> existing = (existingStr != null && existingStr.isNotEmpty)
+                  ? List<Map<String, dynamic>>.from(jsonDecode(existingStr) as List)
+                  : <Map<String, dynamic>>[];
+              final createdId = created['id']?.toString();
+              if (createdId != null && createdId.isNotEmpty) {
+                existing.removeWhere((p) => p['id']?.toString() == createdId);
+              }
+              existing.insert(0, created);
+              await prefs.setString('local_created_projects', jsonEncode(existing));
+            } catch (e) {
+              debugPrint('Error caching locally created project: $e');
+            }
+          }
+        } catch (e) {
+          debugPrint('Error parsing created project response: $e');
+        }
+
         debugPrint('Project created successfully');
         return true;
       } else {
@@ -1148,7 +1209,9 @@ if (response.statusCode == 200 || response.statusCode == 201) {
   static Future<bool> updateProject(Project project) async {
     try {
       final backendService = BackendApiService();
-      final response = await backendService.updateProject(project.id, project.toJson());
+      final Map<String, dynamic> body = Map<String, dynamic>.from(project.toJson());
+      body.remove('id');
+      final response = await backendService.updateProject(project.id, body);
 
       if (response.isSuccess) {
         debugPrint('Project updated successfully');
@@ -1253,16 +1316,16 @@ if (response.statusCode == 200 || response.statusCode == 201) {
     }
   }
 
-  static Future<bool> associateSprintWithProject(String projectId, String sprintId) async {
+  static Future<bool> associateSprintWithProject(String projectId, List<String> sprintIds) async {
     try {
       final backendService = BackendApiService();
-      final response = await backendService.associateSprintWithProject(projectId, sprintId);
+      final response = await backendService.associateSprintWithProject(projectId, sprintIds);
 
       if (response.isSuccess) {
-        debugPrint('Sprint associated with project successfully');
+        debugPrint('Sprint(s) associated with project successfully');
         return true;
       } else {
-        debugPrint('Failed to associate sprint with project: ${response.statusCode} - ${response.error}');
+        debugPrint('Failed to associate sprint(s) with project: ${response.statusCode} - ${response.error}');
         return false;
       }
     } catch (e) {

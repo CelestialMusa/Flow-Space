@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/environment.dart';
 import '../models/project_role.dart';
+import '../utils/project_permission_manager.dart';
+import 'api_service.dart';
 
 class ProjectMemberService {
   static Future<List<ProjectMember>> getProjectMembers(String projectId) async {
@@ -146,13 +148,11 @@ class ProjectMemberService {
   }
 
   static Map<String, String> _getHeaders() {
-    // This should get the auth token from your storage
-    // For now, returning basic headers
+    final token = ApiService.accessToken;
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      // Add Authorization header when you have token management
-      // 'Authorization': 'Bearer $token',
+      if (token != null) 'Authorization': 'Bearer $token',
     };
   }
 }

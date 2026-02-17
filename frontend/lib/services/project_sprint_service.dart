@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/environment.dart';
+import 'api_service.dart';
 
 class ProjectSprintService {
   static Future<List<Map<String, dynamic>>> getProjectSprints(String projectId) async {
@@ -10,14 +11,16 @@ class ProjectSprintService {
         headers: _getHeaders(),
       );
 
+      final data = json.decode(response.body);
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          final List<dynamic> sprintsData = data['data'];
+        if (data is Map && data['success'] == true) {
+          final List<dynamic> sprintsData = data['data'] ?? [];
           return sprintsData.cast<Map<String, dynamic>>();
+        } else if (data is List) {
+          return data.cast<Map<String, dynamic>>();
         }
       }
-      throw Exception('Failed to load project sprints');
+      throw Exception(data['error'] ?? data['message'] ?? 'Failed to load project sprints: ${response.statusCode}');
     } catch (e) {
       throw Exception('Error fetching project sprints: $e');
     }
@@ -155,13 +158,11 @@ class ProjectSprintService {
   }
 
   static Map<String, String> _getHeaders() {
-    // This should get the auth token from your storage
-    // For now, returning basic headers
+    final token = ApiService.accessToken;
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      // Add Authorization header when you have token management
-      // 'Authorization': 'Bearer $token',
+      if (token != null) 'Authorization': 'Bearer $token',
     };
   }
 

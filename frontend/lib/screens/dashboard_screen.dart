@@ -21,6 +21,7 @@ import '../services/api_service.dart';
 import 'sprint_report_screen.dart';
 import 'user_management_screen.dart';
 import 'project_setup_screen.dart';
+import 'sprint_console_screen.dart';
 // Using Map-based data for deliverables and sprints
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -214,7 +215,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             foregroundColor: Colors.white,
             label: 'New Project',
             labelStyle: const TextStyle(fontSize: 18.0),
-            onTap: () => _showCreateProjectDialog(),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const ProjectSetupScreen()),
+            ),
           ),
           SpeedDialChild(
             child: const Icon(Icons.assignment),
@@ -230,7 +233,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             foregroundColor: Colors.white,
             label: 'New Sprint',
             labelStyle: const TextStyle(fontSize: 18.0),
-            onTap: () => _showCreateSprintDialog(),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const SprintConsoleScreen()),
+            ),
           ),
         ],
       ),
@@ -653,114 +658,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  void _showCreateSprintDialog() {
-    final TextEditingController nameController = TextEditingController();
-    final TextEditingController descriptionController = TextEditingController();
-    final TextEditingController startDateController = TextEditingController();
-    final TextEditingController endDateController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Create New Sprint'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Sprint Name',
-                  hintText: 'Enter sprint name',
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  hintText: 'Enter description',
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: startDateController,
-                decoration: const InputDecoration(
-                  labelText: 'Start Date',
-                  hintText: 'YYYY-MM-DD',
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: endDateController,
-                decoration: const InputDecoration(
-                  labelText: 'End Date',
-                  hintText: 'YYYY-MM-DD',
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                await ApiService.createSprint(
-                  SprintCreate(
-                    name: nameController.text,
-                    startDate: DateTime.parse(startDateController.text),
-                    endDate: DateTime.parse(endDateController.text),
-                    plannedPoints: 0,
-                    committedPoints: 0,
-                    completedPoints: 0,
-                    velocity: 0,
-                    testPassRate: 0.0,
-                    codeCoverage: 0.0,
-                    defectCount: 0,
-                    escapedDefects: 0,
-                    defectsClosed: 0,
-                    carriedOverPoints: 0,
-                    addedDuringSprint: 0,
-                    removedDuringSprint: 0,
-                    scopeChanges: [],
-                    notes: null,
-                    codeReviewCompletion: 0.0,
-                    documentationStatus: '',
-                    uatNotes: '',
-                    uatPassRate: 0.0,
-                    risksIdentified: 0,
-                    risksMitigated: 0,
-                    blockers: '',
-                    decisions: '',
-                    isActive: false,
-                  ),
-                );
-                // ignore: use_build_context_synchronously
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('New sprint created')),
-                );
-                // ignore: unused_result
-                ref.refresh(dashboardProvider);
-                // ignore: use_build_context_synchronously
-                Navigator.of(context).pop();
-              } catch (e) {
-                // ignore: use_build_context_synchronously
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to create sprint: $e')),
-                );
-              }
-            },
-            child: const Text('Create'),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showNotificationsDialog() {
     final notificationState = ref.watch(notificationProvider);
@@ -1303,15 +1200,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
     );
   }
-
-  void _showCreateProjectDialog() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const ProjectSetupScreen(),
-      ),
-    );
-  }
-
 }
 
  

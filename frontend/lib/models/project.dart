@@ -31,19 +31,21 @@ class Project {
 
   factory Project.fromJson(Map<String, dynamic> json) {
     return Project(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      description: json['description'] as String? ?? '',
-      key: json['key'] as String,
-      clientName: json['client_name'] as String? ?? '',
-      repositoryUrl: json['repository_url'] as String?,
-      documentationUrl: json['documentation_url'] as String?,
-      status: json['status'] as String? ?? 'active',
-      startDate: DateTime.parse(json['start_date'] as String),
-      endDate: json['end_date'] != null ? DateTime.parse(json['end_date'] as String) : null,
-      createdBy: json['created_by'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      key: json['key']?.toString() ?? '',
+      clientName: (json['client_name'] ?? json['clientName'])?.toString() ?? '',
+      repositoryUrl: (json['repository_url'] ?? json['repositoryUrl'])?.toString(),
+      documentationUrl: (json['documentation_url'] ?? json['documentationUrl'])?.toString(),
+      status: json['status']?.toString() ?? 'active',
+      startDate: DateTime.tryParse(json['start_date']?.toString() ?? json['startDate']?.toString() ?? '') ?? DateTime.now(),
+      endDate: json['end_date'] != null || json['endDate'] != null 
+          ? DateTime.tryParse((json['end_date'] ?? json['endDate']).toString()) 
+          : null,
+      createdBy: (json['created_by'] ?? json['createdBy'])?.toString() ?? '',
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? json['createdAt']?.toString() ?? '') ?? DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? json['updatedAt']?.toString() ?? '') ?? DateTime.now(),
     );
   }
 
@@ -107,6 +109,7 @@ class ProjectCreate {
   final String? documentationUrl;
   final DateTime startDate;
   final DateTime? endDate;
+  final String? ownerId;
 
   ProjectCreate({
     required this.name,
@@ -117,6 +120,7 @@ class ProjectCreate {
     this.documentationUrl,
     required this.startDate,
     this.endDate,
+    this.ownerId,
   });
 
   Map<String, dynamic> toJson() {
@@ -129,6 +133,7 @@ class ProjectCreate {
       'documentation_url': documentationUrl,
       'start_date': startDate.toIso8601String(),
       'end_date': endDate?.toIso8601String(),
+      if (ownerId != null) 'owner_id': ownerId,
     };
   }
 }

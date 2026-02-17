@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/project.dart';
 import '../services/project_service.dart';
+import '../services/api_service.dart';
 
 class ProjectSetupScreen extends StatefulWidget {
   final String? projectId; // If provided, we're in edit mode
@@ -296,6 +297,7 @@ class _ProjectSetupScreenState extends State<ProjectSetupScreen> {
               : _documentationUrlController.text.trim(),
           startDate: _startDate!,
           endDate: _endDate,
+          ownerId: ApiService.userId,
         );
         
         savedProject = await ProjectService.createProject(projectCreate);

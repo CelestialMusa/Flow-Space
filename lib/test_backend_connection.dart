@@ -18,14 +18,14 @@ void main() {
     try {
       // 1. Register a new admin user
       // Generate a unique email for the new user to avoid conflicts
-      final uniqueEmail = 'admin_' + DateTime.now().millisecondsSinceEpoch.toString() + '@flow.com';
+      final uniqueEmail = 'admin_${DateTime.now().millisecondsSinceEpoch}@flow.com';
 
       final authService = AuthService();
       await authService.initialize();
       final registrationResult = await authService.signUp(uniqueEmail, 'password', 'Test Admin', UserRole.systemAdmin);
 
       if (registrationResult['success'] != true) {
-        print('Admin registration failed: ' + registrationResult['error'].toString());
+        print('Admin registration failed: ${registrationResult['error']}');
         
       }
 
@@ -42,7 +42,7 @@ void main() {
 
       print('Admin login successful!');
       final token = authService.accessToken;
-      print('Got auth token: ' + (token ?? 'null'));
+      print('Got auth token: ${token ?? 'null'}');
 
       // 2. Make authenticated request to system stats
       print('\n--- Fetching system stats with token ---');
@@ -50,19 +50,19 @@ void main() {
       final request = await httpClient.getUrl(Uri.parse('http://localhost:8000/api/v1/system/stats'));
 
       // Add auth token to header
-      request.headers.add('Authorization', 'Bearer ' + (token ?? ''));
+      request.headers.add('Authorization', 'Bearer ${token ?? ''}');
       request.headers.add('Content-Type', 'application/json');
 
       final response = await request.close();
       final responseBody = await response.transform(utf8.decoder).join();
 
       print('Request completed!');
-      print('Response status: ' + response.statusCode.toString());
-      print('Response body: ' + responseBody);
+      print('Response status: ${response.statusCode}');
+      print('Response body: $responseBody');
 
       httpClient.close();
     } catch (e) {
-      print('An error occurred: ' + e.toString());
+      print('An error occurred: $e');
     }
 
     print('Backend connection test finished successfully!');

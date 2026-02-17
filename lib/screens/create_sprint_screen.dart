@@ -130,7 +130,10 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
       debugPrint('Error creating sprint: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error creating sprint')),
+          SnackBar(
+            content: Text('Error creating sprint: ${e.toString().replaceAll('Exception:', '')}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
