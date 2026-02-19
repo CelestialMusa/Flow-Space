@@ -33,6 +33,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
   String? _selectedProjectKey;
   String? _selectedSprintId;
   bool _useAiForTicket = false;
+  bool _showBotView = false;
   final bool _isGeneratingAiTicket = false;
   final GlobalKey _sprintsSectionKey = GlobalKey();
 
@@ -482,6 +483,9 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                 ),
               ),
               const SizedBox(width: 16),
+              Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
               Text(
                 'Sprint Management',
                 style: theme.textTheme.headlineSmall?.copyWith(
@@ -489,6 +493,37 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              Row(
+                children: [
+                  // Bot View Toggle
+                  GlassButton(
+                    text: _showBotView ? 'Normal View' : 'Bot View',
+                    onPressed: () {
+                      setState(() {
+                        _showBotView = !_showBotView;
+                      });
+                    },
+                    icon: Icon(_showBotView ? Icons.view_list_outlined : Icons.smart_toy_outlined),
+                    height: 36,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  const SizedBox(width: 8),
+                  // AI Assistant Toggle
+                  GlassButton(
+                    text: _useAiForTicket ? 'AI Off' : 'AI Assistant',
+                    onPressed: () {
+                      setState(() {
+                        _useAiForTicket = !_useAiForTicket;
+                      });
+                    },
+                    icon: Icon(_useAiForTicket ? Icons.psychology_outlined : Icons.psychology),
+                    height: 36,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                ],
+              ),
+            ],
+          ),
             ],
           ),
           const SizedBox(height: 12),
@@ -1008,8 +1043,8 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
   Widget _buildTicketsSection() {
     if (_tickets.isEmpty) {
       return _buildEmptyState(
-        'No tickets in this sprint',
-        'Add tickets to this sprint to start tracking work',
+        _showBotView ? 'No bot activities in this sprint' : 'No tickets in this sprint',
+        _showBotView ? 'Bot activities will appear here when generated' : 'Add tickets to this sprint to start tracking work',
       );
     }
 
@@ -1018,49 +1053,210 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
       children: [
         const SizedBox(height: 24),
         Text(
-          'Tickets',
+          _showBotView ? 'Bot Activities' : 'Tickets',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontWeight: FontWeight.bold,
-              ),
+            color: Theme.of(context).colorScheme.onSurface,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 16),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _tickets.length,
-          itemBuilder: (context, index) {
-            final ticket = _tickets[index];
-            final mappedTicket = _mapTicketToIssue(ticket);
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface.withAlpha(77),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.onSurface.withAlpha(26),
+        if (_showBotView) ...[
+          // Bot View Content
+          GlassCard(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.smart_toy_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Bot Activities',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Automated activities and AI-generated tickets will appear here',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha(179),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Sample bot activities
+                _buildBotActivityList(),
+              ],
+            ),
+          ),
+        ] else ...[
+          // Normal Tickets View
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${_tickets.length} ${_tickets.length == 1 ? 'Ticket' : 'Tickets'}',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                title: Text(mappedTicket['fields']['summary'] ?? 'No title'),
-                subtitle: Text(mappedTicket['key'] ?? ''),
-                onTap: () {},
-                trailing: IconButton(
-                  icon: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onPressed: () {},
+              ElevatedButton.icon(
+                onPressed: showCreateTicketDialog,
+                icon: const Icon(Icons.add),
+                label: const Text('Add Ticket'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 ),
               ),
-            );
-          },
-        ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _tickets.length,
+            itemBuilder: (context, index) {
+              final ticket = _tickets[index];
+              final mappedTicket = _mapTicketToIssue(ticket);
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface.withAlpha(77),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha(26),
+                  ),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  title: Text(mappedTicket['fields']['summary'] ?? 'No title'),
+                  subtitle: Text(mappedTicket['key'] ?? ''),
+                  onTap: () {},
+                  trailing: IconButton(
+                    icon: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onPressed: () {},
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ],
     );
   }
+
+  Widget _buildBotActivityList() {
+    final botActivities = [
+      {
+        'type': 'AI Generated',
+        'description': 'AI assistant created 3 tickets automatically',
+        'timestamp': '2 hours ago',
+        'status': 'completed',
+      },
+      {
+        'type': 'Status Update',
+        'description': 'Bot updated ticket status from "To Do" to "In Progress"',
+        'timestamp': '3 hours ago',
+        'status': 'completed',
+      },
+      {
+        'type': 'Comment Added',
+        'description': 'AI added comment: "Consider adding acceptance criteria"',
+        'timestamp': '5 hours ago',
+        'status': 'completed',
+      },
+    ];
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: botActivities.length,
+      itemBuilder: (context, index) {
+        final activity = botActivities[index];
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface.withAlpha(77),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(26),
+            ),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _getBotActivityColor(activity['status']?.toString() ?? 'unknown'),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(
+                _showBotView ? Icons.view_list_outlined : Icons.smart_toy_outlined,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+            title: Text(
+              activity['type'] ?? '',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  activity['description'] ?? '',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha(179),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  activity['timestamp'] ?? '',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha(128),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Color _getBotActivityColor(String status) {
+    switch (status) {
+      case 'completed':
+        return Colors.green;
+      case 'in_progress':
+        return Colors.blue;
+      case 'failed':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
   void showCreateTicketDialog() {
     if (_selectedSprintId == null) {
       _showSnackBar('Select a sprint first', isError: true);
@@ -1129,7 +1325,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                                   )['name'] ?? '';
                                   final messages = [
                                     { 'role': 'system', 'content': 'Generate a sprint ticket. Return JSON with keys: title, description. Include acceptance criteria as bullet points inside description. Keep language clear and actionable.' },
-                                    { 'role': 'user', 'content': 'Sprint: $sprintName. Requirements: ${aiPromptController.text}'.trim() }
+                                    { 'role': 'user', 'content': 'Sprint: $sprintName. Requirements: ${aiPromptController.text}'.trim() },
                                   ];
                                   final resp = await backend.aiChat(messages, temperature: 0.5, maxTokens: 320);
                                   if (resp.isSuccess && resp.data != null) {
@@ -1299,7 +1495,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                     )['name'] ?? '';
                     final messages = [
                       { 'role': 'system', 'content': 'Generate a sprint ticket. Return JSON with keys: title, description. Include acceptance criteria as bullet points inside description. Keep language clear and actionable.' },
-                      { 'role': 'user', 'content': 'Sprint: $sprintName. Requirements: ${aiPromptController.text}'.trim() }
+                      { 'role': 'user', 'content': 'Sprint: $sprintName. Requirements: ${aiPromptController.text}'.trim() },
                     ];
                     final resp = await backend.aiChat(messages, temperature: 0.5, maxTokens: 320);
                     if (resp.isSuccess && resp.data != null) {

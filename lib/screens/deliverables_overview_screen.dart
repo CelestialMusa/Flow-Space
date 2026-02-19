@@ -229,7 +229,7 @@ class _DeliverablesOverviewScreenState extends State<DeliverablesOverviewScreen>
         children: columns.map((status) {
           final items = kanbanDeliverables.where((d) => d.status == status || 
               (status == DeliverableStatus.inReview && d.status == DeliverableStatus.submitted) ||
-              (status == DeliverableStatus.signedOff && d.status == DeliverableStatus.approved)
+              (status == DeliverableStatus.signedOff && d.status == DeliverableStatus.approved),
           ).toList();
 
           return _buildKanbanColumn(status, items);

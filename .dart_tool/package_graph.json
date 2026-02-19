@@ -19,6 +19,7 @@
         "flutter_local_notifications",
         "flutter_pdfview",
         "flutter_riverpod",
+        "flutter_speed_dial",
         "flutter_svg",
         "freezed_annotation",
         "go_router",
@@ -500,6 +501,13 @@
       ]
     },
     {
+      "name": "flutter_speed_dial",
+      "version": "7.0.0",
+      "dependencies": [
+        "flutter"
+      ]
+    },
+    {
       "name": "page_transition",
       "version": "2.2.1",
       "dependencies": [
@@ -648,7 +656,7 @@
     },
     {
       "name": "meta",
-      "version": "1.16.0",
+      "version": "1.17.0",
       "dependencies": []
     },
     {
@@ -940,7 +948,7 @@
     },
     {
       "name": "test_api",
-      "version": "0.7.6",
+      "version": "0.7.7",
       "dependencies": [
         "async",
         "boolean_selector",
@@ -1756,7 +1764,7 @@
     },
     {
       "name": "test",
-      "version": "1.26.2",
+      "version": "1.26.3",
       "dependencies": [
         "analyzer",
         "async",
@@ -1810,7 +1818,7 @@
     },
     {
       "name": "test_core",
-      "version": "0.6.11",
+      "version": "0.6.12",
       "dependencies": [
         "analyzer",
         "args",

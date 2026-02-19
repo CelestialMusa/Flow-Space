@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
+import 'package:go_router/go_router.dart';
 import '../services/api_service.dart';
-import '../models/sprint.dart';
 import '../models/user.dart';
-import '../models/deliverable.dart';
 import '../providers/client_approval_provider.dart';
 
 class DeliveryManagerDashboard extends ConsumerStatefulWidget {
@@ -14,9 +14,9 @@ class DeliveryManagerDashboard extends ConsumerStatefulWidget {
 }
 
 class _DeliveryManagerDashboardState extends ConsumerState<DeliveryManagerDashboard> {
-  List<Sprint> _sprints = [];
+  List<dynamic> _sprints = [];
   List<User> _teamMembers = [];
-  List<Deliverable> _recentDeliverables = [];
+  List<dynamic> _recentDeliverables = [];
   int _pendingApprovalsCount = 0;
   int _overdueApprovalsCount = 0;
   int _approvalsNeedingReminderCount = 0;
@@ -32,7 +32,7 @@ class _DeliveryManagerDashboardState extends ConsumerState<DeliveryManagerDashbo
     try {
       // Load active sprints
       final sprints = await ApiService.getSprints();
-      final activeSprints = sprints.where((sprint) => sprint.isActive).toList();
+      final activeSprints = sprints.where((sprint) => (sprint as dynamic)?['isActive'] == true).toList();
       
       // Load team members
       final teamMembers = await ApiService.getUsers();
@@ -269,6 +269,48 @@ class _DeliveryManagerDashboardState extends ConsumerState<DeliveryManagerDashbo
           ],
         ),
       ),
+      floatingActionButton: _buildFloatingActionButton(),
+    );
+  }
+
+  Widget _buildFloatingActionButton() {
+    return SpeedDial(
+      icon: Icons.add,
+      activeIcon: Icons.close,
+      backgroundColor: Colors.purple,
+      foregroundColor: Colors.white,
+      children: [
+        SpeedDialChild(
+          child: const Icon(Icons.folder),
+          label: 'New Project',
+          backgroundColor: Colors.purple,
+          onTap: () => context.go('/project-setup'),
+        ),
+        SpeedDialChild(
+          child: const Icon(Icons.task),
+          label: 'New Deliverable',
+          backgroundColor: Colors.blue,
+          onTap: () => context.go('/deliverable-setup'),
+        ),
+        SpeedDialChild(
+          child: const Icon(Icons.timeline),
+          label: 'New Sprint',
+          backgroundColor: Colors.green,
+          onTap: () => context.go('/sprint-console'),
+        ),
+        SpeedDialChild(
+          child: const Icon(Icons.people),
+          label: 'Team Management',
+          backgroundColor: Colors.orange,
+          onTap: () => _navigateToTeamManagement(),
+        ),
+        SpeedDialChild(
+          child: const Icon(Icons.analytics),
+          label: 'Generate Reports',
+          backgroundColor: Colors.red,
+          onTap: () => _navigateToReports(),
+        ),
+      ],
     );
   }
 }

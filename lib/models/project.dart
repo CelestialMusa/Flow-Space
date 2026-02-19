@@ -63,6 +63,7 @@ class ProjectMember {
 class Project {
   final String id;
   final String name;
+  final String key;
   final String description;
   final String? clientName;
   final ProjectStatus status;
@@ -79,12 +80,12 @@ class Project {
   final DateTime? updatedAt;
   final String? updatedBy;
   final String? ownerId;
-  final String? key;
   final Map<String, dynamic> metadata;
 
   const Project({
     required this.id,
     required this.name,
+    required this.key,
     required this.description,
     this.clientName,
     required this.status,
@@ -101,13 +102,13 @@ class Project {
     this.updatedAt,
     this.updatedBy,
     this.ownerId,
-    this.key,
     this.metadata = const {},
   });
 
   Project copyWith({
     String? id,
     String? name,
+    String? key,
     String? description,
     String? clientName,
     ProjectStatus? status,
@@ -129,6 +130,7 @@ class Project {
     return Project(
       id: id ?? this.id,
       name: name ?? this.name,
+      key: key ?? this.key,
       description: description ?? this.description,
       clientName: clientName ?? this.clientName,
       status: status ?? this.status,
@@ -153,6 +155,7 @@ class Project {
     return {
       'id': id,
       'name': name,
+      'key': key,
       'description': description,
       'clientName': clientName,
       'client_name': clientName,
@@ -204,6 +207,7 @@ class Project {
     return Project(
       id: asString(json['id']) ?? '',
       name: asString(json['name']) ?? '',
+      key: asString(json['key'] ?? json['projectKey'] ?? json['project_key']) ?? '',
       description: asString(json['description']) ?? '',
       clientName: asString(json['clientName'] ?? json['client_name']),
       status: ProjectStatus.values.firstWhere(
@@ -239,7 +243,6 @@ class Project {
           (json['owner'] != null && json['owner'] is Map
               ? asString((json['owner'] as Map)['id'])
               : null),
-      key: asString(json['key']),
       metadata: json['metadata'] is Map<String, dynamic>
           ? Map<String, dynamic>.from(json['metadata'] as Map<String, dynamic>)
           : (json['metadata'] is Map

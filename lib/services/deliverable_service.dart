@@ -211,19 +211,16 @@ class DeliverableService {
         return ApiResponse.error('No access token available');
       }
 
-      final fileType = fileName.split('.').last;
+      // final fileType = fileName.split('.').last;
       
       final fields = <String, String>{};
       if (title != null) fields['title'] = title;
       if (description != null) fields['description'] = description;
 
-      final response = await _apiClient.uploadFile(
+      final response = await _apiClient.uploadFileBytes(
         '/deliverables/$deliverableId/artifacts',
-        filePath,
-        fileName,
-        fileType,
-        fields: fields,
-        fileBytes: fileBytes,
+        fileBytes: fileBytes ?? [],
+        filename: fileName,
       );
 
       if (response.isSuccess) {

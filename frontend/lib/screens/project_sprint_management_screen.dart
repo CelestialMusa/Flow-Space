@@ -9,13 +9,13 @@ class ProjectSprintManagementScreen extends StatefulWidget {
   final String projectName;
 
   const ProjectSprintManagementScreen({
-    Key? key,
+    super.key,
     required this.projectId,
     required this.projectName,
-  }) : super(key: key);
+  });
 
   @override
-  _ProjectSprintManagementScreenState createState() => _ProjectSprintManagementScreenState();
+  State<ProjectSprintManagementScreen> createState() => _ProjectSprintManagementScreenState();
 }
 
 class _ProjectSprintManagementScreenState extends State<ProjectSprintManagementScreen> {
@@ -24,6 +24,29 @@ class _ProjectSprintManagementScreenState extends State<ProjectSprintManagementS
   bool _isLoading = true;
   String? _error;
   List<String> _selectedSprintIds = [];
+
+  // Helper method to convert hex color string to Color
+  Color _hexToColor(String hexString) {
+    final hexCode = hexString.replaceAll('#', '');
+    return Color(int.parse('FF$hexCode', radix: 16));
+  }
+
+  // Helper method to convert icon name string to IconData
+  IconData _getIconData(String iconName) {
+    switch (iconName) {
+      case 'edit':
+        return Icons.edit;
+      case 'play_arrow':
+        return Icons.play_arrow;
+      case 'check_circle':
+        return Icons.check_circle;
+      case 'cancel':
+        return Icons.cancel;
+      case 'help_outline':
+      default:
+        return Icons.help_outline;
+    }
+  }
 
   @override
   void initState() {
@@ -75,13 +98,15 @@ class _ProjectSprintManagementScreenState extends State<ProjectSprintManagementS
       );
 
       // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? 'Sprints linked successfully'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Sprints linked successfully'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
 
       // Reload data
       await _loadProjectData();
@@ -97,12 +122,14 @@ class _ProjectSprintManagementScreenState extends State<ProjectSprintManagementS
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error linking sprints: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error linking sprints: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -118,12 +145,14 @@ class _ProjectSprintManagementScreenState extends State<ProjectSprintManagementS
         sprintId,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$sprintName unlinked from project'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$sprintName unlinked from project'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
 
       await _loadProjectData();
 
@@ -133,12 +162,14 @@ class _ProjectSprintManagementScreenState extends State<ProjectSprintManagementS
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error unlinking sprint: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error unlinking sprint: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -256,7 +287,7 @@ class _ProjectSprintManagementScreenState extends State<ProjectSprintManagementS
         children: [
           Row(
             children: [
-              Icon(Icons.sprint, color: Colors.blue.shade800, size: 24),
+              Icon(Icons.directions_run, color: Colors.blue.shade800, size: 24),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -411,7 +442,7 @@ class _ProjectSprintManagementScreenState extends State<ProjectSprintManagementS
         children: [
           Row(
             children: [
-              Icon(Icons.linked_services, color: Colors.blue.shade600),
+              Icon(Icons.link, color: Colors.blue.shade600),
               const SizedBox(width: 8),
               const Text(
                 'Linked Sprints',
@@ -441,7 +472,7 @@ class _ProjectSprintManagementScreenState extends State<ProjectSprintManagementS
               ),
               child: Column(
                 children: [
-                  Icon(Icons.sprint, size: 48, color: Colors.grey.shade400),
+                  Icon(Icons.directions_run, size: 48, color: Colors.grey.shade400),
                   const SizedBox(height: 16),
                   Text(
                     'No sprints linked yet',
@@ -467,7 +498,7 @@ class _ProjectSprintManagementScreenState extends State<ProjectSprintManagementS
           else
             ..._linkedSprints.map((sprint) {
               return _buildSprintCard(sprint);
-            }).toList(),
+            }),
         ],
       ),
     );
@@ -540,7 +571,7 @@ class _ProjectSprintManagementScreenState extends State<ProjectSprintManagementS
                       }
                     },
                     itemBuilder: (context) => [
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'unlink',
                         child: Row(
                           children: [
@@ -560,23 +591,20 @@ class _ProjectSprintManagementScreenState extends State<ProjectSprintManagementS
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: ProjectSprintService.getStatusColor(status)
+                    color: _hexToColor(ProjectSprintService.getStatusColor(status))
                         .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: ProjectSprintService.getStatusColor(status)
+                      color: _hexToColor(ProjectSprintService.getStatusColor(status))
                           .withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        IconData(
-                          ProjectSprintService.getStatusIcon(status).codePoint,
-                          fontFamily: 'MaterialIcons',
-                        ),
-                        size: 14,
-                        color: ProjectSprintService.getStatusColor(status),
+                        _getIconData(ProjectSprintService.getStatusIcon(status)),
+                        size: 16,
+                        color: _hexToColor(ProjectSprintService.getStatusColor(status)),
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -584,7 +612,7 @@ class _ProjectSprintManagementScreenState extends State<ProjectSprintManagementS
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: ProjectSprintService.getStatusColor(status),
+                          color: _hexToColor(ProjectSprintService.getStatusColor(status)),
                         ),
                       ),
                     ],
@@ -653,7 +681,7 @@ class _ProjectSprintManagementScreenState extends State<ProjectSprintManagementS
                 value: progress / 100.0,
                 backgroundColor: Colors.grey.shade300,
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  ProjectSprintService.getProgressColor(progress),
+                  _hexToColor(ProjectSprintService.getProgressColor(progress)),
                 ),
               ),
               const SizedBox(height: 8),

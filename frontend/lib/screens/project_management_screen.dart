@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import '../models/project_role.dart';
 import '../services/project_member_service.dart';
+import '../widgets/project_member_dialogs.dart';
 
 class ProjectManagementScreen extends StatefulWidget {
   final String projectId;
   final String projectName;
 
   const ProjectManagementScreen({
-    Key? key,
+    super.key,
     required this.projectId,
     required this.projectName,
-  }) : super(key: key);
+  });
 
   @override
-  _ProjectManagementScreenState createState() => _ProjectManagementScreenState();
+  State<ProjectManagementScreen> createState() => _ProjectManagementScreenState();
 }
 
 class _ProjectManagementScreenState extends State<ProjectManagementScreen> {
@@ -214,10 +215,10 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen> {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: member.role.color.withValues(alpha: 0.2),
-          child: member.role.userAvatar != null
+          child: member.userAvatar != null
               ? ClipOval(
                   child: Image.network(
-                    member.role.userAvatar!,
+                    member.userAvatar!,
                     width: 40,
                     height: 40,
                     fit: BoxFit.cover,

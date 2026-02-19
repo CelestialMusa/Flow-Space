@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import '../services/api_service.dart';
-import '../models/sprint.dart';
 import 'client_review_screen.dart';
 
 class ClientReviewerDashboard extends StatefulWidget {
@@ -11,7 +11,7 @@ class ClientReviewerDashboard extends StatefulWidget {
 }
 
 class _ClientReviewerDashboardState extends State<ClientReviewerDashboard> {
-  List<Sprint> _sprints = [];
+  List<dynamic> _sprints = [];
   bool _isLoading = false;
   String? _selectedSprintId;
 
@@ -120,8 +120,8 @@ class _ClientReviewerDashboardState extends State<ClientReviewerDashboard> {
                     ),
                     items: _sprints.map((sprint) {
                       return DropdownMenuItem<String?>(
-                        value: sprint.id,
-                        child: Text(sprint.name),
+                        value: sprint['id']?.toString(),
+                        child: Text(sprint['name']?.toString() ?? 'Unknown Sprint'),
                       );
                     }).toList(),
                     onChanged: (value) {
@@ -177,6 +177,47 @@ class _ClientReviewerDashboardState extends State<ClientReviewerDashboard> {
                 ],
               ),
             ),
+      floatingActionButton: _buildFloatingActionButton(),
+    );
+  }
+
+  Widget _buildFloatingActionButton() {
+    return SpeedDial(
+      icon: Icons.add,
+      activeIcon: Icons.close,
+      backgroundColor: Colors.blue,
+      foregroundColor: Colors.white,
+      children: [
+        SpeedDialChild(
+          child: const Icon(Icons.reviews),
+          label: 'Review Deliverables',
+          backgroundColor: Colors.blue,
+          onTap: () {
+            if (_selectedSprintId != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ClientReviewScreen(),
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Please select a sprint first')),
+              );
+            }
+          },
+        ),
+        SpeedDialChild(
+          child: const Icon(Icons.assessment),
+          label: 'View Reports',
+          backgroundColor: Colors.green,
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Reports functionality coming soon')),
+            );
+          },
+        ),
+      ],
     );
   }
 }

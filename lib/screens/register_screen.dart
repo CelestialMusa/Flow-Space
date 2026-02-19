@@ -678,7 +678,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       debugPrint('🎭 Role: $userRole');
 
       final authService = AuthService();
-      final Map<String, dynamic> result = await authService.signUp(
+      final result = await authService.signUp(
         _emailController.text.trim(),
         _passwordController.text,
         '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
