@@ -6,7 +6,6 @@ import 'package:khono/models/project.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/glass_card.dart';
 import 'project_details_screen.dart';
-import 'project_setup_screen.dart';
 
 class ProjectsScreen extends StatefulWidget {
   const ProjectsScreen({super.key});
@@ -96,7 +95,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   void _navigateToProjectSetup() {
-    context.go('/project-setup');
+    context.go('/project-workspace/new');
   }
 
   @override
@@ -235,7 +234,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => context.go('/projects/create'),
+              onPressed: () => context.go('/project-workspace/new'),
               icon: const Icon(Icons.add),
               label: const Text('Create Project'),
               style: ElevatedButton.styleFrom(
@@ -357,11 +356,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                         );
                       } else if (value == 'edit') {
                         debugPrint('ProjectsScreen: Navigating to edit project for ID: ${project.id}');
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => ProjectSetupScreen(projectId: project.id),
-                          ),
-                        );
+                        context.push('/project-workspace/${project.id}');
                       }
                     },
                   ),

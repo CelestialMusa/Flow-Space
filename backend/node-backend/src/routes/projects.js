@@ -771,6 +771,24 @@ router.post('/:id/remind-owner', authenticateToken, async (req, res) => {
       });
     }
 
+    const now = new Date();
+    const endDate = project.end_date ? new Date(project.end_date) : null;
+    const normalizedStatus = String(project.status || '').toLowerCase();
+
+    if (!endDate || endDate > now) {
+      return res.status(400).json({
+        success: false,
+        error: 'Reminder is only available when the project has reached or passed its due date'
+      });
+    }
+
+    if (['completed', 'cancelled'].includes(normalizedStatus)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Project is already completed or cancelled'
+      });
+    }
+
     const userId = req.user.id;
     const normalizedRole = String(req.user.role || '').toLowerCase().replace(/[\s_-]+/g, '');
     const isAdmin = ['admin', 'systemadmin'].includes(normalizedRole);

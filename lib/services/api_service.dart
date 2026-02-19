@@ -1144,7 +1144,7 @@ if (response.statusCode == 200 || response.statusCode == 201) {
     }
   }
 
-  static Future<bool> createProjectModel(Project project) async {
+  static Future<Project?> createProjectModel(Project project) async {
     try {
       final backendService = BackendApiService();
       final Map<String, dynamic> body = Map<String, dynamic>.from(project.toJson());
@@ -1153,6 +1153,8 @@ if (response.statusCode == 200 || response.statusCode == 201) {
       body.remove('id');
 
       final response = await backendService.createProject(body);
+
+      Project? createdProject;
 
       if (response.isSuccess) {
         try {
@@ -1175,6 +1177,12 @@ if (response.statusCode == 200 || response.statusCode == 201) {
 
           if (created != null) {
             try {
+              createdProject = Project.fromJson(created);
+            } catch (e) {
+              debugPrint('Error parsing created project into model: $e');
+            }
+
+            try {
               final prefs = await SharedPreferences.getInstance();
               final existingStr = prefs.getString('local_created_projects');
               final List<Map<String, dynamic>> existing = (existingStr != null && existingStr.isNotEmpty)
@@ -1195,14 +1203,14 @@ if (response.statusCode == 200 || response.statusCode == 201) {
         }
 
         debugPrint('Project created successfully');
-        return true;
+        return createdProject;
       } else {
         debugPrint('Failed to create project: ${response.statusCode} - ${response.error}');
-        return false;
+        return null;
       }
     } catch (e) {
       debugPrint('Error creating project: $e');
-      return false;
+      return null;
     }
   }
 
