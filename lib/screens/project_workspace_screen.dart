@@ -87,7 +87,8 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
           _clientNameController.text = project.clientName ?? '';
           _selectedStatus = project.status;
           _selectedPriority = project.priority;
-          _selectedProjectType = project.projectType;
+          const validProjectTypes = ['software', 'hardware', 'research', 'consulting', 'other'];
+          _selectedProjectType = validProjectTypes.contains(project.projectType) ? project.projectType : 'other';
           _startDate = project.startDate;
           _endDate = project.endDate;
           _tagsController.text = project.tags.join(', ');
@@ -265,14 +266,36 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
 
         _showSuccessSnackBar('Project updated successfully');
       } else {
-        await ApiService.createProjectModel(project);
+        final createdProject = await ApiService.createProjectModel(project);
+
+        if (createdProject != null) {
+          try {
+            for (final deliverableId in _deliverableIds) {
+              await ApiService.linkDeliverableToProject(createdProject.id, deliverableId);
+            }
+
+            if (_sprintIds.isNotEmpty) {
+              await ApiService.associateSprintWithProject(createdProject.id, _sprintIds);
+            }
+          } catch (_) {}
+        }
+
         _showSuccessSnackBar('Project created successfully');
       }
 
       if (mounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
+          if (!mounted) {
+            return;
+          }
+          if (Navigator.of(context).canPop()) {
             Navigator.of(context).pop(true);
+          } else {
+            if (_isEditing) {
+              context.go('/project-workspace/${project.id}');
+            } else {
+              context.go('/projects');
+            }
           }
         });
       }
@@ -366,6 +389,10 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
     final now = DateTime.now();
     if (_endDate!.isAfter(now)) {
       _showErrorSnackBar('Reminder is only available when the project has reached or passed its end date.');
+      return;
+    }
+    if (_selectedStatus == ProjectStatus.completed || _selectedStatus == ProjectStatus.cancelled) {
+      _showErrorSnackBar('Project is already completed or cancelled.');
       return;
     }
     setState(() {
@@ -757,7 +784,10 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            initialValue: _selectedProjectType,
+            // ignore: deprecated_member_use
+            value: const ['software', 'hardware', 'research', 'consulting', 'other'].contains(_selectedProjectType)
+                ? _selectedProjectType
+                : null,
             decoration: InputDecoration(
               labelText: 'Project Type',
               prefixIcon: Icon(Icons.category_outlined, color: colorScheme.secondary),

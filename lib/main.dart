@@ -52,7 +52,6 @@ import 'screens/deliverable_detail_screen.dart';
 import 'screens/environment_management_screen.dart';
 import 'screens/project_workspace_screen.dart';
 import 'screens/projects_screen.dart';
-import 'screens/project_create_screen.dart';
 import 'screens/project_setup_screen.dart';
 
 void main() async {
@@ -179,7 +178,7 @@ final GoRouter _router = GoRouter(
       builder: (context, state) => const RoleGuard(
         requiredPermission: 'authenticated',
         child: SidebarScaffold(
-          child: ProjectCreateScreen(),
+          child: ProjectWorkspaceScreen(),
         ),
       ),
     ),
@@ -190,7 +189,7 @@ final GoRouter _router = GoRouter(
         return RoleGuard(
           requiredPermission: 'authenticated',
           child: SidebarScaffold(
-            child: ProjectCreateScreen(projectId: projectId),
+            child: ProjectWorkspaceScreen(projectId: projectId),
           ),
         );
       },

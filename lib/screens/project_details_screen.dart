@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../models/project.dart';
 import '../services/project_service.dart';
-import 'project_setup_screen.dart';
 import 'sprint_console_screen.dart';
 
 class ProjectDetailsScreen extends StatefulWidget {
@@ -261,11 +261,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             const SizedBox(height: 12),
             TextButton.icon(
               onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const ProjectSetupScreen(),
-                  ),
-                );
+                context.push('/project-workspace/new');
               },
               icon: const Icon(Icons.add, size: 16),
               label: const Text('Create New Project'),
@@ -445,11 +441,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 ],
                 onSelected: (value) {
                   if (value == 'edit') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => ProjectSetupScreen(projectId: widget.projectId),
-                      ),
-                    );
+                    context.push('/project-workspace/${widget.projectId}');
                   }
                 },
               ),
