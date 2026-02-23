@@ -1,6 +1,7 @@
 // server.js (lines 2–102) — ES Module compatible
 
 // Imports (ES Module syntax)
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
@@ -744,10 +745,10 @@ app.post('/api/v1/auth/login', async (req, res) => {
       });
     }
 
-    // Find user by email in users table
+    // Find user by email in users table (case-insensitive)
     const result = await pool.query(
-      'SELECT id, email, password_hash, name, role, created_at, is_active FROM users WHERE email = $1',
-      [email]
+      'SELECT id, email, password_hash, name, role, created_at, is_active FROM users WHERE email ILIKE $1',
+      [email.toLowerCase().trim()]
     );
 
     if (result.rows.length === 0) {
