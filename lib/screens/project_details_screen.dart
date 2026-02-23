@@ -4,6 +4,7 @@ import '../models/project.dart';
 import '../models/sprint.dart';
 import '../services/project_service.dart';
 import '../services/api_service.dart';
+import '../theme/flownet_theme.dart';
 import '../widgets/app_scaffold.dart';
 import 'sprint_console_screen.dart';
 
@@ -154,6 +155,8 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       useBackgroundImage: true,
       centered: false,
       scrollable: false,
+       useGlassContainer: false,
+       contentPadding: EdgeInsets.zero,
       body: Column(
         children: [
           _buildAppBar(),
@@ -190,11 +193,11 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         padding: const EdgeInsets.all(32),
         margin: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: FlownetColors.surfaceLight,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withValues(alpha: 0.4),
               blurRadius: 10,
               offset: const Offset(0, 2),
             ),
@@ -203,10 +206,10 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.error_outline,
               size: 64,
-              color: Colors.red[400],
+              color: FlownetColors.error,
             ),
             const SizedBox(height: 16),
             const Text(
@@ -214,7 +217,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF1A202C),
+                color: FlownetColors.pureWhite,
               ),
             ),
             const SizedBox(height: 8),
@@ -222,7 +225,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               'The project you\'re looking for doesn\'t exist or you don\'t have permission to view it.',
               style: TextStyle(
                 fontSize: 16,
-                color: Color(0xFF718096),
+                color: FlownetColors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -230,36 +233,36 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: FlownetColors.surfaceHighlight,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey[200]!),
+                border: Border.all(color: Colors.white.withAlpha(30)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     'Debug Info:',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
+                      color: FlownetColors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Project ID: ${widget.projectId}',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 11,
-                      color: Colors.grey[600],
+                      color: FlownetColors.textTertiary,
                       fontFamily: 'monospace',
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
+                  const Text(
                     'User: Busisiwe Dhlamini (Delivery Lead)',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.grey[600],
+                      color: FlownetColors.textTertiary,
                     ),
                   ),
                 ],
@@ -273,17 +276,17 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                     onPressed: () => Navigator.of(context).pop(),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: BorderSide(color: Colors.grey[400]!),
+                      side: BorderSide(color: Colors.white.withAlpha(80)),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: Text(
+                    child: const Text(
                       'Go Back',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: Colors.grey[600],
+                        color: FlownetColors.pureWhite,
                       ),
                     ),
                   ),
@@ -295,7 +298,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                       Navigator.of(context).pushReplacementNamed('/projects');
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[600],
+                      backgroundColor: FlownetColors.electricBlue,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -321,7 +324,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               icon: const Icon(Icons.add, size: 16),
               label: const Text('Create New Project'),
               style: TextButton.styleFrom(
-                foregroundColor: Colors.blue[600],
+                foregroundColor: FlownetColors.electricBlue,
                 textStyle: const TextStyle(fontSize: 12),
               ),
             ),
@@ -334,9 +337,14 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   Widget _buildAppBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+      decoration: BoxDecoration(
+        color: FlownetColors.surfaceLight.withAlpha(220),
+        border: const Border(
+          bottom: BorderSide(
+            color: FlownetColors.surfaceHighlight,
+            width: 1,
+          ),
+        ),
       ),
       child: Row(
         children: [
@@ -345,13 +353,13 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             child: Container(
               width: 40,
               height: 40,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF5F7FA),
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(26),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.arrow_back,
-                color: Color(0xFF4A5568),
+                color: FlownetColors.pureWhite,
                 size: 20,
               ),
             ),
@@ -366,7 +374,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A202C),
+                    color: FlownetColors.pureWhite,
                   ),
                 ),
                 SizedBox(height: 4),
@@ -374,7 +382,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                   'Manage project information and team',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF718096),
+                    color: FlownetColors.textSecondary,
                   ),
                 ),
               ],
@@ -383,9 +391,9 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.green[50],
+              color: FlownetColors.success.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.green[200]!),
+              border: Border.all(color: FlownetColors.success.withValues(alpha: 0.6)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -394,17 +402,17 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                   width: 8,
                   height: 8,
                   decoration: const BoxDecoration(
-                    color: Colors.green,
+                    color: FlownetColors.success,
                     shape: BoxShape.circle,
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
+                const Text(
                   'Active',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.green[700],
+                    color: FlownetColors.success,
                   ),
                 ),
               ],
@@ -440,11 +448,11 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FlownetColors.surfaceLight,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -464,7 +472,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                       style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A202C),
+                        color: FlownetColors.pureWhite,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -472,7 +480,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                       _project!.description,
                       style: const TextStyle(
                         fontSize: 16,
-                        color: Color(0xFF718096),
+                        color: FlownetColors.textSecondary,
                         height: 1.5,
                       ),
                       maxLines: 3,
@@ -482,8 +490,8 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 ),
               ),
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Color(0xFF718096)),
-                color: Colors.transparent,
+                icon: const Icon(Icons.more_vert, color: FlownetColors.textSecondary),
+                color: FlownetColors.surfaceLight,
                 itemBuilder: (context) => [
                   const PopupMenuItem(
                     value: 'edit',
@@ -513,19 +521,19 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 icon: Icons.key,
                 label: 'Project Key',
                 value: _project!.key,
-                color: const Color(0xFF4A5568),
+                color: FlownetColors.electricBlue,
               ),
               _buildInfoChip(
                 icon: Icons.business,
                 label: 'Client',
                 value: _project!.clientName ?? 'N/A',
-                color: const Color(0xFF4A5568),
+                color: FlownetColors.coolGray,
               ),
               _buildInfoChip(
                 icon: Icons.calendar_today,
                 label: 'Created',
                 value: _formatDate(_project!.createdAt),
-                color: const Color(0xFF4A5568),
+                color: FlownetColors.coolGray,
               ),
             ],
           ),
@@ -576,11 +584,11 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FlownetColors.surfaceLight,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -594,7 +602,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1A202C),
+              color: FlownetColors.pureWhite,
             ),
           ),
           const SizedBox(height: 16),
@@ -611,7 +619,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF718096),
+                        color: FlownetColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -620,7 +628,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1A202C),
+                        color: FlownetColors.pureWhite,
                       ),
                     ),
                     if (ownerEmail.isNotEmpty) ...[
@@ -629,7 +637,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                         ownerEmail,
                         style: const TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF718096),
+                          color: FlownetColors.textSecondary,
                         ),
                       ),
                     ],
@@ -652,7 +660,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF718096),
+                        color: FlownetColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -661,7 +669,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1A202C),
+                        color: FlownetColors.pureWhite,
                       ),
                     ),
                   ],
@@ -679,7 +687,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF718096),
+                        color: FlownetColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -688,7 +696,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1A202C),
+                        color: FlownetColors.pureWhite,
                       ),
                     ),
                   ],
@@ -710,7 +718,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF718096),
+                        color: FlownetColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -723,15 +731,15 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                               (tag) => Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF7FAFC),
+                                  color: FlownetColors.surfaceHighlight,
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  border: Border.all(color: Colors.white.withAlpha(30)),
                                 ),
                                 child: Text(
                                   tag,
                                   style: const TextStyle(
                                     fontSize: 12,
-                                    color: Color(0xFF4A5568),
+                                    color: FlownetColors.pureWhite,
                                   ),
                                 ),
                               ),
@@ -743,7 +751,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                         'No tags added',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Color(0xFF718096),
+                          color: FlownetColors.textSecondary,
                         ),
                       ),
                   ],
@@ -760,12 +768,12 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                  const Text(
                       'Linked Items',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF718096),
+                      color: FlownetColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -774,7 +782,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1A202C),
+                      color: FlownetColors.pureWhite,
                       ),
                     ),
                   ],
@@ -791,12 +799,12 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FlownetColors.surfaceLight,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -818,9 +826,9 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               const SizedBox(width: 12),
               Text(
                 label,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[600],
+                  color: FlownetColors.textSecondary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -872,11 +880,11 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FlownetColors.surfaceLight,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -892,7 +900,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A202C),
+                  color: FlownetColors.pureWhite,
                 ),
               ),
               const Spacer(),
@@ -911,7 +919,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                   icon: const Icon(Icons.directions_run, size: 16),
                   label: const Text('View All'),
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.blue[600],
+                    foregroundColor: FlownetColors.electricBlue,
                     textStyle: const TextStyle(fontSize: 12),
                   ),
                 ),
@@ -933,30 +941,30 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     return Container(
       height: 120,
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: FlownetColors.surfaceHighlight,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
+        border: Border.all(color: Colors.white.withAlpha(30)),
       ),
-      child: Center(
+      child: const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.directions_run, size: 32, color: Colors.grey[400]),
-            const SizedBox(height: 8),
+            Icon(Icons.directions_run, size: 32, color: FlownetColors.textSecondary),
+            SizedBox(height: 8),
             Text(
               'Sprints will appear here',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[600],
+                color: FlownetColors.textSecondary,
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               'Recent sprints and activities',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey[500],
+                color: FlownetColors.textTertiary,
               ),
             ),
           ],
@@ -983,19 +991,19 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         style: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF1A202C),
+          color: FlownetColors.pureWhite,
         ),
       ),
       subtitle: Text(
         _formatSprintSubtitle(sprint),
         style: const TextStyle(
           fontSize: 12,
-          color: Color(0xFF718096),
+          color: FlownetColors.textSecondary,
         ),
       ),
       trailing: const Icon(
         Icons.chevron_right,
-        color: Color(0xFFCBD5E0),
+        color: FlownetColors.textSecondary,
       ),
       onTap: () {
         context.go(
@@ -1015,11 +1023,11 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FlownetColors.surfaceLight,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -1035,7 +1043,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A202C),
+                  color: FlownetColors.pureWhite,
                 ),
               ),
               const Spacer(),
@@ -1043,14 +1051,14 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.blue[50],
+                    color: FlownetColors.electricBlue.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     '${_project!.members.length} members',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 12,
-                      color: Colors.blue[700],
+                      color: FlownetColors.electricBlue,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1062,28 +1070,28 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: FlownetColors.surfaceHighlight,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[200]!),
+                border: Border.all(color: Colors.white.withAlpha(30)),
               ),
-              child: Column(
+              child: const Column(
                 children: [
-                  Icon(Icons.people_outline, size: 48, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
+                  Icon(Icons.people_outline, size: 48, color: FlownetColors.textSecondary),
+                  SizedBox(height: 16),
                   Text(
                     'No team members assigned yet',
                     style: TextStyle(
                       fontSize: 16,
-                      color: Colors.grey[600],
+                      color: FlownetColors.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Text(
                     'Add team members to start collaborating on this project',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[500],
+                      color: FlownetColors.textTertiary,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -1103,12 +1111,12 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: FlownetColors.surfaceHighlight,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: Colors.white.withAlpha(30)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -1141,7 +1149,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1A202C),
+                        color: FlownetColors.pureWhite,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -1149,7 +1157,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                       member.userEmail,
                       style: const TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF718096),
+                        color: FlownetColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -1172,11 +1180,11 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(
+                        const Text(
                           'Working on this project',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: FlownetColors.textSecondary,
                             fontStyle: FontStyle.italic,
                           ),
                         ),
@@ -1192,10 +1200,10 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.grey[50],
+              color: FlownetColors.surfaceLight,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Column(
+            child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -1203,31 +1211,31 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[700],
+                    color: FlownetColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Text(
                   '• Reviewing project requirements',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[600],
+                    color: FlownetColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   '• Collaborating on design specifications',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[600],
+                    color: FlownetColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   '• Sprint planning and task assignment',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[600],
+                    color: FlownetColors.textSecondary,
                   ),
                 ),
               ],
