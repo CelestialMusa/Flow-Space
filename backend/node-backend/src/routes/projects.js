@@ -209,6 +209,44 @@ router.post('/', authenticateToken, async (req, res) => {
 
       if (membersToCreate.length > 0) {
         await ProjectMember.bulkCreate(membersToCreate);
+
+        try {
+          // Notify all assigned members (including owner) about project assignment
+          const uniqueUserIds = [...new Set(membersToCreate.map(m => String(m.user_id)))];
+          const users = await User.findAll({
+            where: { id: uniqueUserIds },
+            attributes: ['id', 'first_name', 'last_name', 'email']
+          });
+
+          const notifications = users.map(user => ({
+            recipient_id: user.id,
+            sender_id: req.user.id,
+            type: 'project_assignment',
+            message: `You have been assigned to project "${project.name}".`,
+            payload: {
+              project_id: project.id,
+              project_name: project.name,
+              project_key: project.key,
+              client_name: project.client_name,
+              status: project.status,
+              priority: project.priority,
+              role: (() => {
+                const member = membersToCreate.find(m => String(m.user_id) === String(user.id));
+                return member ? member.role : null;
+              })(),
+              assigned_at: new Date(),
+              reason: 'project_member_assignment'
+            },
+            is_read: false,
+            created_at: new Date()
+          }));
+
+          if (notifications.length > 0) {
+            await Notification.bulkCreate(notifications);
+          }
+        } catch (notifyErr) {
+          console.error('Error sending project assignment notifications:', notifyErr);
+        }
       }
     } else if (projectData.owner_id) {
        // If no members list but owner is specified, add owner as member
@@ -217,6 +255,36 @@ router.post('/', authenticateToken, async (req, res) => {
          user_id: projectData.owner_id,
          role: 'owner'
        });
+
+       try {
+         // Notify owner about project assignment when they are the only member
+         const owner = await User.findByPk(projectData.owner_id, {
+           attributes: ['id', 'first_name', 'last_name', 'email']
+         });
+         if (owner) {
+           await Notification.create({
+             recipient_id: owner.id,
+             sender_id: req.user.id,
+             type: 'project_assignment',
+             message: `You have been assigned as owner of project "${project.name}".`,
+             payload: {
+               project_id: project.id,
+               project_name: project.name,
+               project_key: project.key,
+               client_name: project.client_name,
+               status: project.status,
+               priority: project.priority,
+               role: 'owner',
+               assigned_at: new Date(),
+               reason: 'project_member_assignment'
+             },
+             is_read: false,
+             created_at: new Date()
+           });
+         }
+       } catch (notifyErr) {
+         console.error('Error sending project owner assignment notification:', notifyErr);
+       }
     }
 
     // Log the project creation
@@ -357,6 +425,44 @@ router.put('/:id', authenticateToken, async (req, res) => {
         
         if (membersToCreate.length > 0) {
           await ProjectMember.bulkCreate(membersToCreate);
+
+          try {
+            // Notify all assigned members (including owner) about project assignment/update
+            const uniqueUserIds = [...new Set(membersToCreate.map(m => String(m.user_id)))];
+            const users = await User.findAll({
+              where: { id: uniqueUserIds },
+              attributes: ['id', 'first_name', 'last_name', 'email']
+            });
+
+            const notifications = users.map(user => ({
+              recipient_id: user.id,
+              sender_id: req.user.id,
+              type: 'project_assignment',
+              message: `You have been assigned to project "${project.name}".`,
+              payload: {
+                project_id: project.id,
+                project_name: project.name,
+                project_key: project.key,
+                client_name: project.client_name,
+                status: project.status,
+                priority: project.priority,
+                role: (() => {
+                  const member = membersToCreate.find(m => String(m.user_id) === String(user.id));
+                  return member ? member.role : null;
+                })(),
+                assigned_at: new Date(),
+                reason: 'project_member_assignment'
+              },
+              is_read: false,
+              created_at: new Date()
+            }));
+
+            if (notifications.length > 0) {
+              await Notification.bulkCreate(notifications);
+            }
+          } catch (notifyErr) {
+            console.error('Error sending project assignment notifications on update:', notifyErr);
+          }
         }
       }
     }

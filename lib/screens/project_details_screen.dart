@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../models/project.dart';
+import '../models/sprint.dart';
 import '../services/project_service.dart';
+import '../services/api_service.dart';
+import '../widgets/app_scaffold.dart';
 import 'sprint_console_screen.dart';
 
 class ProjectDetailsScreen extends StatefulWidget {
@@ -19,6 +22,7 @@ class ProjectDetailsScreen extends StatefulWidget {
 class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   Project? _project;
   bool _isLoading = false;
+  List<Sprint> _recentSprints = [];
 
   @override
   void initState() {
@@ -30,9 +34,60 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     setState(() => _isLoading = true);
     try {
       debugPrint('Loading project with ID: ${widget.projectId}');
-      final project = await ProjectService.getProjectById(widget.projectId);
-      debugPrint('Project loaded: $project');
-      if (project != null) {
+      final loaded = await ProjectService.getProjectById(widget.projectId);
+      debugPrint('Project loaded: $loaded');
+      if (loaded != null) {
+        Project project = loaded;
+
+        try {
+          var deliverableIds = project.deliverableIds;
+          if (deliverableIds.isEmpty) {
+            final deliverableMaps = await ApiService.getDeliverables();
+            deliverableIds = deliverableMaps
+                .where((d) {
+                  final projectId = d['projectId'] ?? d['project_id'];
+                  return projectId != null && projectId.toString() == project.id;
+                })
+                .map((d) => d['id']?.toString())
+                .where((id) => id != null && id.isNotEmpty)
+                .cast<String>()
+                .toList();
+          }
+
+          var sprintIds = project.sprintIds;
+          final sprintMaps = await ApiService.getSprints(projectId: project.id);
+          if (sprintIds.isEmpty) {
+            sprintIds = sprintMaps
+                .map((s) => s['id']?.toString())
+                .where((id) => id != null && id.isNotEmpty)
+                .cast<String>()
+                .toList();
+          }
+
+          try {
+            final sprints = sprintMaps
+                .where((s) {
+                  final id = s['id']?.toString();
+                  return id != null && sprintIds.contains(id);
+                })
+                .map((s) => Sprint.fromJson(Map<String, dynamic>.from(s)))
+                .toList();
+            sprints.sort(
+              (a, b) => b.startDate.compareTo(a.startDate),
+            );
+            _recentSprints = sprints.take(3).toList();
+          } catch (e) {
+            debugPrint('Error loading recent sprints for project: $e');
+          }
+
+          project = project.copyWith(
+            deliverableIds: deliverableIds,
+            sprintIds: sprintIds,
+          );
+        } catch (e) {
+          debugPrint('Error loading linked items for project: $e');
+        }
+
         setState(() {
           _project = project;
         });
@@ -95,36 +150,36 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildAppBar(),
-            Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text(
-                            'Loading project details...',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Color(0xFF718096),
-                            ),
+    return AppScaffold(
+      useBackgroundImage: true,
+      centered: false,
+      scrollable: false,
+      body: Column(
+        children: [
+          _buildAppBar(),
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text(
+                          'Loading project details...',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Color(0xFF718096),
                           ),
-                        ],
-                      ),
-                    )
-                  : _project != null
-                      ? _buildProjectContent()
-                      : _buildErrorState(),
-            ),
-          ],
-        ),
+                        ),
+                      ],
+                    ),
+                  )
+                : _project != null
+                    ? _buildProjectContent()
+                    : _buildErrorState(),
+          ),
+        ],
       ),
     );
   }
@@ -370,6 +425,8 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
           const SizedBox(height: 24),
           _buildQuickStats(),
           const SizedBox(height: 24),
+          _buildFormDetailsSection(),
+          const SizedBox(height: 24),
           _buildSprintsSection(),
           const SizedBox(height: 24),
           _buildTeamSection(),
@@ -510,6 +567,226 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     );
   }
 
+  Widget _buildFormDetailsSection() {
+    final owner = _project!.members.where((m) => m.role == ProjectRole.owner).toList();
+    final ownerName = owner.isNotEmpty ? owner.first.userName : 'Not assigned';
+    final ownerEmail = owner.isNotEmpty ? owner.first.userEmail : '';
+    final hasTags = _project!.tags.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Project Form Details',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A202C),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Icon(Icons.person_outline, size: 18, color: Color(0xFF4A5568)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Project Owner',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF718096),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      ownerName,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1A202C),
+                      ),
+                    ),
+                    if (ownerEmail.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        ownerEmail,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF718096),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Icon(Icons.calendar_today, size: 18, color: Color(0xFF4A5568)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Start Date',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF718096),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatDate(_project!.startDate),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1A202C),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              const Icon(Icons.event, size: 18, color: Color(0xFF4A5568)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'End Date',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF718096),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatDate(_project!.endDate),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1A202C),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Icon(Icons.tag, size: 18, color: Color(0xFF4A5568)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Tags',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF718096),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (hasTags)
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _project!.tags
+                            .map(
+                              (tag) => Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF7FAFC),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: Text(
+                                  tag,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF4A5568),
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      )
+                    else
+                      const Text(
+                        'No tags added',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF718096),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Icon(Icons.link, size: 18, color: Color(0xFF4A5568)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Linked Items',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF718096),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_project!.deliverableIds.length} deliverables • ${_project!.sprintIds.length} sprints',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1A202C),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatCard(String label, String value, Color color, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -619,25 +896,34 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 ),
               ),
               const Spacer(),
-              TextButton.icon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const SprintConsoleScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('View All'),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.blue[600],
-                  textStyle: const TextStyle(fontSize: 12),
+              if (_project != null)
+                TextButton.icon(
+                  onPressed: () {
+                    final keyOrId = _project!.key.isNotEmpty ? _project!.key : _project!.id;
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => SprintConsoleScreen(
+                          initialProjectKey: keyOrId,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.directions_run, size: 16),
+                  label: const Text('View All'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.blue[600],
+                    textStyle: const TextStyle(fontSize: 12),
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 16),
-          _buildSprintPlaceholder(),
+          if (_recentSprints.isEmpty)
+            _buildSprintPlaceholder()
+          else
+            Column(
+              children: _recentSprints.map(_buildSprintListTile).toList(),
+            ),
         ],
       ),
     );
@@ -677,6 +963,52 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildSprintListTile(Sprint sprint) {
+    final color = sprint.statusColor;
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: CircleAvatar(
+        backgroundColor: color.withValues(alpha: 0.1),
+        child: Icon(
+          Icons.directions_run,
+          color: color,
+          size: 18,
+        ),
+      ),
+      title: Text(
+        sprint.name,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF1A202C),
+        ),
+      ),
+      subtitle: Text(
+        _formatSprintSubtitle(sprint),
+        style: const TextStyle(
+          fontSize: 12,
+          color: Color(0xFF718096),
+        ),
+      ),
+      trailing: const Icon(
+        Icons.chevron_right,
+        color: Color(0xFFCBD5E0),
+      ),
+      onTap: () {
+        context.go(
+          '/sprint-board/${Uri.encodeComponent(sprint.id)}?name=${Uri.encodeComponent(sprint.name)}',
+        );
+      },
+    );
+  }
+
+  String _formatSprintSubtitle(Sprint sprint) {
+    final start = sprint.startDate;
+    final end = sprint.endDate;
+    return '${sprint.statusText} • ${_formatDate(start)} → ${_formatDate(end)}';
   }
 
   Widget _buildTeamSection() {

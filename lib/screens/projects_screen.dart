@@ -105,7 +105,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     final primaryColor = theme.colorScheme.primary;
 
     return AppScaffold(
-      useBackgroundImage: false,
+      useBackgroundImage: true,
       centered: false,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

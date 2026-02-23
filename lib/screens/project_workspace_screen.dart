@@ -423,30 +423,18 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(
           _isEditing ? 'Edit Project' : 'Create New Project',
-          style: TextStyle(
+          style: const TextStyle(
             fontWeight: FontWeight.w600,
-            color: colorScheme.onSurface,
+            color: Colors.white,
           ),
         ),
         backgroundColor: Colors.transparent,
-        foregroundColor: colorScheme.onSurface,
+        foregroundColor: Colors.white,
         elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                colorScheme.surface.withAlpha(200),
-                colorScheme.surface.withAlpha(100),
-              ],
-            ),
-          ),
-        ),
       ),
       body: _isLoading
           ? Center(
@@ -454,40 +442,27 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
                 valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
               ),
             )
-          : Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    colorScheme.surface,
-                    colorScheme.surface.withAlpha(240),
-                    colorScheme.surface.withAlpha(220),
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildBasicInfoSection(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildMetadataSection(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildDatesSection(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildMembersSection(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildDeliverablesSection(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildSprintsSection(colorScheme),
+                    const SizedBox(height: 32),
+                    _buildActionButtons(colorScheme),
                   ],
-                ),
-              ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildBasicInfoSection(colorScheme),
-                      const SizedBox(height: 24),
-                      _buildMetadataSection(colorScheme),
-                      const SizedBox(height: 24),
-                      _buildDatesSection(colorScheme),
-                      const SizedBox(height: 24),
-                      _buildMembersSection(colorScheme),
-                      const SizedBox(height: 24),
-                      _buildDeliverablesSection(colorScheme),
-                      const SizedBox(height: 24),
-                      _buildSprintsSection(colorScheme),
-                      const SizedBox(height: 32),
-                      _buildActionButtons(colorScheme),
-                    ],
-                  ),
                 ),
               ),
             ),
