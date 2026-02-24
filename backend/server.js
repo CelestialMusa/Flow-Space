@@ -473,7 +473,7 @@ app.post('/api/v1/auth/register', async (req, res) => {
     
     // Check if user already exists
     const existingUser = await pool.query(
-      'SELECT id FROM users WHERE email = $1',
+      'SELECT id FROM users WHERE email ILIKE $1',
       [email]
     );
     
@@ -588,8 +588,8 @@ app.post('/api/v1/auth/verify-email', async (req, res) => {
     const result = await pool.query(
       `SELECT id, email_verified, email_verification_code, email_verification_expires_at
        FROM users
-       WHERE email = $1`,
-      [email]
+       WHERE email ILIKE $1`,
+      [email.toLowerCase().trim()]
     );
 
     if (result.rows.length === 0) {
@@ -667,8 +667,8 @@ app.post('/api/v1/auth/signup', async (req, res) => {
     
     // Check if user already exists
     const existingUser = await pool.query(
-      'SELECT id FROM users WHERE email = $1',
-      [email]
+      'SELECT id FROM users WHERE email ILIKE $1',
+      [email.toLowerCase().trim()]
     );
     
     if (existingUser.rows.length > 0) {
@@ -874,8 +874,8 @@ app.post('/api/v1/auth/resend-verification', async (req, res) => {
 
     // Check if user exists
     const userResult = await pool.query(
-      'SELECT id, email, email_verified FROM users WHERE email = $1',
-      [email]
+      'SELECT id, email, email_verified FROM users WHERE email ILIKE $1',
+      [email.toLowerCase().trim()]
     );
 
     if (userResult.rows.length === 0) {
@@ -5482,8 +5482,8 @@ app.post('/api/v1/projects/:projectId/members', authenticateToken, async (req, r
     
     // Find the user by email
     const userResult = await pool.query(`
-      SELECT id, name, email FROM users WHERE email = $1 AND is_active = true
-    `, [userEmail]);
+      SELECT id, name, email FROM users WHERE email ILIKE $1 AND is_active = true
+    `, [userEmail.toLowerCase().trim()]);
     
     if (userResult.rows.length === 0) {
       return res.status(404).json({
