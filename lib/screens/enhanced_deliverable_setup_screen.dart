@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
@@ -9,6 +10,7 @@ import '../widgets/flownet_logo.dart';
 import '../widgets/ai_readiness_gate_widget.dart';
 import '../services/deliverable_service.dart';
 import '../services/backend_api_service.dart';
+import '../services/project_service.dart';
 import '../widgets/app_modal.dart';
 import '../services/api_client.dart';
 import '../config/environment.dart';
@@ -40,8 +42,11 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   bool _hasInternalApproval = false;
   List<Map<String, dynamic>> _availableSprints = [];
   List<Map<String, dynamic>> _users = [];
+  List<Map<String, dynamic>> _projects = [];
   String? _ownerId;
-  
+  String? _projectId;
+  String _priority = 'Medium';
+
   bool _isSubmitting = false;
 
   @override
@@ -50,6 +55,21 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
     _initializeReadinessItems();
     _loadSprints();
     _loadUsers();
+    _loadProjects();
+  }
+
+  Future<void> _loadProjects() async {
+    try {
+      final projectList = await ProjectService.getAllProjects(limit: 1000);
+      setState(() {
+        _projects = projectList.map((p) => p.toJson()).toList();
+      });
+    } catch (e) {
+      debugPrint('Error loading projects: $e');
+      setState(() {
+        _projects = [];
+      });
+    }
   }
 
   void _initializeReadinessItems() {
@@ -404,19 +424,41 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
     if (_attachedFiles.isEmpty) return uploadedUrls;
 
     for (var file in _attachedFiles) {
-      if (file.path == null) continue;
-      
       try {
-        // Upload to /files/upload
-        final response = await _apiClient.uploadFile(
-          '/files/upload', 
-          file.path!, 
-          file.name, 
-          'application/octet-stream', // Or determine mime type
-          fields: {
-            'prefix': 'deliverables',
+        ApiResponse response;
+        
+        // On web, use bytes; on other platforms, use file path
+        if (kIsWeb) {
+          // Web platform: use bytes
+          if (file.bytes == null) {
+            debugPrint('Warning: File ${file.name} has no bytes on web platform');
+            continue;
           }
-        );
+          response = await _apiClient.uploadFileBytes(
+            '/files/upload',
+            fileBytes: file.bytes!,
+            filename: file.name,
+            fileField: 'file',
+            fields: {
+              'prefix': 'deliverables',
+            }
+          );
+        } else {
+          // Non-web platform: use file path
+          if (file.path == null) {
+            debugPrint('Warning: File ${file.name} has no path');
+            continue;
+          }
+          response = await _apiClient.uploadFile(
+            '/files/upload', 
+            file.path!, 
+            file.name, 
+            'application/octet-stream',
+            fields: {
+              'prefix': 'deliverables',
+            }
+          );
+        }
         
         if (response.isSuccess && response.data != null) {
           // Parse response to get URL
@@ -536,12 +578,13 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
         title: title,
         description: description.isEmpty ? null : description,
         definitionOfDone: _definitionOfDone.isEmpty ? null : _definitionOfDone,
-        priority: 'Medium',
+        priority: _priority,
         status: 'Draft',
         dueDate: _dueDate,
         sprintIds: _selectedSprints,
         evidenceLinks: allEvidenceLinks,
         ownerId: _ownerId,
+        projectId: _projectId,
       );
       
       if (mounted) {
@@ -706,6 +749,23 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
               ),
               const SizedBox(height: 16),
 
+              InkWell(
+                onTap: _selectDueDate,
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Due Date',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.calendar_today),
+                  ),
+                  child: Text(
+                    _dueDate != null
+                        ? '${_dueDate!.day}/${_dueDate!.month}/${_dueDate!.year}'
+                        : 'Select due date',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
               DropdownButtonFormField<String>(
                 // ignore: deprecated_member_use
                 value: _ownerId,
@@ -749,23 +809,6 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
                     _ownerId = value;
                   });
                 },
-              ),
-              const SizedBox(height: 16),
-
-              InkWell(
-                onTap: _selectDueDate,
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Due Date',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.calendar_today),
-                  ),
-                  child: Text(
-                    _dueDate != null
-                        ? '${_dueDate!.day}/${_dueDate!.month}/${_dueDate!.year}'
-                        : 'Select due date',
-                  ),
-                ),
               ),
               const SizedBox(height: 24),
 

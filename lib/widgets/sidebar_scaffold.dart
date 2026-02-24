@@ -29,15 +29,15 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
     final allItems = [
       // Work-focused items only
       const _NavItem(
-        label: 'Dashboard',
+        label: 'Dashboard', 
         icon: Icons.dashboard_outlined,
         iconName: 'dashboard',
         route: '/dashboard',
         requiredPermission: null,
       ),
       const _NavItem(
-        label: 'Sprints',
-        icon: Icons.timer_outlined,
+        label: 'Sprints', 
+        icon: Icons.timer_outlined, 
         iconName: 'sprints',
         route: '/sprint-console',
         requiredPermission: 'view_sprints',
@@ -64,15 +64,15 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         requiredPermission: 'view_approvals',
       ),
       const _NavItem(
-        label: 'Repository',
-        icon: Icons.folder_outlined,
+        label: 'Repository', 
+        icon: Icons.folder_outlined, 
         iconName: 'repository',
         route: '/repository',
         requiredPermission: 'view_all_deliverables',
       ),
       const _NavItem(
-        label: 'Reports',
-        icon: Icons.assessment_outlined,
+        label: 'Reports', 
+        icon: Icons.assessment_outlined, 
         iconName: 'reports',
         route: '/report-repository',
         requiredPermission: 'view_all_deliverables',
@@ -740,7 +740,7 @@ class _NavItem {
 
   const _NavItem({
     required this.label, 
-    required this.icon,
+    required this.icon, 
     required this.iconName,
     required this.route,
     this.requiredPermission,

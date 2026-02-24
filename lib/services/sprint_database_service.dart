@@ -158,44 +158,61 @@ String? description,
       };
 
       debugPrint('🚀 Creating sprint with data: $body');
-      final response = await _backendApiService.createSprint(body);
+      ApiResponse response;
 
-debugPrint('📡 Sprint creation response: ${response.statusCode}');
+      // When we have a projectId, use project-scoped endpoint first (most reliable)
+      if (projectId != null && projectId.isNotEmpty) {
+        final projectBody = {
+          'name': name,
+          'start_date': startDate.toIso8601String(),
+          'end_date': endDate.toIso8601String(),
+          if (description != null && description.isNotEmpty) 'description': description,
+        };
+        response = await _backendApiService.createSprintForProject(projectId, projectBody);
+        debugPrint('📡 Project-scoped create response: ${response.statusCode}');
+        if (!response.isSuccess) {
+          response = await _backendApiService.createSprint(body);
+          debugPrint('📡 Main create (fallback) response: ${response.statusCode}');
+        }
+      } else {
+        response = await _backendApiService.createSprint(body);
+        debugPrint('📡 Sprint creation response: ${response.statusCode}');
+      }
 
       if (response.isSuccess) {
         final data = response.data;
-        if (data['success'] == true) {
-          debugPrint('✅ Sprint "$name" created successfully');
-          
-          // Send notification for sprint creation
-          try {
-            final token = _authService.accessToken;
-            if (token != null) {
-              _notificationService.setAuthToken(token);
-              final user = _authService.currentUser;
-              final userName = user?.name ?? 'Unknown User';
-              
-              await _notificationService.notifySprintCreated(
-                sprintName: name,
-                projectName: projectId ?? 'Current Project',
-                createdBy: userName,
-              );
-            }
-          } catch (e) {
-            debugPrint('❌ Error sending sprint creation notification: $e');
+        // ApiClient returns unwrapped data (the sprint row) when backend sends { success: true, data: sprint }
+        Map<String, dynamic> created = const {};
+        if (data is Map) {
+          if (data.containsKey('data') && data['data'] is Map) {
+            created = Map<String, dynamic>.from(data['data'] as Map);
+          } else {
+            created = Map<String, dynamic>.from(data);
           }
-          
-          final created = Map<String, dynamic>.from(data['data']);
-          // Cache: prepend to global and project-specific cache
-          try {
-            await _prependCachedSprint(created, projectId: projectId);
-          } catch (_) {}
-          return created;
-        } else {
-          throw Exception(data['error'] ?? 'Failed to create sprint');
         }
+        debugPrint('✅ Sprint "$name" created successfully');
+        // Send notification for sprint creation
+        try {
+          final token = _authService.accessToken;
+          if (token != null) {
+            _notificationService.setAuthToken(token);
+            final user = _authService.currentUser;
+            final userName = user?.name ?? 'Unknown User';
+            await _notificationService.notifySprintCreated(
+              sprintName: name,
+              projectName: projectId ?? 'Current Project',
+              createdBy: userName,
+            );
+          }
+        } catch (e) {
+          debugPrint('❌ Error sending sprint creation notification: $e');
+        }
+        // Cache: prepend to global and project-specific cache
+        try {
+          await _prependCachedSprint(created, projectId: projectId);
+        } catch (_) {}
+        return created;
       } else {
-        debugPrint('❌ Failed to create sprint: ${response.error ?? 'Unknown error'}');
         throw Exception(response.error ?? 'Failed to create sprint');
       }
     } catch (e) {

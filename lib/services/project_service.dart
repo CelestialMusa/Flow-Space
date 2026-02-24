@@ -16,30 +16,44 @@ class ProjectService {
   }
 
   static Future<List<Project>> getAllProjects({int skip = 0, int limit = 100}) async {
-    try {
-      final token = await _getAuthToken();
-      final response = await http.get(
-        Uri.parse('$_baseUrl/projects?skip=$skip&limit=$limit'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+    final token = await _getAuthToken();
+    final response = await http.get(
+      Uri.parse('$_baseUrl/projects?skip=$skip&limit=$limit'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        if (data['success'] == true) {
-          final List<dynamic> projectsJson = data['data'];
-          return projectsJson.map((json) => Project.fromJson(json)).toList();
-        }
-      }
-      
-      // If API fails or returns no projects, return mock data for testing
-      return _getMockProjects();
+    if (response.statusCode != 200) {
+      debugPrint('Error loading projects from API: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load projects: ${response.statusCode}');
+    }
+
+    final dynamic decoded = json.decode(response.body);
+    if (decoded is! Map<String, dynamic>) {
+      debugPrint('Error loading projects: invalid response format');
+      throw Exception('Invalid response from server');
+    }
+
+    final Map<String, dynamic> data = decoded;
+    if (data['success'] != true) {
+      debugPrint('Error loading projects: success=false');
+      return [];
+    }
+
+    final dynamic rawList = data['data'];
+    if (rawList == null || rawList is! List) {
+      return [];
+    }
+
+    try {
+      return rawList
+          .map((e) => Project.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
     } catch (e) {
-      debugPrint('Error loading projects from API: $e');
-      // Return mock data as fallback
-      return _getMockProjects();
+      debugPrint('Error parsing projects: $e');
+      rethrow;
     }
   }
 

@@ -180,7 +180,7 @@ class _ClientReviewScreenState extends ConsumerState<ClientReviewScreen> {
       return;
     }
 
-    if (_selectedAction == 'changeRequest' && _changeRequestController.text.isEmpty) {
+    if (_selectedAction == 'changeRequest' && _changeRequestController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please provide details for the change request'),
@@ -230,7 +230,9 @@ class _ClientReviewScreenState extends ConsumerState<ClientReviewScreen> {
           setState(() {
             _report = _report?.copyWith(status: ReportStatus.approved);
           });
+          if (widget.reportId.isNotEmpty) {
           context.go('/enhanced-client-review/${widget.reportId}');
+          }
         } else if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
