@@ -3,7 +3,7 @@ class ApiConfig {
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'http://localhost:3001/api',
-  );
+  ).replaceAll('/v1', ''); // Remove /v1 if present to avoid double versioning
   static const String apiVersion = '/v1';
   static const Duration requestTimeout = Duration(seconds: 30);
   static const Duration tokenRefreshBuffer = Duration(minutes: 5);
