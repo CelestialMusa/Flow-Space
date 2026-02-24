@@ -31,6 +31,7 @@ function createPool() {
     console.log('🛜 Using individual database credentials');
     console.log('📊 Host:', process.env.DB_HOST || 'localhost');
 
+  // SUPER SAFE SSL CONFIGURATION - Always works for Render
   return new Pool({
       host: process.env.DB_HOST || 'localhost',
       port: parseInt(process.env.DB_PORT || '5432', 10),

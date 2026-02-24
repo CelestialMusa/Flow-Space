@@ -2,6 +2,7 @@
 import 'dotenv/config'; // Load .env before any other imports so DB_PASSWORD etc. are set
 
 // Imports (ES Module syntax)
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
@@ -566,8 +567,8 @@ app.post('/api/v1/auth/register', async (req, res) => {
     
     // Check if user already exists
     const existingUser = await pool.query(
-      'SELECT id FROM users WHERE email = $1',
-      [email]
+      'SELECT id FROM users WHERE email ILIKE $1',
+      [email.toLowerCase().trim()]
     );
     
     if (existingUser.rows.length > 0) {
@@ -681,8 +682,8 @@ app.post('/api/v1/auth/verify-email', async (req, res) => {
     const result = await pool.query(
       `SELECT id, email_verified, email_verification_code, email_verification_expires_at
        FROM users
-       WHERE email = $1`,
-      [email]
+       WHERE email ILIKE $1`,
+      [email.toLowerCase().trim()]
     );
 
     if (result.rows.length === 0) {
@@ -760,8 +761,8 @@ app.post('/api/v1/auth/signup', async (req, res) => {
     
     // Check if user already exists
     const existingUser = await pool.query(
-      'SELECT id FROM users WHERE email = $1',
-      [email]
+      'SELECT id FROM users WHERE email ILIKE $1',
+      [email.toLowerCase().trim()]
     );
     
     if (existingUser.rows.length > 0) {
@@ -838,52 +839,11 @@ app.post('/api/v1/auth/login', async (req, res) => {
       });
     }
 
-    // Find user by email - support both schema: (first_name, last_name) or (name)
-    console.log('📊 Querying database for user...');
-    let result;
-    try {
-      result = await pool.query(
-        'SELECT id, email, password_hash, first_name, last_name, role, created_at, is_active FROM users WHERE email = $1',
-        [email]
-      );
-      if (result.rows.length > 0) {
-        const row = result.rows[0];
-        row.name = (row.first_name && row.last_name) ? `${row.first_name} ${row.last_name}`.trim() : (row.first_name || row.last_name || row.email);
-      }
-      console.log(`📊 Query result: ${result.rows.length} rows found`);
-    } catch (dbError) {
-      console.error('❌ Database query error:', dbError);
-      const msg = dbError.message || String(dbError);
-      const isDbConnection = /connection|ECONNREFUSED|password authentication|connect/i.test(msg);
-      const isColumnError = /column.*does not exist|undefined_column/i.test(msg);
-      if (isColumnError) {
-        // Fallback: table has name instead of first_name/last_name
-        try {
-          result = await pool.query(
+    // Find user by email in users table
+    const result = await pool.query(
       'SELECT id, email, password_hash, name, role, created_at, is_active FROM users WHERE email = $1',
       [email]
     );
-        } catch (e2) {
-          return res.status(500).json({
-            success: false,
-            error: 'Database configuration error. Check server logs.',
-            details: process.env.NODE_ENV !== 'production' ? msg : undefined,
-          });
-        }
-      } else if (isDbConnection) {
-        return res.status(503).json({
-          success: false,
-          error: 'Database unavailable. Check that PostgreSQL is running and credentials in .env or environment are correct.',
-          details: process.env.NODE_ENV !== 'production' ? msg : undefined,
-        });
-      } else {
-        return res.status(500).json({
-          success: false,
-          error: 'Login failed due to a server error.',
-          details: process.env.NODE_ENV !== 'production' ? msg : undefined,
-        });
-      }
-    }
 
     if (!result || result.rows.length === 0) {
       console.log(`❌ User not found: ${email}`);
@@ -923,7 +883,11 @@ app.post('/api/v1/auth/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
@@ -943,8 +907,8 @@ app.post('/api/v1/auth/login', async (req, res) => {
           email: user.email,
           name: userName,
           role: user.role,
-          createdAt: user.created_at,
           isActive: user.is_active,
+          createdAt: user.created_at
         },
         token: token,
         token_type: 'Bearer',
@@ -1076,8 +1040,8 @@ app.post('/api/v1/auth/resend-verification', async (req, res) => {
 
     // Check if user exists
     const userResult = await pool.query(
-      'SELECT id, email, email_verified FROM users WHERE email = $1',
-      [email]
+      'SELECT id, email, email_verified FROM users WHERE email ILIKE $1',
+      [email.toLowerCase().trim()]
     );
 
     if (userResult.rows.length === 0) {
@@ -6304,8 +6268,8 @@ app.post('/api/v1/projects/:projectId/members', authenticateToken, async (req, r
     
     // Find the user by email
     const userResult = await pool.query(`
-      SELECT id, name, email FROM users WHERE email = $1 AND is_active = true
-    `, [userEmail]);
+      SELECT id, name, email FROM users WHERE email ILIKE $1 AND is_active = true
+    `, [userEmail.toLowerCase().trim()]);
     
     if (userResult.rows.length === 0) {
       return res.status(404).json({

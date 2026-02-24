@@ -151,7 +151,16 @@ static String get _baseUrlWithVersion => Environment.apiBaseUrl;
   }
 
   // Multipart file upload method
-  Future<ApiResponse> uploadFile(String endpoint, String filePath, String fileName, String fileType, {Map<String, String>? fields}) async {
+  Future<ApiResponse> uploadFile(
+    String endpoint, 
+    String filePath, 
+    String fileName, 
+    String fileType, 
+    {
+      Map<String, String>? fields,
+      List<int>? fileBytes,
+    }
+  ) async {
     try {
       // Check if token needs refresh
       if (_accessToken != null && !_isTokenValid()) {
@@ -174,11 +183,19 @@ static String get _baseUrlWithVersion => Environment.apiBaseUrl;
       }
 
       // Add file
-      request.files.add(await http.MultipartFile.fromPath(
-        'file',
-        filePath,
-        filename: fileName,
-      ),);
+      if (fileBytes != null) {
+        request.files.add(http.MultipartFile.fromBytes(
+          'file',
+          fileBytes,
+          filename: fileName,
+        ));
+      } else {
+        request.files.add(await http.MultipartFile.fromPath(
+          'file',
+          filePath,
+          filename: fileName,
+        ));
+      }
 
       // Add additional fields
       if (fields != null) {

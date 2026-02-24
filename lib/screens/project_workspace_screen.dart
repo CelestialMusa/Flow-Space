@@ -209,6 +209,20 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
     );
   }
 
+  String _generateProjectKey(String projectName) {
+    final String cleanName = projectName
+        .replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    final List<String> words = cleanName.split(' ');
+    String key = words.map((w) => w.isNotEmpty && w.length >= 3 ? w.substring(0, 3).toUpperCase() : w.toUpperCase()).join();
+    if (key.length > 10) key = key.substring(0, 10);
+    if (key.isEmpty || !RegExp(r'^[A-Z]').hasMatch(key)) {
+      key = 'PRJ${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+    }
+    return key;
+  }
+
   Future<void> _saveProject() async {
     if (!_formKey.currentState!.validate()) {
       return;
