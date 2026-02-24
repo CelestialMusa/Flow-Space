@@ -44,7 +44,9 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   List<Map<String, dynamic>> _users = [];
   List<Map<String, dynamic>> _projects = [];
   String? _ownerId;
-  
+  String? _projectId;
+  String _priority = 'Medium';
+
   bool _isSubmitting = false;
 
   @override

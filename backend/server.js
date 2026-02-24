@@ -839,11 +839,23 @@ app.post('/api/v1/auth/login', async (req, res) => {
       });
     }
 
-    // Find user by email in users table
-    const result = await pool.query(
-      'SELECT id, email, password_hash, name, role, created_at, is_active FROM users WHERE email = $1',
-      [email]
-    );
+    // Find user by email (support both schemas: name or first_name/last_name)
+    let result;
+    try {
+      result = await pool.query(
+        'SELECT id, email, password_hash, first_name, last_name, role, created_at, is_active FROM users WHERE email = $1',
+        [email]
+      );
+    } catch (colErr) {
+      if (colErr?.message && /column.*does not exist/i.test(colErr.message)) {
+        result = await pool.query(
+          'SELECT id, email, password_hash, name, role, created_at, is_active FROM users WHERE email = $1',
+          [email]
+        );
+      } else {
+        throw colErr;
+      }
+    }
 
     if (!result || result.rows.length === 0) {
       console.log(`❌ User not found: ${email}`);
