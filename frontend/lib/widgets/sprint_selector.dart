@@ -644,6 +644,7 @@ class _SprintSelectorState extends State<SprintSelector> {
   Widget _buildAvailableSprintTile(Map<String, dynamic> sprint) {
     final isSelected = _selectedIds.contains(sprint['id'] as String);
     final status = sprint['status'] as String?;
+    final progress = sprint['progress'] as int? ?? 0;
     final ticketCount = sprint['ticket_count'] as int? ?? 0;
     
     return InkWell(
@@ -722,6 +723,32 @@ class _SprintSelectorState extends State<SprintSelector> {
                           ),
                         ),
                       ),
+                      if (progress > 0) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _hexToColor(ProjectSprintService.getProgressColor(progress))
+                                .withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: _hexToColor(ProjectSprintService.getProgressColor(progress))
+                                  .withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Text(
+                            '$progress%',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: _hexToColor(ProjectSprintService.getProgressColor(progress)),
+                            ),
+                          ),
+                        ),
+                      ],
                       if (ticketCount > 0) ...[
                         const SizedBox(width: 8),
                         Text(
