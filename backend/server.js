@@ -458,6 +458,48 @@ async function initializeDatabase() {
 
 initializeDatabase();
 
+// Debug endpoint to check user status
+app.get('/api/v1/debug/user/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    
+    const result = await pool.query(
+      'SELECT id, email, password_hash, name, role, created_at, is_active FROM users WHERE email ILIKE $1',
+      [email.toLowerCase().trim()]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({
+        success: true,
+        exists: false,
+        message: 'User not found in database'
+      });
+    }
+
+    const user = result.rows[0];
+    
+    return res.json({
+      success: true,
+      exists: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        isActive: user.is_active,
+        hasPasswordHash: !!user.password_hash,
+        createdAt: user.created_at
+      }
+    });
+  } catch (error) {
+    console.error('Debug user check error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Auth routes
 // Register endpoint (matching frontend expectations)
 app.post('/api/v1/auth/register', async (req, res) => {
