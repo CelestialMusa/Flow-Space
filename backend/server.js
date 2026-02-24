@@ -474,7 +474,7 @@ app.post('/api/v1/auth/register', async (req, res) => {
     // Check if user already exists
     const existingUser = await pool.query(
       'SELECT id FROM users WHERE email ILIKE $1',
-      [email]
+      [email.toLowerCase().trim()]
     );
     
     if (existingUser.rows.length > 0) {

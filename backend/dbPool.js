@@ -11,17 +11,12 @@ function createPool() {
     throw new Error('DATABASE_URL is not set. Please configure it in Render environment variables.');
   }
 
-  // Configure SSL based on environment
-  const sslConfig = process.env.NODE_ENV === 'production' 
-    ? { 
-        rejectUnauthorized: false,
-        sslmode: 'require'
-      }
-    : false;
-
+  // SUPER SAFE SSL CONFIGURATION - Always works for Render
   return new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: sslConfig,
+    ssl: {
+      rejectUnauthorized: false
+    }
   });
 }
 
