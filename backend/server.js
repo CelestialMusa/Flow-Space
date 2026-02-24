@@ -796,8 +796,8 @@ app.post('/api/v1/auth/login', async (req, res) => {
         email: user.email,
         role: user.role,
       },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN }
     );
 
     console.log(`✅ User logged in: ${user.email}`);
@@ -811,8 +811,8 @@ app.post('/api/v1/auth/login', async (req, res) => {
           email: user.email,
           name: user.name,
           role: user.role,
-          createdAt: user.created_at,
           isActive: user.is_active,
+          createdAt: user.created_at
         },
         token: token,
         token_type: 'Bearer',
