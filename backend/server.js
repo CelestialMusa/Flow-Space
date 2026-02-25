@@ -3534,13 +3534,8 @@ app.get('/api/v1/sign-off-reports/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
 
-    // Log view action in audit
-    await pool.query(`
-      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
-      VALUES ($1, 'view_report', 'sign_off_report', $2, '{}', NOW())
-    `, [userId, id]);
-
-    const result = await pool.query(`
+    // Get report details first for audit logging
+    const reportResult = await pool.query(`
       SELECT 
         r.*,
         u.name as created_by_name,
@@ -3554,9 +3549,29 @@ app.get('/api/v1/sign-off-reports/:id', authenticateToken, async (req, res) => {
       WHERE r.id = $1::uuid
     `, [id]);
 
-    if (result.rows.length === 0) {
+    if (reportResult.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Report not found' });
     }
+
+    const report = reportResult.rows[0];
+
+    // Log view action in audit with full context
+    await pool.query(`
+      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, ip_address, user_agent, created_at)
+      VALUES ($1, 'view_report', 'sign_off_report', $2, $3::jsonb, $4, $5, NOW())
+    `, [
+      userId, 
+      id, 
+      JSON.stringify({
+        deliverableId: report.deliverable_id,
+        projectId: report.project_id,
+        deliverableTitle: report.deliverable_title,
+        projectName: report.project_name,
+        reportStatus: report.status
+      }),
+      req.ip,
+      req.get('User-Agent')
+    ]);
 
     // Get reviews
     const reviewsResult = await pool.query(`
@@ -3567,10 +3582,10 @@ app.get('/api/v1/sign-off-reports/:id', authenticateToken, async (req, res) => {
       ORDER BY cr.created_at DESC
     `, [id]);
 
-    const report = result.rows[0];
-    report.reviews = reviewsResult.rows;
+    const reportData = reportResult.rows[0];
+    reportData.reviews = reviewsResult.rows;
 
-    res.json({ success: true, data: report });
+    res.json({ success: true, data: reportData });
   } catch (error) {
     console.error('Error fetching sign-off report:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch sign-off report' });
@@ -3604,11 +3619,33 @@ app.post('/api/v1/sign-off-reports', authenticateToken, async (req, res) => {
 
     const reportId = result.rows[0].id;
 
-    // Log creation in audit
+    // Get deliverable and project context for audit logging
+    const contextResult = await pool.query(`
+      SELECT d.title as deliverable_title, d.project_id, p.name as project_name
+      FROM deliverables d
+      LEFT JOIN projects p ON d.project_id = p.id
+      WHERE d.id = $1::uuid
+    `, [deliverableId]);
+
+    const context = contextResult.rows[0] || {};
+
+    // Log creation in audit with full context
     await pool.query(`
-      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
-      VALUES ($1, 'create_report', 'sign_off_report', $2, $3::jsonb, NOW())
-    `, [userId, reportId, JSON.stringify({ deliverableId, reportTitle })]);
+      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, ip_address, user_agent, created_at)
+      VALUES ($1, 'create_report', 'sign_off_report', $2, $3::jsonb, $4, $5, NOW())
+    `, [
+      userId, 
+      reportId, 
+      JSON.stringify({
+        deliverableId,
+        projectId: context.project_id,
+        deliverableTitle: context.deliverable_title,
+        projectName: context.project_name,
+        reportTitle
+      }),
+      req.ip,
+      req.get('User-Agent')
+    ]);
 
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -3653,11 +3690,41 @@ app.put('/api/v1/sign-off-reports/:id', authenticateToken, async (req, res) => {
       RETURNING *
     `, [JSON.stringify(updatedContent), id]);
 
-    // Log update in audit
+    // Get deliverable and project context for audit logging
+    const contextResult = await pool.query(`
+      SELECT r.deliverable_id, d.title as deliverable_title, d.project_id, p.name as project_name
+      FROM sign_off_reports r
+      LEFT JOIN deliverables d ON r.deliverable_id = d.id
+      LEFT JOIN projects p ON d.project_id = p.id
+      WHERE r.id = $1::uuid
+    `, [id]);
+
+    const context = contextResult.rows[0] || {};
+
+    // Log update in audit with full context
     await pool.query(`
-      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
-      VALUES ($1, 'update_report', 'sign_off_report', $2, '{}', NOW())
-    `, [userId, id]);
+      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, ip_address, user_agent, created_at)
+      VALUES ($1, 'update_report', 'sign_off_report', $2, $3::jsonb, $4, $5, NOW())
+    `, [
+      userId, 
+      id, 
+      JSON.stringify({
+        deliverableId: context.deliverable_id,
+        projectId: context.project_id,
+        deliverableTitle: context.deliverable_title,
+        projectName: context.project_name,
+        changes: {
+          reportTitle: reportTitle !== undefined,
+          reportContent: reportContent !== undefined,
+          sprintPerformanceData: sprintPerformanceData !== undefined,
+          knownLimitations: knownLimitations !== undefined,
+          nextSteps: nextSteps !== undefined,
+          sprintIds: sprintIds !== undefined
+        }
+      }),
+      req.ip,
+      req.get('User-Agent')
+    ]);
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -3701,11 +3768,34 @@ app.post('/api/v1/sign-off-reports/:id/submit', authenticateToken, async (req, r
       return res.status(404).json({ success: false, error: 'Report not found or unauthorized' });
     }
 
-    // Log submission in audit
+    // Get deliverable and project context for audit logging
+    const contextResult = await pool.query(`
+      SELECT r.deliverable_id, d.title as deliverable_title, d.project_id, p.name as project_name
+      FROM sign_off_reports r
+      LEFT JOIN deliverables d ON r.deliverable_id = d.id
+      LEFT JOIN projects p ON d.project_id = p.id
+      WHERE r.id = $1::uuid
+    `, [id]);
+
+    const context = contextResult.rows[0] || {};
+
+    // Log submission in audit with full context
     await pool.query(`
-      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
-      VALUES ($1, 'submit_report', 'sign_off_report', $2, $3::jsonb, NOW())
-    `, [userId, id, JSON.stringify({ signatureVerified: true })]);
+      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, ip_address, user_agent, created_at)
+      VALUES ($1, 'submit_report', 'sign_off_report', $2, $3::jsonb, $4, $5, NOW())
+    `, [
+      userId, 
+      id, 
+      JSON.stringify({
+        deliverableId: context.deliverable_id,
+        projectId: context.project_id,
+        deliverableTitle: context.deliverable_title,
+        projectName: context.project_name,
+        signatureVerified: true
+      }),
+      req.ip,
+      req.get('User-Agent')
+    ]);
 
     // Create notification for client reviewers
     const clientReviewers = await pool.query(`
@@ -3812,11 +3902,35 @@ app.post('/api/v1/sign-off-reports/:id/approve', authenticateToken, async (req, 
         signed_at = NOW()
     `, [id, userId, userRole, digitalSignature, signatureHash]);
 
-    // Log approval in audit
+    // Get deliverable and project context for audit logging
+    const contextResult = await pool.query(`
+      SELECT r.deliverable_id, d.title as deliverable_title, d.project_id, p.name as project_name
+      FROM sign_off_reports r
+      LEFT JOIN deliverables d ON r.deliverable_id = d.id
+      LEFT JOIN projects p ON d.project_id = p.id
+      WHERE r.id = $1::uuid
+    `, [id]);
+
+    const context = contextResult.rows[0] || {};
+
+    // Log approval in audit with full context
     await pool.query(`
-      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
-      VALUES ($1, 'approve_report', 'sign_off_report', $2, $3::jsonb, NOW())
-    `, [userId, id, JSON.stringify({ comment, signatureVerified: true })]);
+      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, ip_address, user_agent, created_at)
+      VALUES ($1, 'approve_report', 'sign_off_report', $2, $3::jsonb, $4, $5, NOW())
+    `, [
+      userId, 
+      id, 
+      JSON.stringify({
+        deliverableId: context.deliverable_id,
+        projectId: context.project_id,
+        deliverableTitle: context.deliverable_title,
+        projectName: context.project_name,
+        comment,
+        signatureVerified: true
+      }),
+      req.ip,
+      req.get('User-Agent')
+    ]);
 
     // Create notification for the report creator (delivery lead)
     const reportCreator = result.rows[0].created_by;
@@ -3880,11 +3994,34 @@ app.post('/api/v1/sign-off-reports/:id/request-changes', authenticateToken, asyn
       VALUES ($1::uuid, $2::uuid, 'change_requested', $3, NOW())
     `, [id, userId, changeRequestDetails]);
 
-    // Log change request in audit
+    // Get deliverable and project context for audit logging
+    const contextResult = await pool.query(`
+      SELECT r.deliverable_id, d.title as deliverable_title, d.project_id, p.name as project_name
+      FROM sign_off_reports r
+      LEFT JOIN deliverables d ON r.deliverable_id = d.id
+      LEFT JOIN projects p ON d.project_id = p.id
+      WHERE r.id = $1::uuid
+    `, [id]);
+
+    const context = contextResult.rows[0] || {};
+
+    // Log change request in audit with full context
     await pool.query(`
-      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, created_at)
-      VALUES ($1, 'request_changes', 'sign_off_report', $2, $3::jsonb, NOW())
-    `, [userId, id, JSON.stringify({ changeRequestDetails })]);
+      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, ip_address, user_agent, created_at)
+      VALUES ($1, 'request_changes', 'sign_off_report', $2, $3::jsonb, $4, $5, NOW())
+    `, [
+      userId, 
+      id, 
+      JSON.stringify({
+        deliverableId: context.deliverable_id,
+        projectId: context.project_id,
+        deliverableTitle: context.deliverable_title,
+        projectName: context.project_name,
+        changeRequestDetails
+      }),
+      req.ip,
+      req.get('User-Agent')
+    ]);
 
     // Create notification for the report creator (delivery lead)
     const reportCreator = result.rows[0].created_by;
@@ -3947,6 +4084,62 @@ app.get('/api/v1/sign-off-reports/:id/audit', authenticateToken, async (req, res
     console.error('Error fetching report audit:', error);
     // Return empty array instead of error for better UX
     res.json({ success: true, data: [] });
+  }
+});
+
+// Delete sign-off report
+app.delete('/api/v1/sign-off-reports/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // Get report details for audit logging
+    const reportResult = await pool.query(`
+      SELECT r.*, d.project_id, d.title as deliverable_title, p.name as project_name
+      FROM sign_off_reports r
+      LEFT JOIN deliverables d ON r.deliverable_id = d.id
+      LEFT JOIN projects p ON d.project_id = p.id
+      WHERE r.id = $1::uuid
+    `, [id]);
+
+    if (reportResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Report not found' });
+    }
+
+    const report = reportResult.rows[0];
+
+    // Only allow deletion by creator or admin
+    if (report.created_by !== userId && userRole !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Only report creator or admin can delete reports' });
+    }
+
+    // Delete the report (cascade will handle related records)
+    await pool.query('DELETE FROM sign_off_reports WHERE id = $1::uuid', [id]);
+
+    // Log deletion in audit with full context
+    await pool.query(`
+      INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, ip_address, user_agent, created_at)
+      VALUES ($1, 'delete_report', 'sign_off_report', $2, $3::jsonb, $4, $5, NOW())
+    `, [
+      userId, 
+      id, 
+      JSON.stringify({
+        deliverableId: report.deliverable_id,
+        projectId: report.project_id,
+        deliverableTitle: report.deliverable_title,
+        projectName: report.project_name,
+        reportStatus: report.status,
+        submittedAt: report.submitted_at
+      }),
+      req.ip,
+      req.get('User-Agent')
+    ]);
+
+    res.json({ success: true, message: 'Report deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting sign-off report:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete sign-off report' });
   }
 });
 
