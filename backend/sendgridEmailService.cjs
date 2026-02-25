@@ -7,6 +7,12 @@ class SendGridEmailService {
     this.fromName = process.env.FROM_NAME || 'Flownet Workspaces';
     this.fromEmail = process.env.FROM_EMAIL || 'dhlamininaomi1@gmail.com';
     this.replyTo = process.env.EMAIL_REPLY_TO || this.fromEmail;
+    
+    // Debug logging to see what email is being used
+    console.log('📧 SendGrid Configuration:');
+    console.log('  FROM_EMAIL env var:', process.env.FROM_EMAIL);
+    console.log('  Final fromEmail:', this.fromEmail);
+    console.log('  fromName:', this.fromName);
   }
 
   // Test SendGrid connection
