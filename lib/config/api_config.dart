@@ -1,6 +1,9 @@
 class ApiConfig {
-  // Base API configuration
-  static const String baseUrl = 'http://localhost:3001/api';
+  // Base API configuration - prioritize production URL for deployed apps
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:3001/api',
+  );
   static const String apiVersion = '/v1';
   static const Duration requestTimeout = Duration(seconds: 30);
   static const Duration tokenRefreshBuffer = Duration(minutes: 5);
@@ -8,7 +11,7 @@ class ApiConfig {
   // Environment-specific URLs
   static const String developmentUrl = 'http://localhost:3001/api';
   static const String stagingUrl = 'https://staging-api.flownet.works';
-  static const String productionUrl = 'https://api.flownet.works';
+  static const String productionUrl = 'https://flow-space.onrender.com/api';
 
   // API Endpoints
   static const String authLogin = '/auth/login';
@@ -61,6 +64,9 @@ class ApiConfig {
   static const String fileUpload = '/files/upload';
   static const String fileDelete = '/files/{id}';
 
+  // Authentication
+  static String authToken = '';
+  
   // Helper methods
   static String getFullUrl(String endpoint) {
     return '$baseUrl$apiVersion$endpoint';
@@ -70,9 +76,11 @@ class ApiConfig {
     return endpoint.replaceAll('{$parameter}', value);
   }
 
-  // Environment detection
-  static bool get isDevelopment => const bool.fromEnvironment('dart.vm.product') == false;
-  static bool get isProduction => const bool.fromEnvironment('dart.vm.product') == true;
+  // Environment detection - improved logic
+  static bool get isDevelopment => const bool.fromEnvironment('dart.vm.product') == false && 
+                                   const String.fromEnvironment('FLUTTER_WEB', defaultValue: '') == '';
+  static bool get isProduction => const bool.fromEnvironment('dart.vm.product') == true ||
+                                   const String.fromEnvironment('FLUTTER_WEB', defaultValue: '') != '';
 
   // Get environment-specific base URL
   static String get environmentBaseUrl {

@@ -1,0 +1,330 @@
+import 'package:flutter/material.dart';
+
+enum ProjectStatus {
+  planning,
+  active,
+  onHold,
+  completed,
+  cancelled,
+}
+
+enum ProjectPriority {
+  low,
+  medium,
+  high,
+  critical,
+}
+
+enum ProjectRole {
+  owner,
+  contributor,
+  viewer,
+}
+
+class ProjectMember {
+  final String userId;
+  final String userName;
+  final String userEmail;
+  final ProjectRole role;
+  final DateTime assignedAt;
+
+  const ProjectMember({
+    required this.userId,
+    required this.userName,
+    required this.userEmail,
+    required this.role,
+    required this.assignedAt,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'userId': userId,
+      'userName': userName,
+      'userEmail': userEmail,
+      'role': role.name,
+      'assignedAt': assignedAt.toIso8601String(),
+    };
+  }
+
+  factory ProjectMember.fromJson(Map<String, dynamic> json) {
+    return ProjectMember(
+      userId: json['userId']?.toString() ?? '',
+      userName: json['userName']?.toString() ?? '',
+      userEmail: json['userEmail']?.toString() ?? '',
+      role: ProjectRole.values.firstWhere(
+        (e) => e.name == json['role']?.toString(),
+        orElse: () => ProjectRole.viewer,
+      ),
+      assignedAt: DateTime.parse(json['assignedAt']?.toString() ?? DateTime.now().toIso8601String()),
+    );
+  }
+}
+
+class Project {
+  final String id;
+  final String name;
+  final String key;
+  final String description;
+  final String? clientName;
+  final ProjectStatus status;
+  final ProjectPriority priority;
+  final String projectType;
+  final DateTime startDate;
+  final DateTime? endDate;
+  final List<String> tags;
+  final List<ProjectMember> members;
+  final List<String> deliverableIds;
+  final List<String> sprintIds;
+  final String createdBy;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
+  final String? updatedBy;
+  final String? ownerId;
+  final Map<String, dynamic> metadata;
+
+  const Project({
+    required this.id,
+    required this.name,
+    required this.key,
+    required this.description,
+    this.clientName,
+    required this.status,
+    required this.priority,
+    required this.projectType,
+    required this.startDate,
+    this.endDate,
+    this.tags = const [],
+    this.members = const [],
+    this.deliverableIds = const [],
+    this.sprintIds = const [],
+    required this.createdBy,
+    required this.createdAt,
+    this.updatedAt,
+    this.updatedBy,
+    this.ownerId,
+    this.metadata = const {},
+  });
+
+  Project copyWith({
+    String? id,
+    String? name,
+    String? key,
+    String? description,
+    String? clientName,
+    ProjectStatus? status,
+    ProjectPriority? priority,
+    String? projectType,
+    DateTime? startDate,
+    DateTime? endDate,
+    List<String>? tags,
+    List<ProjectMember>? members,
+    List<String>? deliverableIds,
+    List<String>? sprintIds,
+    String? createdBy,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? updatedBy,
+    String? ownerId,
+    Map<String, dynamic>? metadata,
+  }) {
+    return Project(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      key: key ?? this.key,
+      description: description ?? this.description,
+      clientName: clientName ?? this.clientName,
+      status: status ?? this.status,
+      priority: priority ?? this.priority,
+      projectType: projectType ?? this.projectType,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      tags: tags ?? this.tags,
+      members: members ?? this.members,
+      deliverableIds: deliverableIds ?? this.deliverableIds,
+      sprintIds: sprintIds ?? this.sprintIds,
+      createdBy: createdBy ?? this.createdBy,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      updatedBy: updatedBy ?? this.updatedBy,
+      ownerId: ownerId ?? this.ownerId,
+      metadata: metadata ?? this.metadata,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'key': key,
+      'description': description,
+      'clientName': clientName,
+      'status': status.name,
+      'priority': priority.name,
+      'projectType': projectType,
+      'startDate': startDate.toIso8601String(),
+      'endDate': endDate?.toIso8601String(),
+      'tags': tags,
+      'members': members.map((m) => m.toJson()).toList(),
+      'deliverableIds': deliverableIds,
+      'sprintIds': sprintIds,
+      'createdBy': createdBy,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
+      'updatedBy': updatedBy,
+      'ownerId': ownerId,
+      'metadata': metadata,
+    };
+  }
+
+  factory Project.fromJson(Map<String, dynamic> json) {
+    // Support both camelCase (frontend) and snake_case (backend API)
+    final id = json['id']?.toString() ?? '';
+    final name = json['name']?.toString() ?? '';
+    final statusRaw = json['status']?.toString() ?? 'active';
+    final createdAtRaw = json['createdAt']?.toString() ?? json['created_at']?.toString();
+    final updatedAtRaw = json['updatedAt']?.toString() ?? json['updated_at']?.toString();
+    final ownerId = json['ownerId']?.toString() ?? json['owner_id']?.toString();
+    return Project(
+      id: id,
+      name: name,
+      key: json['key']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      clientName: json['clientName']?.toString() ?? json['client_name']?.toString(),
+      status: ProjectStatus.values.firstWhere(
+        (e) => e.name == statusRaw,
+        orElse: () => ProjectStatus.planning,
+      ),
+      priority: ProjectPriority.values.firstWhere(
+        (e) => e.name == (json['priority']?.toString() ?? 'medium'),
+        orElse: () => ProjectPriority.medium,
+      ),
+      projectType: json['projectType']?.toString() ?? 'software',
+      startDate: DateTime.tryParse(json['startDate']?.toString() ?? json['start_date']?.toString() ?? '') ?? DateTime.now(),
+      endDate: json['endDate'] != null || json['end_date'] != null
+          ? DateTime.tryParse(json['endDate']?.toString() ?? json['end_date']?.toString() ?? '')
+          : null,
+      tags: List<String>.from(json['tags'] ?? []),
+      members: (json['members'] as List<dynamic>?)
+          ?.map((m) => ProjectMember.fromJson(Map<String, dynamic>.from(m)))
+          .toList() ?? [],
+      deliverableIds: List<String>.from(json['deliverableIds'] ?? json['deliverable_ids'] ?? []),
+      sprintIds: List<String>.from(json['sprintIds'] ?? json['sprint_ids'] ?? []),
+      createdBy: json['createdBy']?.toString() ?? json['created_by']?.toString() ?? ownerId ?? '',
+      createdAt: createdAtRaw != null ? DateTime.tryParse(createdAtRaw) ?? DateTime.now() : DateTime.now(),
+      updatedAt: updatedAtRaw != null ? DateTime.tryParse(updatedAtRaw) : null,
+      updatedBy: json['updatedBy']?.toString() ?? json['updated_by']?.toString(),
+      ownerId: ownerId,
+      metadata: Map<String, dynamic>.from(json['metadata'] ?? {}),
+    );
+  }
+
+  String get statusDisplayName {
+    switch (status) {
+      case ProjectStatus.planning:
+        return 'Planning';
+      case ProjectStatus.active:
+        return 'Active';
+      case ProjectStatus.onHold:
+        return 'On Hold';
+      case ProjectStatus.completed:
+        return 'Completed';
+      case ProjectStatus.cancelled:
+        return 'Cancelled';
+    }
+  }
+
+  String get priorityDisplayName {
+    switch (priority) {
+      case ProjectPriority.low:
+        return 'Low';
+      case ProjectPriority.medium:
+        return 'Medium';
+      case ProjectPriority.high:
+        return 'High';
+      case ProjectPriority.critical:
+        return 'Critical';
+    }
+  }
+
+  Color get statusColor {
+    switch (status) {
+      case ProjectStatus.planning:
+        return Colors.blue;
+      case ProjectStatus.active:
+        return Colors.green;
+      case ProjectStatus.onHold:
+        return Colors.orange;
+      case ProjectStatus.completed:
+        return Colors.purple;
+      case ProjectStatus.cancelled:
+        return Colors.red;
+    }
+  }
+
+  Color get priorityColor {
+    switch (priority) {
+      case ProjectPriority.low:
+        return Colors.grey;
+      case ProjectPriority.medium:
+        return Colors.blue;
+      case ProjectPriority.high:
+        return Colors.orange;
+      case ProjectPriority.critical:
+        return Colors.red;
+    }
+  }
+
+  bool get isOverdue {
+    if (endDate == null) return false;
+    return DateTime.now().isAfter(endDate!) && status != ProjectStatus.completed;
+  }
+
+  int get daysUntilEnd {
+    if (endDate == null) return -1;
+    return endDate!.difference(DateTime.now()).inDays;
+  }
+
+  bool get isActive {
+    return status == ProjectStatus.active;
+  }
+
+  List<ProjectMember> get owners {
+    return members.where((m) => m.role == ProjectRole.owner).toList();
+  }
+
+  List<ProjectMember> get contributors {
+    return members.where((m) => m.role == ProjectRole.contributor).toList();
+  }
+
+  List<ProjectMember> get viewers {
+    return members.where((m) => m.role == ProjectRole.viewer).toList();
+  }
+
+  int get totalMembers => members.length;
+
+  bool hasMember(String userId) {
+    return members.any((m) => m.userId == userId);
+  }
+
+  ProjectMember? getMember(String userId) {
+    try {
+      return members.firstWhere((m) => m.userId == userId);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Map<String, dynamic> get auditMetadata {
+    return {
+      'projectId': id,
+      'projectName': name,
+      'action': 'project_updated',
+      'timestamp': DateTime.now().toIso8601String(),
+      'memberCount': totalMembers,
+      'deliverableCount': deliverableIds.length,
+      'sprintCount': sprintIds.length,
+      'status': status.name,
+      'priority': priority.name,
+    };
+  }
+}

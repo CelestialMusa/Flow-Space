@@ -27,10 +27,50 @@ class _SprintBoardWidgetState extends State<SprintBoardWidget> {
     final Map<String, List<JiraIssue>> grouped = {};
     
     for (final issue in widget.issues) {
-      final status = issue.status ?? 'Unknown';
+      // Map various status variations to standard columns
+      String status = issue.status ?? 'Unknown';
+      
+      // Debug logging for status mapping
+      debugPrint('🎫 Processing ticket: ${issue.summary} with status: "$status"');
+      
+      // Map status variations to standard columns
+      switch (status.toLowerCase()) {
+        case 'todo':
+        case 'to-do':
+        case 'tod o':
+        case 'to do':
+          status = 'To Do';
+          debugPrint('✅ Mapped "$status" to "To Do" for ticket: ${issue.summary}');
+          break;
+        case 'inprogress':
+        case 'in-progress':
+        case 'in progress':
+          status = 'In Progress';
+          debugPrint('✅ Mapped "$status" to "In Progress" for ticket: ${issue.summary}');
+          break;
+        case 'inreview':
+        case 'in-review':
+        case 'in review':
+          status = 'In Review';
+          debugPrint('✅ Mapped "$status" to "In Review" for ticket: ${issue.summary}');
+          break;
+        case 'done':
+        case 'complete':
+        case 'completed':
+          status = 'Done';
+          debugPrint('✅ Mapped "$status" to "Done" for ticket: ${issue.summary}');
+          break;
+        default:
+          // Fallback: put unknown statuses in "To Do" column
+          status = 'To Do';
+          debugPrint('⚠️ Unknown status "$status", mapping to "To Do" for ticket: ${issue.summary}');
+          break;
+      }
+      
       grouped.putIfAbsent(status, () => []).add(issue);
     }
     
+    debugPrint('📊 Final grouping: ${grouped.keys.map((k) => '$k: ${grouped[k]!.length}').join(', ')}');
     return grouped;
   }
 
@@ -62,6 +102,14 @@ class _SprintBoardWidgetState extends State<SprintBoardWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // Force state update when issues change
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.issues.isNotEmpty) {
+        setState(() {});
+        debugPrint('🔄 Forced board update with ${widget.issues.length} tickets');
+      }
+    });
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -210,14 +258,18 @@ class _SprintBoardWidgetState extends State<SprintBoardWidget> {
               children: [
                 Icon(icon, color: color, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  status,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    status,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
