@@ -86,12 +86,13 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     });
   }
 
-  void _navigateToSprintConsole(String? projectId) {
-    if (projectId != null) {
-      context.go('/sprint-console?projectId=$projectId');
-    } else {
-      context.go('/sprint-console');
-    }
+  void _navigateToSprintConsole(String? projectId, {String? sprintId}) {
+    final queryParams = <String, String>{};
+    if (projectId != null) queryParams['projectId'] = projectId;
+    if (sprintId != null) queryParams['sprintId'] = sprintId;
+    
+    final uri = Uri(path: '/sprint-console', queryParameters: queryParams.isEmpty ? null : queryParams);
+    context.go(uri.toString());
   }
 
   void _navigateToProjectSetup() {
@@ -610,13 +611,14 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
   Widget _buildSprintCard(Map<String, dynamic> sprint) {
     final theme = Theme.of(context);
+    final sprintId = (sprint['id'] ?? '').toString();
     
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: GlassCard(
         padding: const EdgeInsets.all(16),
         child: InkWell(
-          onTap: () => _navigateToSprintConsole(_selectedProjectId),
+          onTap: () => _navigateToSprintConsole(_selectedProjectId, sprintId: sprintId),
           borderRadius: BorderRadius.circular(12),
           child: Row(
             children: [

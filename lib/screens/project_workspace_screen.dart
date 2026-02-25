@@ -1146,7 +1146,21 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
               );
               return ListTile(
                 onTap: () {
-                  GoRouter.of(context).go('/sprint-board/${sprint.id}?name=${Uri.encodeComponent(sprint.name)}');
+                  final projectId = widget.projectId;
+                  final sprintId = sprint.id;
+                  
+                  if (sprintId.isNotEmpty) {
+                    final queryParams = <String, String>{
+                      'sprintId': sprintId,
+                    };
+                    if (projectId != null && projectId.isNotEmpty && projectId != 'new') {
+                      queryParams['projectId'] = projectId;
+                    }
+                    final uri = Uri(path: '/sprint-console', queryParameters: queryParams);
+                    context.go(uri.toString());
+                  } else {
+                    context.go('/sprint-console');
+                  }
                 },
                 title: Text(sprint.name),
                 subtitle: Text(sprint.statusText),

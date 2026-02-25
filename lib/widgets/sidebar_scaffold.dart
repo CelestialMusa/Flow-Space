@@ -46,10 +46,10 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         requiredPermission: 'view_sprints',
       ),
       const _NavItem(
-        label: 'Epics', 
-        icon: Icons.rocket_launch_outlined, 
-        route: '/epics',
-        requiredPermission: 'manage_sprints',
+        label: 'Deliverables', 
+        icon: Icons.assignment_outlined, 
+        route: '/deliverables-overview',
+        requiredPermission: 'view_all_deliverables',
       ),
       const _NavItem(
         label: 'Approval Requests',
@@ -620,6 +620,8 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
 
   String _getPageTitle(String route) {
     switch (route) {
+      case '/deliverables-overview':
+        return 'Deliverables';
       case '/approval-requests':
         return 'Approval Requests';
       case '/notifications':

@@ -6,7 +6,6 @@ import '../services/project_service.dart';
 import '../services/api_service.dart';
 import '../theme/flownet_theme.dart';
 import '../widgets/app_scaffold.dart';
-import 'sprint_console_screen.dart';
 
 class ProjectDetailsScreen extends StatefulWidget {
   final String projectId;
@@ -908,13 +907,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 TextButton.icon(
                   onPressed: () {
                     final keyOrId = _project!.key.isNotEmpty ? _project!.key : _project!.id;
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => SprintConsoleScreen(
-                          initialProjectKey: keyOrId,
-                        ),
-                      ),
-                    );
+                    context.go('/sprint-console?projectId=$keyOrId');
                   },
                   icon: const Icon(Icons.directions_run, size: 16),
                   label: const Text('View All'),
@@ -1006,8 +999,9 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         color: FlownetColors.textSecondary,
       ),
       onTap: () {
+        final projectId = _project!.key.isNotEmpty ? _project!.key : _project!.id;
         context.go(
-          '/sprint-board/${Uri.encodeComponent(sprint.id)}?name=${Uri.encodeComponent(sprint.name)}',
+          '/sprint-console?projectId=${Uri.encodeComponent(projectId)}&sprintId=${Uri.encodeComponent(sprint.id)}',
         );
       },
     );

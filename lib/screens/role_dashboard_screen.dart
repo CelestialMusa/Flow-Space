@@ -1124,11 +1124,20 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                       child: InkWell(
                         onTap: () {
                           final id = s['id']?.toString() ?? s['uuid']?.toString() ?? '';
-                          final name = s['name']?.toString() ?? s['title']?.toString() ?? '';
-                          final route = id.isNotEmpty 
-                              ? '/sprint-board/$id${name.isNotEmpty ? '?name=${Uri.encodeComponent(name)}' : ''}'
-                              : '/sprint-console';
-                          context.go(route);
+                          final projectId = s['project_id']?.toString() ?? s['projectId']?.toString() ?? '';
+                          
+                          if (id.isNotEmpty) {
+                            final queryParams = <String, String>{
+                              'sprintId': id,
+                            };
+                            if (projectId.isNotEmpty) {
+                              queryParams['projectId'] = projectId;
+                            }
+                            final uri = Uri(path: '/sprint-console', queryParameters: queryParams);
+                            context.go(uri.toString());
+                          } else {
+                            context.go('/sprint-console');
+                          }
                         },
                         child: Row(
                           children: [
