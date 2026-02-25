@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'api_client.dart';
@@ -84,20 +84,24 @@ class ErrorHandler {
 
   // Show error snackbar
   void showErrorSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 4),
-        action: SnackBarAction(
-          label: 'Dismiss',
-          textColor: Colors.white,
-          onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          },
-        ),
+    // Clear any existing snackbars first
+    ScaffoldMessenger.of(context).clearSnackBars();
+    
+    final snackBar = SnackBar(
+      content: Text(message),
+      backgroundColor: Colors.red,
+      duration: const Duration(seconds: 10), // Give user more time
+      action: SnackBarAction(
+        label: 'Dismiss',
+        textColor: Colors.white,
+        onPressed: () {
+          // Use clearSnackBars for more reliable dismissal
+          ScaffoldMessenger.of(context).clearSnackBars();
+        },
       ),
     );
+    
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
 
   // Show success snackbar
