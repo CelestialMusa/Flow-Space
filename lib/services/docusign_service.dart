@@ -20,7 +20,7 @@ class DocuSignService {
       }
       return false;
     } catch (e) {
-      debugPrint('Error loading DocuSign config: $e');
+      print('Error loading DocuSign config: $e');
       return false;
     }
   }
@@ -57,14 +57,14 @@ class DocuSignService {
 
       if (response.isSuccess && response.data != null) {
         final envelopeId = response.data!['envelopeId'] as String?;
-        debugPrint('✅ DocuSign envelope created: $envelopeId');
+        print('✅ DocuSign envelope created: $envelopeId');
         return envelopeId;
       } else {
-        debugPrint('❌ Failed to create DocuSign envelope: ${response.error}');
+        print('❌ Failed to create DocuSign envelope: ${response.error}');
         return null;
       }
     } catch (e) {
-      debugPrint('❌ Error creating DocuSign envelope: $e');
+      print('❌ Error creating DocuSign envelope: $e');
       return null;
     }
   }
@@ -79,7 +79,7 @@ class DocuSignService {
       }
       return null;
     } catch (e) {
-      debugPrint('Error getting envelope status: $e');
+      print('Error getting envelope status: $e');
       return null;
     }
   }
@@ -95,7 +95,7 @@ class DocuSignService {
       }
       return [];
     } catch (e) {
-      debugPrint('Error getting report envelopes: $e');
+      print('Error getting report envelopes: $e');
       return [];
     }
   }
@@ -109,7 +109,7 @@ class DocuSignService {
       );
       return response.isSuccess;
     } catch (e) {
-      debugPrint('Error resending envelope: $e');
+      print('Error resending envelope: $e');
       return false;
     }
   }
@@ -123,7 +123,7 @@ class DocuSignService {
       );
       return response.isSuccess;
     } catch (e) {
-      debugPrint('Error voiding envelope: $e');
+      print('Error voiding envelope: $e');
       return false;
     }
   }
@@ -148,7 +148,7 @@ class DocuSignService {
       }
       return null;
     } catch (e) {
-      debugPrint('Error getting signing URL: $e');
+      print('Error getting signing URL: $e');
       return null;
     }
   }

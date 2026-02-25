@@ -8,8 +8,9 @@ import '../services/auth_service.dart';
 
 class EmailVerificationScreen extends ConsumerStatefulWidget {
   final String email;
+  final String? verificationCode;
   
-  const EmailVerificationScreen({super.key, required this.email});
+const EmailVerificationScreen({super.key, required this.email, this.verificationCode});
 
   @override
   ConsumerState<EmailVerificationScreen> createState() => _EmailVerificationScreenState();
@@ -26,6 +27,10 @@ class _EmailVerificationScreenState extends ConsumerState<EmailVerificationScree
     super.initState();
     _startResendCountdown();
     _loadVerificationCode();
+    if (widget.verificationCode != null && widget.verificationCode!.isNotEmpty) {
+      _verificationCode = widget.verificationCode;
+      _verifyEmail();
+    }
   }
 
   void _loadVerificationCode() {
@@ -67,7 +72,24 @@ class _EmailVerificationScreenState extends ConsumerState<EmailVerificationScree
     try {
       // Use AuthService for proper email verification
       final authService = AuthService();
-      final response = await authService.verifyEmail(widget.email, _verificationCode!);
+
+      // Prefer the email passed via route; if it's empty, fall back to the
+      // currently authenticated user's email so the backend always receives
+      // a non-empty email value.
+      final routeEmail = widget.email.trim();
+      final effectiveEmail = routeEmail.isNotEmpty
+          ? routeEmail
+          : (authService.currentUser?.email ?? '');
+
+      if (effectiveEmail.isEmpty) {
+        _errorHandler.showErrorSnackBar(
+          context,
+          'Email is missing. Please log in again or restart the verification flow.',
+        );
+        return;
+      }
+
+      final response = await authService.verifyEmail(effectiveEmail, _verificationCode!);
       final success = response.isSuccess;
       
       if (success) {
@@ -79,8 +101,7 @@ class _EmailVerificationScreenState extends ConsumerState<EmailVerificationScree
             ),
           );
           
-          // Navigate to dashboard
-          context.go('/dashboard');
+          context.go('/login');
         }
       } else {
         if (mounted) {
@@ -230,8 +251,7 @@ class _EmailVerificationScreenState extends ConsumerState<EmailVerificationScree
                     ),
                   ),
                 ),
-                keyboardType: TextInputType.number,
-                maxLength: 6,
+                keyboardType: TextInputType.text,
               ),
               const SizedBox(height: 24),
 

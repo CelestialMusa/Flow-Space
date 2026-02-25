@@ -654,7 +654,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           userRole = UserRole.deliveryLead;
           break;
         case 'scrum master':
-          userRole = UserRole.deliveryLead;
+          userRole = UserRole.teamMember;
           break;
         case 'qa engineer':
           userRole = UserRole.teamMember;
@@ -664,6 +664,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           break;
         case 'stakeholder':
           userRole = UserRole.systemAdmin;
+          break;
+        case 'developer':
+          userRole = UserRole.teamMember;
           break;
         default:
           userRole = UserRole.teamMember;
@@ -686,9 +689,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (result['success'] == true && mounted) {
         _errorHandler.showSuccessSnackBar(context, 'Registration successful!');
-        // Small delay to show success message
-        await Future.delayed(const Duration(milliseconds: 500));
-        // Navigate to email verification screen
         if (mounted) {
           context.go(
             '/email-verification',
