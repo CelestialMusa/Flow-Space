@@ -13,7 +13,7 @@ Widget _buildModalBackdrop() {
         sigmaY: _modalBackdropBlur,
       ),
       child: Container(
-        color: Colors.black.withOpacity(_modalBackdropOpacity),
+        color: Colors.black.withValues(alpha: _modalBackdropOpacity),
       ),
     ),
   );

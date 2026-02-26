@@ -382,36 +382,6 @@ class Deliverable {
   int get daysUntilDue {
     return dueDate.difference(DateTime.now()).inDays;
   }
-
-  static DeliverableStatus _parseStatus(String raw) {
-    final normalized = raw.trim().toLowerCase();
-    switch (normalized) {
-      case 'in_progress':
-      case 'inprogress':
-      case 'active':
-        return DeliverableStatus.inProgress;
-      case 'in_review':
-      case 'review':
-      case 'inreview':
-        return DeliverableStatus.inReview;
-      case 'signed_off':
-      case 'signedoff':
-      case 'completed':
-        return DeliverableStatus.signedOff;
-      case 'submitted':
-        return DeliverableStatus.submitted;
-      case 'approved':
-        return DeliverableStatus.approved;
-      case 'change_requested':
-      case 'changerequested':
-        return DeliverableStatus.changeRequested;
-      case 'rejected':
-        return DeliverableStatus.rejected;
-      case 'draft':
-      default:
-        return DeliverableStatus.draft;
-    }
-  }
 }
 
 class DeliverableCreate {

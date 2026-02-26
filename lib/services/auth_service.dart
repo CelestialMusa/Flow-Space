@@ -314,7 +314,6 @@ class AuthService {
         return true;
       }
     }
-  }
 
   // Authenticate with JWT token from external system
   Future<bool> authenticateWithJwtToken(String token, Map<String, dynamic> userData) async {

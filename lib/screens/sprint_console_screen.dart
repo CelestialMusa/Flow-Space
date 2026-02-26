@@ -3,7 +3,6 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:go_router/go_router.dart';
 import '../theme/flownet_theme.dart';
@@ -604,7 +603,6 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
   Widget _buildAllSprintsSection() {
     final theme = Theme.of(context);
     final onSurfaceColor = theme.colorScheme.onSurface;
-    final primaryColor = theme.colorScheme.primary;
 
     return Column(
       key: _sprintsSectionKey,
@@ -1383,7 +1381,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: selectedPriority,
+                          initialValue: selectedPriority,
                           style: const TextStyle(color: FlownetColors.pureWhite),
                           decoration: const InputDecoration(
                             labelText: 'Priority',
@@ -1408,7 +1406,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: selectedType,
+                          initialValue: selectedType,
                           style: const TextStyle(color: FlownetColors.pureWhite),
                           decoration: const InputDecoration(
                             labelText: 'Type',

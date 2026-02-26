@@ -63,6 +63,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           
           // Authenticate user with JWT token
           final isAuthenticated = await _authService.authenticateWithJwtToken(token, tokenData);
+          if (!mounted) return;
           
           if (isAuthenticated) {
             // Show success message
@@ -103,6 +104,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   void _showErrorSnackBar(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -214,7 +216,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 const SizedBox(height: 32),
 
                 // Token input field
-                Container(
+                SizedBox(
                   width: 260,
                   child: Column(
                     children: [
@@ -222,23 +224,23 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         controller: _tokenController,
                         decoration: InputDecoration(
                           hintText: 'Enter token',
-                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+                          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
                           filled: true,
-                          fillColor: Colors.white.withOpacity(0.1),
+                          fillColor: Colors.white.withValues(alpha: 0.1),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(25),
-                            borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(25),
-                            borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(25),
-                            borderSide: BorderSide(color: Colors.white),
+                            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.7)),
                           ),
                         ),
-                        style: TextStyle(color: Colors.white),
+                        style: const TextStyle(color: Colors.white),
                       ),
                       const SizedBox(height: 12),
                       SizedBox(

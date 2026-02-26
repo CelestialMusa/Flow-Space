@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import '../services/sprint_database_service.dart';
 import '../services/project_service.dart';
 import '../models/project.dart';
@@ -262,7 +261,7 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
                         child: Center(child: CircularProgressIndicator()),
                       )
                     : DropdownButtonFormField<Project>(
-                        value: _selectedProject,
+                        initialValue: _selectedProject,
                         decoration: const InputDecoration(
                           labelText: 'Project *',
                           border: OutlineInputBorder(),

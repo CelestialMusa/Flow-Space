@@ -184,7 +184,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
           end: Alignment.bottomRight,
           colors: [
             FlownetColors.charcoalBlack,
-            FlownetColors.charcoalBlack.withOpacity(0.95),
+            FlownetColors.charcoalBlack.withValues(alpha: 0.95),
           ],
         ),
       ),
@@ -240,7 +240,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: FlownetColors.crimsonRed.withOpacity(0.2),
+              color: FlownetColors.crimsonRed.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(24),
             ),
             child: const Icon(
@@ -436,7 +436,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
+                bottom: BorderSide(color: FlownetColors.slate.withValues(alpha: 0.3)),
               ),
             ),
             child: Row(
@@ -479,7 +479,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   width: 80,
                   decoration: BoxDecoration(
                     border: Border(
-                      right: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
+                      right: BorderSide(color: FlownetColors.slate.withValues(alpha: 0.3)),
                     ),
                   ),
                   child: Column(
@@ -520,10 +520,10 @@ class _TimelineScreenState extends State<TimelineScreen> {
                         child: Container(
                           decoration: BoxDecoration(
                             border: Border(
-                              right: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
-                              bottom: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
+                              right: BorderSide(color: FlownetColors.slate.withValues(alpha: 0.3)),
+                              bottom: BorderSide(color: FlownetColors.slate.withValues(alpha: 0.3)),
                             ),
-                            color: isToday ? FlownetColors.crimsonRed.withOpacity(0.1) : null,
+                            color: isToday ? FlownetColors.crimsonRed.withValues(alpha: 0.1) : null,
                           ),
                           child: Stack(
                             children: [
@@ -536,7 +536,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                     decoration: BoxDecoration(
                                       border: Border(
                                         bottom: BorderSide(
-                                          color: FlownetColors.slate.withOpacity(0.2),
+                                          color: FlownetColors.slate.withValues(alpha: 0.2),
                                         ),
                                       ),
                                     ),
@@ -547,9 +547,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                                 decoration: BoxDecoration(
-                                  color: FlownetColors.graphiteGray.withOpacity(0.3),
+                                  color: FlownetColors.graphiteGray.withValues(alpha: 0.3),
                                   border: Border(
-                                    bottom: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
+                                    bottom: BorderSide(color: FlownetColors.slate.withValues(alpha: 0.3)),
                                   ),
                                 ),
                                 child: Column(
@@ -616,9 +616,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
         child: Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
+            color: color.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: color.withOpacity(0.5), width: 1),
+            border: Border.all(color: color.withValues(alpha: 0.5), width: 1),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -661,7 +661,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
+                bottom: BorderSide(color: FlownetColors.slate.withValues(alpha: 0.3)),
               ),
             ),
             child: Row(
@@ -717,7 +717,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   width: 80,
                   decoration: BoxDecoration(
                     border: Border(
-                      right: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
+                      right: BorderSide(color: FlownetColors.slate.withValues(alpha: 0.3)),
                     ),
                   ),
                   child: Column(
@@ -751,7 +751,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                             decoration: BoxDecoration(
                               border: Border(
                                 bottom: BorderSide(
-                                  color: FlownetColors.slate.withOpacity(0.2),
+                                  color: FlownetColors.slate.withValues(alpha: 0.2),
                                 ),
                               ),
                             ),
@@ -796,9 +796,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
         child: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
+            color: color.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: color.withOpacity(0.5), width: 1.5),
+            border: Border.all(color: color.withValues(alpha: 0.5), width: 1.5),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -893,12 +893,12 @@ class _TimelineScreenState extends State<TimelineScreen> {
                 color: FlownetColors.pureWhite,
                 fontWeight: FontWeight.bold,
               ),
-              todayTextStyle: TextStyle(
+              todayTextStyle: const TextStyle(
                 color: FlownetColors.crimsonRed,
                 fontWeight: FontWeight.bold,
               ),
               todayDecoration: BoxDecoration(
-                color: FlownetColors.crimsonRed.withOpacity(0.2),
+                color: FlownetColors.crimsonRed.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: FlownetColors.crimsonRed,
@@ -906,27 +906,27 @@ class _TimelineScreenState extends State<TimelineScreen> {
                 ),
               ),
               selectedDecoration: BoxDecoration(
-                color: FlownetColors.crimsonRed.withOpacity(0.3),
+                color: FlownetColors.crimsonRed.withValues(alpha: 0.3),
                 shape: BoxShape.circle,
               ),
-              markerDecoration: BoxDecoration(
+              markerDecoration: const BoxDecoration(
                 color: FlownetColors.crimsonRed,
                 shape: BoxShape.circle,
               ),
             ),
-            headerStyle: HeaderStyle(
+            headerStyle: const HeaderStyle(
               formatButtonVisible: false,
               titleCentered: true,
-              titleTextStyle: const TextStyle(
+              titleTextStyle: TextStyle(
                 color: FlownetColors.pureWhite,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
-              leftChevronIcon: const Icon(
+              leftChevronIcon: Icon(
                 Icons.chevron_left,
                 color: FlownetColors.pureWhite,
               ),
-              rightChevronIcon: const Icon(
+              rightChevronIcon: Icon(
                 Icons.chevron_right,
                 color: FlownetColors.pureWhite,
               ),
@@ -947,7 +947,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   child: Container(
                     width: 6,
                     height: 6,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: FlownetColors.crimsonRed,
                       shape: BoxShape.circle,
                     ),
@@ -999,7 +999,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                 padding: const EdgeInsets.all(32),
                 child: Column(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.event_busy,
                       size: 48,
                       color: FlownetColors.coolGray,
@@ -1033,10 +1033,10 @@ class _TimelineScreenState extends State<TimelineScreen> {
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               width: 1,
             ),
           ),
@@ -1067,7 +1067,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.2),
+                            color: color.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -1117,10 +1117,10 @@ class _TimelineScreenState extends State<TimelineScreen> {
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.15),
+            color: color.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: color.withOpacity(0.3),
+              color: color.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -1223,22 +1223,6 @@ class _TimelineScreenState extends State<TimelineScreen> {
     );
   }
 
-  Widget _buildEventDetailRow(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: FlownetColors.coolGray),
-          const SizedBox(width: 12),
-          Text(
-            text,
-            style: const TextStyle(color: FlownetColors.pureWhite),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildMyDeliverables() {
     return GlassCard(
       padding: const EdgeInsets.all(20),
@@ -1325,7 +1309,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: FlownetColors.amberOrange.withOpacity(0.2),
+                      color: FlownetColors.amberOrange.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(

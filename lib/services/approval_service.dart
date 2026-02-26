@@ -98,8 +98,8 @@ class ApprovalService {
           final deliverable = e['deliverable'] as Map<String, dynamic>? ?? {};
           final requester = e['requester'] as Map<String, dynamic>? ?? {};
           final approver = e['approver'] as Map<String, dynamic>? ?? {};
-          final requestedByName = e['requested_by_name']?.toString()?.trim();
-          final reviewedByName = e['reviewed_by_name']?.toString()?.trim();
+          final requestedByName = e['requested_by_name']?.toString().trim();
+          final reviewedByName = e['reviewed_by_name']?.toString().trim();
           return ApprovalRequest(
             id: e['id']?.toString() ?? '',
             title: e['title']?.toString() ?? deliverable['title']?.toString() ?? 'Approval Request',
