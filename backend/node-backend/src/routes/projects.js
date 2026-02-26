@@ -354,14 +354,28 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Explicitly map incoming fields to model attributes
     const updateData = {
-      ...req.body,
+      name: req.body.name,
+      description: req.body.description,
       client_name: req.body.clientName || req.body.client_name,
       start_date: req.body.startDate || req.body.start_date,
       end_date: req.body.endDate || req.body.end_date,
       project_type: req.body.projectType || req.body.project_type,
+      status: req.body.status,
+      priority: req.body.priority,
       owner_id: req.body.ownerId || req.body.owner_id,
+      tags: req.body.tags,
+      metadata: req.body.metadata
     };
+
+    // Remove undefined fields to avoid overwriting with null
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
     
     const project = await Project.findByPk(id);
     
@@ -376,7 +390,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     const oldValues = project.toJSON();
 
     // Check for member assignment restriction
-    if (updateData.members) {
+    if (req.body.members) {
       // Allow if user is owner OR if user is creator (fallback) OR if user is admin
       const isOwner = project.owner_id && req.user.id === project.owner_id;
       
@@ -391,7 +405,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
          });
       }
       
-      if (Array.isArray(updateData.members)) {
+      if (Array.isArray(req.body.members)) {
         // Replace members
         // First delete existing (except maybe owner?)
         // For simplicity, we can remove all and re-add.
@@ -399,7 +413,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
           where: { project_id: id }
         });
         
-        const membersToCreate = updateData.members.map(member => {
+        const membersToCreate = req.body.members.map(member => {
           const userId = typeof member === 'object' ? (member.userId || member.user_id) : member;
           return {
             project_id: id,
@@ -467,18 +481,26 @@ router.put('/:id', authenticateToken, async (req, res) => {
       }
     }
     
+    // Explicitly update the project with mapped data
     await project.update(updateData);
 
-    // Calculate changed fields
+    // Calculate changed fields for audit log
     const changedFields = {};
-    for (const key of Object.keys(updateData)) {
-      if (oldValues[key] !== updateData[key]) {
+    Object.keys(updateData).forEach(key => {
+      // Handle Date comparison by converting to ISO string
+      let oldVal = oldValues[key];
+      let newVal = updateData[key];
+      
+      if (oldVal instanceof Date) oldVal = oldVal.toISOString();
+      if (newVal instanceof Date) newVal = newVal.toISOString();
+      
+      if (oldVal != newVal) {
         changedFields[key] = {
           old: oldValues[key],
           new: updateData[key]
         };
       }
-    }
+    });
 
     // Log the project update
     await AuditLog.create({

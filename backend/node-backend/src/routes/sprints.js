@@ -56,6 +56,9 @@ function normalizeSprintData(body) {
   if (decisions != null) d.decisions = decisions;
   const status = body.status ?? body.state;
   if (status != null) d.status = status;
+  if (body.progress !== undefined) d.progress = body.progress;
+  if (body.goal != null) d.goal = body.goal;
+  if (body.board_id != null || body.boardId != null) d.board_id = body.board_id ?? body.boardId;
   const createdBy = body.created_by ?? body.createdBy;
   if (createdBy != null) d.created_by = createdBy;
   return d;
@@ -94,7 +97,9 @@ router.get('/', async (req, res) => {
     console.error('Error fetching sprints:', error);
     res.status(500).json({ 
       success: false,
-      error: 'Internal server error' 
+      error: 'Internal server error',
+      details: error.message,
+      stack: error.stack
     });
   }
 });
@@ -110,10 +115,6 @@ router.get('/:id', async (req, res) => {
     
     const sprint = await Sprint.findByPk(id, {
       include: [
-        { association: 'deliverables' },
-        { association: 'epic_features' },
-        { association: 'signoffs' },
-        { association: 'audit_logs' },
         { model: Project, as: 'project', attributes: ['id', 'name', 'key'] }
       ]
     });
@@ -133,7 +134,9 @@ router.get('/:id', async (req, res) => {
     console.error('Error fetching sprint:', error);
     res.status(500).json({ 
       success: false,
-      error: 'Internal server error' 
+      error: 'Internal server error',
+      details: error.message,
+      stack: error.stack
     });
   }
 });

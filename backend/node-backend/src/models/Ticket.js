@@ -43,7 +43,7 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
     },
     project_id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
     },
     created_at: {
       type: DataTypes.DATE,
