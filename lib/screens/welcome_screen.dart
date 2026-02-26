@@ -9,7 +9,7 @@ class WelcomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppScaffold(
       useBackgroundImage: true,
-      useGlassContainer: true,
+      useGlassContainer: false,
       centered: false,
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -17,43 +17,43 @@ class WelcomeScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 140),
-                                
+
             // Logo / Title
             Text(
-              'Deliverables and Sprints Sign Off Hub',
+              'DELIVERABLES & SPRINTS SIGN OFF HUB',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 2,
-              ),
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 2,
+                  ),
               textAlign: TextAlign.center,
             ),
 
             const SizedBox(height: 12),
-                                 
+
             // Red subtitle
             Text(
               'Your Growth Journey, Simplified',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: const Color(0xFFC10D00),
-                fontWeight: FontWeight.w600,
-              ),
+                    color: const Color(0xFFC10D00),
+                    fontWeight: FontWeight.w600,
+                  ),
               textAlign: TextAlign.center,
             ),
 
             const SizedBox(height: 16),
-                                 
+
             // Tagline / description
             Text(
               'Build strong habits, build a strong future.',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: const Color.fromRGBO(255, 255, 255, 0.85),
-              ),
+                    color: const Color.fromRGBO(255, 255, 255, 0.85),
+                  ),
               textAlign: TextAlign.center,
             ),
 
             const SizedBox(height: 40),
-                                 
+
             // Primary and secondary actions
             Column(
               mainAxisSize: MainAxisSize.min,
@@ -81,7 +81,7 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                                             Center(
+                Center(
                   child: SizedBox(
                     width: 260,
                     height: 48,
@@ -106,7 +106,7 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 32),
-                                           ],
+              ],
             ),
           ],
         ),
