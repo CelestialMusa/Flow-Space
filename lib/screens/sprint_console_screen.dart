@@ -20,7 +20,8 @@ import 'create_sprint_screen.dart';
 
 class SprintConsoleScreen extends StatefulWidget {
   final String? initialProjectKey;
-  const SprintConsoleScreen({super.key, this.initialProjectKey});
+  final String? initialSprintId;
+  const SprintConsoleScreen({super.key, this.initialProjectKey, this.initialSprintId});
 
   @override
   State<SprintConsoleScreen> createState() => _SprintConsoleScreenState();
@@ -36,6 +37,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
   bool _showBotView = false;
   final bool _isGeneratingAiTicket = false;
   final GlobalKey _sprintsSectionKey = GlobalKey();
+  final GlobalKey _ticketsSectionKey = GlobalKey();
 
   final List<Map<String, dynamic>> _sprints = [];
   final List<Map<String, dynamic>> _tickets = [];
@@ -55,6 +57,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
   void initState() {
     super.initState();
     _selectedProjectKey = widget.initialProjectKey;
+    _selectedSprintId = widget.initialSprintId;
     _loadData();
     _setupRealtime();
   }
@@ -84,8 +87,9 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
       if (_selectedProjectKey != null && _selectedProjectKey!.isNotEmpty) {
         final selected = projects.firstWhere(
           (p) {
-            final keyOrId = p['key']?.toString() ?? p['id']?.toString();
-            return keyOrId == _selectedProjectKey;
+            final key = p['key']?.toString();
+            final id = p['id']?.toString();
+            return key == _selectedProjectKey || id == _selectedProjectKey;
           },
           orElse: () => <String, dynamic>{},
         );
@@ -122,6 +126,16 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
       // Load tickets if sprint is selected
       if (_selectedSprintId != null) {
         await _loadTickets();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final ctx = _ticketsSectionKey.currentContext;
+          if (ctx != null) {
+            Scrollable.ensureVisible(
+              ctx,
+              alignment: 0.1,
+              duration: const Duration(milliseconds: 300),
+            );
+          }
+        });
       }
     } catch (e) {
       _showSnackBar('Error loading data: $e', isError: true);
@@ -230,6 +244,18 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
           ..addAll(fetched);
       });
 
+      // If we have an initial sprint ID, select it
+      if (_selectedSprintId != null) {
+        final sprint = _sprints.firstWhere(
+          (s) => s['id']?.toString() == _selectedSprintId,
+          orElse: () => <String, dynamic>{},
+        );
+        if (sprint.isNotEmpty) {
+          // Select without navigating to board immediately to avoid double navigation
+          _selectSprint(sprint, navigateToBoard: false);
+        }
+      }
+
       // Auto-scroll to sprints section after loading
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final ctx = _sprintsSectionKey.currentContext;
@@ -255,7 +281,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
   }
 
   // Handle sprint selection
-  void _selectSprint(Map<String, dynamic> sprint) {
+  void _selectSprint(Map<String, dynamic> sprint, {bool navigateToBoard = true}) {
     if (!mounted) return;
 
     setState(() {
@@ -265,11 +291,13 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
     // Load tickets for the selected sprint
     _loadTickets();
 
-    // Navigate to sprint board (UI navigation only; does not change data logic)
-    final sprintId = sprint['id']?.toString();
-    if (sprintId != null) {
-      final sprintName = sprint['name']?.toString() ?? 'Sprint Board';
-      context.push('/sprint-board/$sprintId?name=${Uri.encodeComponent(sprintName)}');
+    // Navigate to sprint board if requested
+    if (navigateToBoard) {
+      final sprintId = sprint['id']?.toString();
+      if (sprintId != null) {
+        final sprintName = sprint['name']?.toString() ?? 'Sprint Board';
+        context.push('/sprint-board/$sprintId?name=${Uri.encodeComponent(sprintName)}');
+      }
     }
   }
 
@@ -447,7 +475,10 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
 
           // Tickets Section (conditionally shown when a sprint is selected)
           if (_selectedSprintId != null) ...[
-            _buildTicketsSection(),
+            Container(
+              key: _ticketsSectionKey,
+              child: _buildTicketsSection(),
+            ),
           ],
 
           // Add some bottom padding
@@ -625,8 +656,9 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
   Widget _buildSelectedProjectSprintsView() {
     final selected = _projects.firstWhere(
       (p) {
-        final keyOrId = p['key']?.toString() ?? p['id']?.toString();
-        return keyOrId == _selectedProjectKey;
+        final key = p['key']?.toString();
+        final id = p['id']?.toString();
+        return key == _selectedProjectKey || id == _selectedProjectKey;
       },
       orElse: () => <String, dynamic>{},
     );
@@ -679,6 +711,22 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
     final projectId = project['id']?.toString();
     final projectKey = project['key']?.toString();
 
+    // Check if there are any active (non-completed) sprints for this project
+    final projectSprints = _sprints.where((s) {
+      try {
+        final pid = (s['project_id'] ?? s['projectId'] ?? (s['project'] is Map ? s['project']['id'] : null))?.toString();
+        final pkey = (s['project_key'] ?? s['projectKey'] ?? (s['project'] is Map ? s['project']['key'] : null))?.toString();
+        if (projectId != null && projectId.isNotEmpty && pid == projectId) return true;
+        if (projectKey != null && projectKey.isNotEmpty && pkey == projectKey) return true;
+      } catch (_) {}
+      return false;
+    }).toList();
+
+    final hasActiveSprint = projectSprints.any((s) {
+      final status = (s['status'] ?? '').toString().toLowerCase();
+      return status != 'completed' && status != 'done';
+    });
+
     return Column(
       key: _sprintsSectionKey,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -694,42 +742,24 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
               ),
             ),
             ElevatedButton.icon(
-              onPressed: _showCreateSprintDialog,
+              onPressed: hasActiveSprint ? null : _showCreateSprintDialog,
               icon: const Icon(Icons.add),
-              label: const Text('Create Sprint'),
+              label: Text(hasActiveSprint ? 'Complete Active Sprint to Add' : 'Create Sprint'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
+                backgroundColor: hasActiveSprint ? Colors.grey : primaryColor,
                 foregroundColor: theme.colorScheme.onPrimary,
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        if (_sprints.isEmpty)
+        if (projectSprints.isEmpty)
           _buildEmptyState(
             'No sprints for this project',
             'Create a sprint for the selected project to start planning',
           )
         else
-          _buildSprintsList(
-            _sprints.where((s) {
-              try {
-                final pid = (s['project_id'] ?? s['projectId'] ?? (s['project'] is Map ? s['project']['id'] : null))?.toString();
-                final pkey = (s['project_key'] ?? s['projectKey'] ?? (s['project'] is Map ? s['project']['key'] : null))?.toString();
-                if (projectId != null && projectId.isNotEmpty && pid == projectId) return true;
-                if (projectKey != null && projectKey.isNotEmpty && pkey == projectKey) return true;
-
-                // Heuristic: match by name or description containing project name/key
-                final name = (s['name'] ?? '').toString().toLowerCase();
-                final desc = (s['description'] ?? '').toString().toLowerCase();
-                final pName = projectName.toLowerCase();
-                final pKey = (projectKey ?? '').toLowerCase();
-                if (pName.isNotEmpty && (name.contains(pName) || desc.contains(pName))) return true;
-                if (pKey.isNotEmpty && (name.contains(pKey) || desc.contains(pKey))) return true;
-              } catch (_) {}
-              return false;
-            }).toList(),
-          ),
+          _buildSprintsList(projectSprints),
       ],
     );
   }
@@ -758,6 +788,23 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
   }
 
   Widget _buildSprintsList(List<Map<String, dynamic>> sprints) {
+    // Get project dates for validation flags
+    DateTime? projectStartDate;
+    DateTime? projectEndDate;
+    if (_selectedProjectKey != null) {
+      final project = _projects.firstWhere(
+        (p) => p['id']?.toString() == _selectedProjectKey || p['key']?.toString() == _selectedProjectKey,
+        orElse: () => <String, dynamic>{},
+      );
+      if (project.isNotEmpty) {
+        if (project['start_date'] != null) projectStartDate = DateTime.tryParse(project['start_date'].toString());
+        if (projectStartDate == null && project['startDate'] != null) projectStartDate = DateTime.tryParse(project['startDate'].toString());
+        
+        if (project['end_date'] != null) projectEndDate = DateTime.tryParse(project['end_date'].toString());
+        if (projectEndDate == null && project['endDate'] != null) projectEndDate = DateTime.tryParse(project['endDate'].toString());
+      }
+    }
+
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -766,10 +813,23 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
         final sprint = sprints[index];
         final isSelected = _selectedSprintId == sprint['id']?.toString();
         
+        // Check if sprint is out of project date range
+        bool isOutOfRange = false;
+        final DateTime? sprintStart = DateTime.tryParse(sprint['start_date']?.toString() ?? '');
+        final DateTime? sprintEnd = DateTime.tryParse(sprint['end_date']?.toString() ?? '');
+        
+        if (sprintStart != null && projectStartDate != null && sprintStart.isBefore(projectStartDate)) {
+          isOutOfRange = true;
+        }
+        if (sprintEnd != null && projectEndDate != null && sprintEnd.isAfter(projectEndDate)) {
+          isOutOfRange = true;
+        }
+
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
+            border: isOutOfRange ? Border.all(color: Colors.red.withAlpha(128), width: 2) : null,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withAlpha(26),
@@ -787,7 +847,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                   color: Theme.of(context).colorScheme.surface.withAlpha(77),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: Colors.white.withAlpha(128),
+                    color: isOutOfRange ? Colors.red.withAlpha(128) : Colors.white.withAlpha(128),
                     width: 1.5,
                   ),
                 ),
@@ -804,34 +864,38 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: isSelected
-                                  ? Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withAlpha(51)
-                                  : Theme.of(context)
-                                      .colorScheme
-                                      .error
-                                      .withAlpha(26),
+                              color: isOutOfRange 
+                                  ? Colors.red.withAlpha(51)
+                                  : (isSelected
+                                      ? Theme.of(context)
+                                          .colorScheme
+                                          .primary
+                                          .withAlpha(51)
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .error
+                                          .withAlpha(26)),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: isSelected
-                                    ? Theme.of(context)
-                                        .colorScheme
-                                        .primary
-                                        .withAlpha(51)
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .error
-                                        .withAlpha(26),
+                                color: isOutOfRange
+                                    ? Colors.red.withAlpha(128)
+                                    : (isSelected
+                                        ? Theme.of(context)
+                                            .colorScheme
+                                            .primary
+                                            .withAlpha(51)
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .error
+                                            .withAlpha(26)),
                                 width: 1,
                               ),
                             ),
                             child: Icon(
-                              isSelected ? Icons.done : Icons.directions_run,
-                              color: isSelected
+                              isOutOfRange ? Icons.warning_amber_rounded : (isSelected ? Icons.done : Icons.directions_run),
+                              color: isOutOfRange ? Colors.red : (isSelected
                                   ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(context).colorScheme.error,
+                                  : Theme.of(context).colorScheme.error),
                               size: 24,
                             ),
                           ),
@@ -841,27 +905,42 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  sprint['name']?.toString() ?? 'Unknown Sprint',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                  ),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        sprint['name']?.toString() ?? 'Unknown Sprint',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isOutOfRange)
+                                      const Padding(
+                                        padding: EdgeInsets.only(left: 8.0),
+                                        child: Tooltip(
+                                          message: 'Dates are outside project range',
+                                          child: Icon(Icons.error_outline, color: Colors.red, size: 16),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   '${sprint['start_date']?.toString() ?? 'No start date'} - ${sprint['end_date']?.toString() ?? 'No end date'}',
                                   style: TextStyle(
-                                    color: Theme.of(context)
+                                    color: isOutOfRange ? Colors.red : Theme.of(context)
                                         .colorScheme
                                         .onSurface
                                         .withAlpha(179),
                                     fontSize: 12,
+                                    fontWeight: isOutOfRange ? FontWeight.bold : FontWeight.normal,
                                   ),
                                 ),
                               ],
@@ -907,11 +986,24 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                                     final sid = sprint['id'].toString();
                                     if (value == 'delete') {
                                       _confirmAndDeleteSprint(sid, sprint['name']?.toString() ?? 'Sprint');
+                                    } else if (value == 'edit') {
+                                      _editSprint(sprint);
                                     } else {
                                       _updateSprintStatus(sid, value);
                                     }
                                   },
                                   itemBuilder: (context) => [
+                                    const PopupMenuItem(
+                                      value: 'edit',
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.edit, size: 20),
+                                          SizedBox(width: 8),
+                                          Text('Edit Sprint'),
+                                        ],
+                                      ),
+                                    ),
+                                    const PopupMenuDivider(),
                                     const PopupMenuItem(
                                       value: 'To Do',
                                       child: Text('Mark as To Do'),
@@ -927,7 +1019,13 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                                     const PopupMenuDivider(),
                                     const PopupMenuItem(
                                       value: 'delete',
-                                      child: Text('Delete Sprint'),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.delete, size: 20, color: Colors.red),
+                                          SizedBox(width: 8),
+                                          Text('Delete Sprint', style: TextStyle(color: Colors.red)),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                   icon: const Icon(Icons.more_vert, color: Colors.white),
@@ -1015,8 +1113,53 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
 
     final selectedProject = _projects.firstWhere(
       (p) {
-        final keyOrId = p['key']?.toString() ?? p['id']?.toString();
-        return keyOrId == _selectedProjectKey;
+        final key = p['key']?.toString();
+        final id = p['id']?.toString();
+        return key == _selectedProjectKey || id == _selectedProjectKey;
+      },
+      orElse: () => <String, dynamic>{},
+    );
+    final projectId = selectedProject['id']?.toString();
+    final projectName = selectedProject['name']?.toString();
+
+    // Extra safety check for active sprints
+    final projectSprints = _sprints.where((s) {
+      final pid = (s['project_id'] ?? s['projectId'] ?? (s['project'] is Map ? s['project']['id'] : null))?.toString();
+      final pkey = (s['project_key'] ?? s['projectKey'] ?? (s['project'] is Map ? s['project']['key'] : null))?.toString();
+      return (projectId != null && pid == projectId) || (selectedProject['key'] != null && pkey == selectedProject['key']);
+    }).toList();
+
+    final hasActiveSprint = projectSprints.any((s) {
+      final status = (s['status'] ?? '').toString().toLowerCase();
+      return status != 'completed' && status != 'done';
+    });
+
+    if (hasActiveSprint) {
+      _showSnackBar('Cannot create a new sprint until all existing sprints in this project are completed.', isError: true);
+      return;
+    }
+
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreateSprintScreen(
+          projectId: projectId,
+          projectName: projectName,
+        ),
+      ),
+    );
+
+    if (result == true) {
+      _loadData();
+    }
+  }
+
+  void _editSprint(Map<String, dynamic> sprint) async {
+    final selectedProject = _projects.firstWhere(
+      (p) {
+        final key = p['key']?.toString();
+        final id = p['id']?.toString();
+        return key == _selectedProjectKey || id == _selectedProjectKey;
       },
       orElse: () => <String, dynamic>{},
     );
@@ -1029,6 +1172,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
         builder: (context) => CreateSprintScreen(
           projectId: projectId,
           projectName: projectName,
+          sprint: sprint,
         ),
       ),
     );

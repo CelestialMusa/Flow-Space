@@ -35,6 +35,9 @@ module.exports = (sequelize, DataTypes) => {
     owner_id: {
       type: DataTypes.UUID
     },
+    project_id: {
+      type: DataTypes.UUID
+    },
     evidence_links: {
       type: DataTypes.JSON
     },
