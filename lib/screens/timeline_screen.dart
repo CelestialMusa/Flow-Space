@@ -33,8 +33,12 @@ class _TimelineScreenState extends State<TimelineScreen> {
   final List<TimelineEvent> _events = [];
   
   // Calendar view constants
-  static const int _startHour = 6; // 6 AM
-  static const int _endHour = 22; // 10 PM
+  static const int _startHour = 6; // 6 AM (Day view)
+  static const int _endHour = 22; // 10 PM (Day view)
+  // Week view: full 24-hour work day like Teams calendar
+  static const int _weekViewStartHour = 0;
+  static const int _weekViewEndHour = 24;
+  static const double _weekHeaderHeight = 56.0; // Day header height so events sit below it
   static const double _hourHeight = 80.0; // Height of each hour slot in pixels
   static const double _minuteHeight = _hourHeight / 60.0; // Height per minute
   static const Duration _defaultEventDuration = Duration(hours: 1); // Default 1 hour for events
@@ -161,15 +165,17 @@ class _TimelineScreenState extends State<TimelineScreen> {
     return event.dateTime.add(_defaultEventDuration);
   }
 
-  double _getEventTopPosition(DateTime eventTime) {
+  double _getEventTopPosition(DateTime eventTime, {int? startHour, double? hourHeight}) {
+    final start = startHour ?? _startHour;
+    final h = hourHeight ?? _hourHeight;
     final hours = eventTime.hour + (eventTime.minute / 60.0);
-    final startHours = _startHour.toDouble();
-    return (hours - startHours) * _hourHeight;
+    return (hours - start) * h;
   }
 
-  double _getEventHeight(DateTime startTime, DateTime endTime) {
+  double _getEventHeight(DateTime startTime, DateTime endTime, {double? hourHeight}) {
+    final h = hourHeight ?? _hourHeight;
     final duration = endTime.difference(startTime);
-    return duration.inMinutes * _minuteHeight;
+    return duration.inMinutes * (h / 60.0);
   }
 
   @override
@@ -424,9 +430,12 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
   Widget _buildWeekView() {
     final weekStart = _getWeekStart(_focusedDay);
-    final weekDays = List.generate(7, (index) => weekStart.add(Duration(days: index)));
+    // Work week: Mon–Fri only (no Saturday/Sunday)
+    final weekDays = List.generate(5, (index) => weekStart.add(Duration(days: index)));
     final weekEvents = _getEventsForWeek(weekStart);
-    
+    const weekStartHour = _weekViewStartHour;
+    const weekEndHour = _weekViewEndHour;
+
     return GlassCard(
       padding: EdgeInsets.zero,
       child: Column(
@@ -468,13 +477,17 @@ class _TimelineScreenState extends State<TimelineScreen> {
               ],
             ),
           ),
-          // Week Grid
-          SizedBox(
-            height: (_endHour - _startHour) * _hourHeight,
+          // Day headers row (like Teams week view)
+          Container(
+            height: 56,
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
+              ),
+            ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Time Column
+                // Empty top-left cell above time column
                 Container(
                   width: 80,
                   decoration: BoxDecoration(
@@ -482,115 +495,43 @@ class _TimelineScreenState extends State<TimelineScreen> {
                       right: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
                     ),
                   ),
-                  child: Column(
-                    children: List.generate(
-                      _endHour - _startHour,
-                      (index) => Container(
-                        height: _hourHeight,
-                        padding: const EdgeInsets.only(right: 8, top: 4),
-                        alignment: Alignment.topRight,
-                        child: Text(
-                          '${_startHour + index}:00',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: FlownetColors.coolGray,
-                                fontSize: 12,
-                              ),
-                        ),
-                      ),
-                    ),
-                  ),
                 ),
-                // Days Columns
+                // Day headers (Mon–Fri)
                 Expanded(
                   child: Row(
                     children: weekDays.map((day) {
-                      final dayEvents = weekEvents.where((event) {
-                        final date = event.date;
-                        if (date == null) return false;
-                        return date.year == day.year &&
-                            date.month == day.month &&
-                            date.day == day.day;
-                      }).toList();
-                      
                       final isToday = day.year == DateTime.now().year &&
                           day.month == DateTime.now().month &&
                           day.day == DateTime.now().day;
-                      
+
                       return Expanded(
                         child: Container(
                           decoration: BoxDecoration(
                             border: Border(
                               right: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
-                              bottom: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
                             ),
-                            color: isToday ? FlownetColors.crimsonRed.withOpacity(0.1) : null,
+                            color: isToday
+                                ? FlownetColors.crimsonRed.withOpacity(0.1)
+                                : Colors.transparent,
                           ),
-                          child: Stack(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              // Hour Lines
-                              Column(
-                                children: List.generate(
-                                  _endHour - _startHour,
-                                  (index) => Container(
-                                    height: _hourHeight,
-                                    decoration: BoxDecoration(
-                                      border: Border(
-                                        bottom: BorderSide(
-                                          color: FlownetColors.slate.withOpacity(0.2),
-                                        ),
-                                      ),
+                              Text(
+                                DateFormat('EEE').format(day),
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: FlownetColors.coolGray,
+                                      fontSize: 12,
                                     ),
-                                  ),
-                                ),
                               ),
-                              // Day Header
-                              Container(
-                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                                decoration: BoxDecoration(
-                                  color: FlownetColors.graphiteGray.withOpacity(0.3),
-                                  border: Border(
-                                    bottom: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
-                                  ),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      DateFormat('EEE').format(day),
-                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                            color: FlownetColors.coolGray,
-                                            fontSize: 12,
-                                          ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${day.day}',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+                                      color: FlownetColors.pureWhite,
                                     ),
-                                    Text(
-                                      '${day.day}',
-                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                            fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-                                            color: isToday ? FlownetColors.crimsonRed : FlownetColors.pureWhite,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              // Events
-                              Positioned.fill(
-                                top: 56,
-                                child: Stack(
-                                  children: dayEvents.map((event) {
-                                    final startTime = _getEventStartDateTime(event);
-                                    final endTime = _getEventEndDateTime(event);
-                                    final top = _getEventTopPosition(startTime);
-                                    final height = _getEventHeight(startTime, endTime);
-                                    final color = _getColorForTag(event.colorTag);
-                                    
-                                    return Positioned(
-                                      top: top,
-                                      left: 4,
-                                      right: 4,
-                                      height: height.clamp(36.0, double.infinity),
-                                      child: _buildWeekEventCard(event, color),
-                                    );
-                                  }).toList(),
-                                ),
                               ),
                             ],
                           ),
@@ -600,6 +541,118 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   ),
                 ),
               ],
+            ),
+          ),
+          // Scrollable time grid with events (like Teams timeline)
+          ClipRect(
+            child: Transform.translate(
+              offset: const Offset(0, 0.5),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                child: SizedBox(
+                  height: (weekEndHour - weekStartHour) * _hourHeight,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Time Column (24 hours)
+                      Container(
+                        width: 80,
+                        decoration: BoxDecoration(
+                          border: Border(
+                            right: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
+                          ),
+                        ),
+                        child: Column(
+                          children: List.generate(
+                            weekEndHour - weekStartHour,
+                            (index) => Container(
+                              height: _hourHeight,
+                              padding: const EdgeInsets.only(right: 8, top: 4),
+                              alignment: Alignment.topRight,
+                              child: Text(
+                                '${weekStartHour + index}:00',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: FlownetColors.coolGray,
+                                      fontSize: 12,
+                                    ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Days Columns (Mon–Fri)
+                      Expanded(
+                        child: Row(
+                          children: weekDays.map((day) {
+                            final dayEvents = weekEvents.where((event) {
+                              final date = event.date;
+                              if (date == null) return false;
+                              return date.year == day.year &&
+                                  date.month == day.month &&
+                                  date.day == day.day;
+                            }).toList();
+
+                            return Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    right: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
+                                  ),
+                                ),
+                                child: Stack(
+                                  children: [
+                                    // Hour Lines (24 hours)
+                                    Column(
+                                      children: List.generate(
+                                        weekEndHour - weekStartHour,
+                                        (index) => Container(
+                                          height: _hourHeight,
+                                          decoration: BoxDecoration(
+                                            border: Border(
+                                              bottom: BorderSide(
+                                                color: FlownetColors.slate.withOpacity(0.12),
+                                                width: 0.5,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    // Events positioned within the time grid
+                                    Positioned.fill(
+                                      child: Stack(
+                                        children: dayEvents.map((event) {
+                                          final startTime = _getEventStartDateTime(event);
+                                          final endTime = _getEventEndDateTime(event);
+                                          final rawTop = _getEventTopPosition(
+                                            startTime,
+                                            startHour: weekStartHour,
+                                          );
+                                          final top = rawTop;
+                                          final height = _getEventHeight(startTime, endTime);
+                                          final color = _getColorForTag(event.colorTag);
+
+                                          return Positioned(
+                                            top: top,
+                                            left: 4,
+                                            right: 4,
+                                            height: height.clamp(36.0, double.infinity),
+                                            child: _buildWeekEventCard(event, color),
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -616,9 +669,12 @@ class _TimelineScreenState extends State<TimelineScreen> {
         child: Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
+            color: color.withOpacity(0.18),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: color.withOpacity(0.5), width: 1),
+            border: Border.all(
+              color: color.withOpacity(0.35),
+              width: 0.8,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
