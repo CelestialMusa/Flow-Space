@@ -893,7 +893,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                 color: FlownetColors.pureWhite,
                 fontWeight: FontWeight.bold,
               ),
-              todayTextStyle: TextStyle(
+              todayTextStyle: const TextStyle(
                 color: FlownetColors.crimsonRed,
                 fontWeight: FontWeight.bold,
               ),
@@ -909,24 +909,24 @@ class _TimelineScreenState extends State<TimelineScreen> {
                 color: FlownetColors.crimsonRed.withOpacity(0.3),
                 shape: BoxShape.circle,
               ),
-              markerDecoration: BoxDecoration(
+              markerDecoration: const BoxDecoration(
                 color: FlownetColors.crimsonRed,
                 shape: BoxShape.circle,
               ),
             ),
-            headerStyle: HeaderStyle(
+            headerStyle: const HeaderStyle(
               formatButtonVisible: false,
               titleCentered: true,
-              titleTextStyle: const TextStyle(
+              titleTextStyle: TextStyle(
                 color: FlownetColors.pureWhite,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
-              leftChevronIcon: const Icon(
+              leftChevronIcon: Icon(
                 Icons.chevron_left,
                 color: FlownetColors.pureWhite,
               ),
-              rightChevronIcon: const Icon(
+              rightChevronIcon: Icon(
                 Icons.chevron_right,
                 color: FlownetColors.pureWhite,
               ),
@@ -947,7 +947,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   child: Container(
                     width: 6,
                     height: 6,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: FlownetColors.crimsonRed,
                       shape: BoxShape.circle,
                     ),
@@ -999,7 +999,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                 padding: const EdgeInsets.all(32),
                 child: Column(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.event_busy,
                       size: 48,
                       color: FlownetColors.coolGray,

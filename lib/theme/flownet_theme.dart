@@ -113,10 +113,10 @@ class FlownetTheme {
         ),
       ),
       // Bottom sheets
-      bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: const Color(0xF21E1E1E),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Color(0xF21E1E1E),
         surfaceTintColor: Colors.transparent,
-        shape: const RoundedRectangleBorder(
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
       ),

@@ -52,7 +52,6 @@ class GlassContainer extends StatelessWidget {
     VoidCallback? onTap,
   }) {
     return GlassContainer(
-      child: child,
       width: width,
       height: height,
       borderRadius: borderRadius ?? 24.0,
@@ -63,6 +62,7 @@ class GlassContainer extends StatelessWidget {
       padding: padding,
       margin: margin,
       onTap: onTap,
+      child: child,
     );
   }
 
@@ -77,7 +77,6 @@ class GlassContainer extends StatelessWidget {
     VoidCallback? onTap,
   }) {
     return GlassContainer(
-      child: child,
       width: width,
       height: height,
       borderRadius: borderRadius ?? 24.0,
@@ -88,6 +87,7 @@ class GlassContainer extends StatelessWidget {
       padding: padding,
       margin: margin,
       onTap: onTap,
+      child: child,
     );
   }
 
@@ -102,7 +102,6 @@ class GlassContainer extends StatelessWidget {
     VoidCallback? onTap,
   }) {
     return GlassContainer(
-      child: child,
       width: width,
       height: height,
       borderRadius: borderRadius ?? 24.0,
@@ -113,6 +112,7 @@ class GlassContainer extends StatelessWidget {
       padding: padding,
       margin: margin,
       onTap: onTap,
+      child: child,
     );
   }
 
@@ -133,7 +133,7 @@ class GlassContainer extends StatelessWidget {
       offset: const Offset(0, 4),
     );
 
-    Widget container = Container(
+    final Widget container = Container(
       width: width,
       height: height,
       margin: margin,

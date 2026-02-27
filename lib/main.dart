@@ -51,8 +51,6 @@ import 'screens/skill_assessment_screen.dart';
 import 'screens/deliverable_detail_screen.dart';
 import 'screens/environment_management_screen.dart';
 import 'screens/project_workspace_screen.dart';
-import 'screens/projects_screen.dart';
-import 'screens/project_create_screen.dart';
 import 'screens/project_setup_screen.dart';
 
 void main() async {

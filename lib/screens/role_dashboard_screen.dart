@@ -669,7 +669,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => DeliverablesMetricsScreen()),
+                        builder: (context) => const DeliverablesMetricsScreen()),
                   ),
                 ),
               ],
@@ -1349,10 +1349,11 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                         value: 'test_pass_rate', child: Text('Test Pass Rate')),
                   ],
                   onChanged: (v) {
-                    if (v != null)
+                    if (v != null) {
                       setState(() {
                         _selectedChartType = v;
                       });
+                    }
                   },
                 ),
               ],
@@ -1497,8 +1498,9 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                               Expanded(
                                 child: InkWell(
                                   onTap: () {
-                                    if (id.isNotEmpty)
+                                    if (id.isNotEmpty) {
                                       context.go('/client-review/$id');
+                                    }
                                   },
                                   child: Row(
                                     children: [
@@ -1820,8 +1822,9 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                       firstDate: now.subtract(const Duration(days: 365)),
                       lastDate: now.add(const Duration(days: 365 * 3)),
                     );
-                    if (date != null)
+                    if (date != null) {
                       dueController.text = date.toIso8601String();
+                    }
                   },
                 ),
               ],
@@ -1891,11 +1894,14 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
       for (final d in _dashboardDeliverables) {
         final status =
             (d['status'] ?? d['state'] ?? '').toString().toLowerCase();
-        if (status == 'completed' || status == 'done' || status == 'approved')
+        if (status == 'completed' || status == 'done' || status == 'approved') {
           completed++;
+        }
         if (status == 'in_progress' ||
             status == 'in-progress' ||
-            status == 'progress') inProgress++;
+            status == 'progress') {
+          inProgress++;
+        }
         final dueStr =
             (d['due_date'] ?? d['dueDate'] ?? d['deadline'] ?? '').toString();
         final due = DateTime.tryParse(dueStr);
@@ -1913,7 +1919,9 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
             (s['status'] ?? s['state'] ?? '').toString().toLowerCase();
         if (status == 'active' ||
             status == 'in_progress' ||
-            status == 'in-progress') activeSprints++;
+            status == 'in-progress') {
+          activeSprints++;
+        }
       }
       int activeProjects = 0;
       for (final p in _dashboardProjects) {
@@ -1991,8 +1999,9 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
             if (c is String) {
               try {
                 final decoded = jsonDecode(c);
-                if (decoded is Map)
+                if (decoded is Map) {
                   m['content'] = Map<String, dynamic>.from(decoded);
+                }
               } catch (_) {}
             }
             return m;
@@ -2005,8 +2014,9 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                     '')
                 .toString()
                 .toLowerCase();
-            if (statusRaw.isEmpty)
+            if (statusRaw.isEmpty) {
               return true; // Default to include when unknown
+            }
             return statusRaw == 'submitted' ||
                 statusRaw == 'under_review' ||
                 statusRaw == 'underreview';

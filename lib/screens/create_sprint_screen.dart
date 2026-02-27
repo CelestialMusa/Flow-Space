@@ -262,7 +262,7 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
                         child: Center(child: CircularProgressIndicator()),
                       )
                     : DropdownButtonFormField<Project>(
-                        value: _selectedProject,
+                        initialValue: _selectedProject,
                         decoration: const InputDecoration(
                           labelText: 'Project *',
                           border: OutlineInputBorder(),
