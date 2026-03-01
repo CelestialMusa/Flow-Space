@@ -10,6 +10,24 @@ import '../models/timeline_event.dart';
 import '../services/auth_service.dart';
 import 'add_event_modal.dart';
 
+/// Single event layout: position and size for rendering in the time grid.
+class _EventLayoutSlot {
+  final double top;
+  final double left;
+  final double width;
+  final double height;
+  final TimelineEvent event;
+  final Color color;
+  _EventLayoutSlot({
+    required this.top,
+    required this.left,
+    required this.width,
+    required this.height,
+    required this.event,
+    required this.color,
+  });
+}
+
 /// Timeline/Calendar Screen
 /// Accessible by all users
 /// Displays events, deadlines, and schedule in a calendar/timeline view
@@ -156,26 +174,144 @@ class _TimelineScreenState extends State<TimelineScreen> {
     });
   }
 
+  /// Start of event. Uses event.time (HH:mm) when present so events sit under the correct hour.
   DateTime _getEventStartDateTime(TimelineEvent event) {
+    final d = event.date;
+    if (d != null && event.time != null && event.time!.isNotEmpty) {
+      final parts = event.time!.split(':');
+      final hour = parts.isNotEmpty ? (int.tryParse(parts[0].trim()) ?? 0) : 0;
+      final minute = parts.length > 1 ? (int.tryParse(parts[1].trim()) ?? 0) : 0;
+      return DateTime(d.year, d.month, d.day, hour, minute);
+    }
+    if (event.startTime != null) return event.startTime!;
     return event.dateTime;
   }
 
   DateTime _getEventEndDateTime(TimelineEvent event) {
-    // Default to 1 hour duration for events without duration
-    return event.dateTime.add(_defaultEventDuration);
+    if (event.endTime != null) return event.endTime!;
+    return _getEventStartDateTime(event).add(_defaultEventDuration);
   }
 
+  /// Vertical position: top = (eventStartMinutes - startHourInMinutes) / 60 * hourHeight
   double _getEventTopPosition(DateTime eventTime, {int? startHour, double? hourHeight}) {
     final start = startHour ?? _startHour;
     final h = hourHeight ?? _hourHeight;
-    final hours = eventTime.hour + (eventTime.minute / 60.0);
-    return (hours - start) * h;
+    final eventMinutes = eventTime.hour * 60 + eventTime.minute + eventTime.second / 60.0;
+    final startHourMinutes = start * 60;
+    return (eventMinutes - startHourMinutes) / 60.0 * h;
   }
 
+  /// Height = (durationInMinutes / 60) * hourHeight
   double _getEventHeight(DateTime startTime, DateTime endTime, {double? hourHeight}) {
     final h = hourHeight ?? _hourHeight;
     final duration = endTime.difference(startTime);
-    return duration.inMinutes * (h / 60.0);
+    return duration.inMinutes / 60.0 * h;
+  }
+
+  // --- Event layout: overlap detection and column assignment ---
+
+  /// Two events overlap if startA < endB && endA > startB (intersecting intervals).
+  bool _eventsOverlap(DateTime startA, DateTime endA, DateTime startB, DateTime endB) {
+    return startA.isBefore(endB) && endA.isAfter(startB);
+  }
+
+  /// Group events into overlapping clusters. Each group shares horizontal space.
+  List<List<TimelineEvent>> _groupOverlappingEvents(
+    List<TimelineEvent> events,
+    DateTime Function(TimelineEvent) getStart,
+    DateTime Function(TimelineEvent) getEnd,
+  ) {
+    if (events.isEmpty) return [];
+    final sorted = List<TimelineEvent>.from(events)
+      ..sort((a, b) => getStart(a).compareTo(getStart(b)));
+    final groups = <List<TimelineEvent>>[];
+    for (final e in sorted) {
+      final eStart = getStart(e);
+      final eEnd = getEnd(e);
+      final overlappingIndices = <int>{};
+      for (var i = 0; i < groups.length; i++) {
+        final hasOverlap = groups[i].any((g) => _eventsOverlap(
+              eStart, eEnd, getStart(g), getEnd(g),
+            ));
+        if (hasOverlap) overlappingIndices.add(i);
+      }
+      if (overlappingIndices.isEmpty) {
+        groups.add([e]);
+      } else {
+        final toMerge = overlappingIndices.toList()..sort((a, b) => b.compareTo(a));
+        final merged = <TimelineEvent>[e];
+        for (final i in toMerge) {
+          merged.addAll(groups[i]);
+          groups.removeAt(i);
+        }
+        merged.sort((a, b) => getStart(a).compareTo(getStart(b)));
+        groups.add(merged);
+      }
+    }
+    return groups;
+  }
+
+  /// Assign column index to each event in a group. Reuse a column when the event there has ended.
+  List<int> _assignColumns(
+    List<TimelineEvent> group,
+    DateTime Function(TimelineEvent) getStart,
+    DateTime Function(TimelineEvent) getEnd,
+  ) {
+    if (group.isEmpty) return [];
+    final indices = List<int>.filled(group.length, -1);
+    final columnEnds = <int, DateTime>{};
+    for (var i = 0; i < group.length; i++) {
+      final start = getStart(group[i]);
+      final end = getEnd(group[i]);
+      var col = 0;
+      while (columnEnds[col] != null && columnEnds[col]!.isAfter(start)) {
+        col++;
+      }
+      indices[i] = col;
+      columnEnds[col] = end;
+    }
+    return indices;
+  }
+
+  /// Compute layout for a list of events: correct vertical position + side-by-side for overlaps.
+  List<_EventLayoutSlot> _computeEventLayouts({
+    required List<TimelineEvent> events,
+    required int startHour,
+    required double hourHeight,
+    required double availableWidth,
+    double horizontalPadding = 8,
+  }) {
+    if (events.isEmpty) return [];
+    final getStart = _getEventStartDateTime;
+    final getEnd = _getEventEndDateTime;
+    final startHourMinutes = startHour * 60;
+    final slots = <_EventLayoutSlot>[];
+    final groups = _groupOverlappingEvents(events, getStart, getEnd);
+    for (final group in groups) {
+      final columns = _assignColumns(group, getStart, getEnd);
+      final totalColumns = (columns.isEmpty ? 1 : columns.reduce((a, b) => a > b ? a : b) + 1);
+      final width = (availableWidth - 2 * horizontalPadding) / totalColumns;
+      for (var i = 0; i < group.length; i++) {
+        final event = group[i];
+        final start = getStart(event);
+        final end = getEnd(event);
+        final startMinutes = start.hour * 60 + start.minute + start.second / 60.0;
+        final durationMinutes = end.difference(start).inMinutes.toDouble();
+        final top = (startMinutes - startHourMinutes) / 60.0 * hourHeight;
+        final height = durationMinutes / 60.0 * hourHeight;
+        final col = i < columns.length ? columns[i] : 0;
+        final left = horizontalPadding + col * width;
+        slots.add(_EventLayoutSlot(
+          top: top,
+          left: left,
+          width: width,
+          height: height.clamp(24.0, double.infinity),
+          event: event,
+          color: _getColorForTag(event.colorTag),
+        ));
+      }
+    }
+    return slots;
   }
 
   @override
@@ -618,28 +754,27 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                         ),
                                       ),
                                     ),
-                                    // Events positioned within the time grid
+                                    // Events: correct vertical position + side-by-side when overlapping
                                     Positioned.fill(
-                                      child: Stack(
-                                        children: dayEvents.map((event) {
-                                          final startTime = _getEventStartDateTime(event);
-                                          final endTime = _getEventEndDateTime(event);
-                                          final rawTop = _getEventTopPosition(
-                                            startTime,
+                                      child: LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          final slots = _computeEventLayouts(
+                                            events: dayEvents,
                                             startHour: weekStartHour,
+                                            hourHeight: _hourHeight,
+                                            availableWidth: constraints.maxWidth,
+                                            horizontalPadding: 4,
                                           );
-                                          final top = rawTop;
-                                          final height = _getEventHeight(startTime, endTime);
-                                          final color = _getColorForTag(event.colorTag);
-
-                                          return Positioned(
-                                            top: top,
-                                            left: 4,
-                                            right: 4,
-                                            height: height.clamp(36.0, double.infinity),
-                                            child: _buildWeekEventCard(event, color),
+                                          return Stack(
+                                            children: slots.map((s) => Positioned(
+                                              top: s.top,
+                                              left: s.left,
+                                              width: s.width,
+                                              height: s.height,
+                                              child: _buildWeekEventCard(s.event, s.color),
+                                            )).toList(),
                                           );
-                                        }).toList(),
+                                        },
                                       ),
                                     ),
                                   ],
@@ -814,23 +949,26 @@ class _TimelineScreenState extends State<TimelineScreen> {
                           ),
                         ),
                       ),
-                      // Events
-                      Stack(
-                        children: dayEvents.map((event) {
-                          final startTime = _getEventStartDateTime(event);
-                          final endTime = _getEventEndDateTime(event);
-                          final top = _getEventTopPosition(startTime);
-                          final height = _getEventHeight(startTime, endTime);
-                          final color = _getColorForTag(event.colorTag);
-                          
-                          return Positioned(
-                            top: top,
-                            left: 8,
-                            right: 8,
-                            height: height.clamp(48.0, double.infinity),
-                            child: _buildDayEventCard(event, color),
+                      // Events: correct vertical position + side-by-side when overlapping
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final slots = _computeEventLayouts(
+                            events: dayEvents,
+                            startHour: _startHour,
+                            hourHeight: _hourHeight,
+                            availableWidth: constraints.maxWidth,
+                            horizontalPadding: 8,
                           );
-                        }).toList(),
+                          return Stack(
+                            children: slots.map((s) => Positioned(
+                              top: s.top,
+                              left: s.left,
+                              width: s.width,
+                              height: s.height,
+                              child: _buildDayEventCard(s.event, s.color),
+                            )).toList(),
+                          );
+                        },
                       ),
                     ],
                   ),
