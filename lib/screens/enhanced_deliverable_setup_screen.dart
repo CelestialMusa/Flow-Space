@@ -40,9 +40,10 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   bool _hasInternalApproval = false;
   List<Map<String, dynamic>> _availableSprints = [];
   List<Map<String, dynamic>> _users = [];
+  List<Map<String, dynamic>> _projects = [];
   String? _ownerId;
   String? _projectId;
-  String _priority = 'Medium';
+  final String _priority = 'Medium';
 
   bool _isSubmitting = false;
 
