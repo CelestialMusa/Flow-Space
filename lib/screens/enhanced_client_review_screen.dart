@@ -1,7 +1,6 @@
 // ignore_for_file: avoid_print
 
 import '../widgets/app_modal.dart';
-// ignore_for_file: avoid_print
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -359,7 +358,7 @@ Future<void> _submitApproval() async {
     return Scaffold(
       backgroundColor: FlownetColors.charcoalBlack,
       appBar: AppBar(
-        title: const FlownetLogo(showText: true),
+        title: const FlownetLogo(),
         backgroundColor: FlownetColors.charcoalBlack,
         foregroundColor: FlownetColors.pureWhite,
         centerTitle: false,
@@ -426,7 +425,7 @@ Future<void> _submitApproval() async {
     String message;
     if (report.status == ReportStatus.approved) {
       final approvedAt = report.approvedAt ?? report.reviewedAt;
-      final approver = report.approvedByName ?? report.reviewedByName ?? report.approvedBy ?? report.reviewedBy ?? 'Client';
+      final approver = report.approvedBy ?? report.reviewedBy ?? 'Client';
       final when = approvedAt != null ? _formatDate(approvedAt) : 'Unknown time';
       message = 'Approved by $approver on $when';
     } else if (report.status == ReportStatus.changeRequested) {

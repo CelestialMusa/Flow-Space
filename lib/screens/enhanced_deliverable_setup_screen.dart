@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
@@ -10,7 +9,6 @@ import '../widgets/flownet_logo.dart';
 import '../widgets/ai_readiness_gate_widget.dart';
 import '../services/deliverable_service.dart';
 import '../services/backend_api_service.dart';
-import '../services/project_service.dart';
 import '../widgets/app_modal.dart';
 import '../services/api_client.dart';
 import '../config/environment.dart';
@@ -42,11 +40,10 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   bool _hasInternalApproval = false;
   List<Map<String, dynamic>> _availableSprints = [];
   List<Map<String, dynamic>> _users = [];
-  List<Map<String, dynamic>> _projects = [];
   String? _ownerId;
   String? _projectId;
   String _priority = 'Medium';
-  
+
   bool _isSubmitting = false;
 
   @override
@@ -634,7 +631,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
     return Scaffold(
       backgroundColor: FlownetColors.charcoalBlack,
       appBar: AppBar(
-        title: const FlownetLogo(showText: true),
+        title: const FlownetLogo(),
         backgroundColor: FlownetColors.charcoalBlack,
         foregroundColor: FlownetColors.pureWhite,
         centerTitle: false,
