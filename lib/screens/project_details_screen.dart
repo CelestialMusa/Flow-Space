@@ -999,18 +999,21 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         color: FlownetColors.textSecondary,
       ),
       onTap: () {
-        final projectId = _project!.key.isNotEmpty ? _project!.key : _project!.id;
-        context.go(
-          '/sprint-console?projectId=${Uri.encodeComponent(projectId)}&sprintId=${Uri.encodeComponent(sprint.id)}',
-        );
+        final keyOrId = _project!.key.isNotEmpty ? _project!.key : _project!.id;
+        context.go('/sprint-console?projectId=$keyOrId&sprintId=${sprint.id}');
       },
     );
   }
 
   String _formatSprintSubtitle(Sprint sprint) {
-    final start = sprint.startDate;
-    final end = sprint.endDate;
-    return '${sprint.statusText} • ${_formatDate(start)} → ${_formatDate(end)}';
+    final startDate = _formatDate(sprint.startDate);
+    final endDate = _formatDate(sprint.endDate);
+    return '$startDate - $endDate • ${sprint.statusText.toUpperCase()}';
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'N/A';
+    return '${date.day}/${date.month}/${date.year}';
   }
 
   Widget _buildTeamSection() {
@@ -1030,236 +1033,81 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Text(
-                'Team Members',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: FlownetColors.pureWhite,
-                ),
-              ),
-              const Spacer(),
-              if (_project!.members.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: FlownetColors.electricBlue.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${_project!.members.length} members',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: FlownetColors.electricBlue,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-            ],
+          const Text(
+            'Team Members',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: FlownetColors.pureWhite,
+            ),
           ),
           const SizedBox(height: 16),
-          if (_project!.members.isEmpty) ...[
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: FlownetColors.surfaceHighlight,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withAlpha(30)),
-              ),
-              child: const Column(
-                children: [
-                  Icon(Icons.people_outline, size: 48, color: FlownetColors.textSecondary),
-                  SizedBox(height: 16),
-                  Text(
-                    'No team members assigned yet',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: FlownetColors.textSecondary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Add team members to start collaborating on this project',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: FlownetColors.textTertiary,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ] else ...[
-            ..._project!.members.map((member) => _buildTeamMemberCard(member)),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTeamMemberCard(ProjectMember member) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: FlownetColors.surfaceHighlight,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withAlpha(30)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: _getRoleColor(member.role).withValues(alpha: 0.2),
-                child: Text(
-                  member.userName.isNotEmpty ? member.userName[0].toUpperCase() : 'U',
-                  style: TextStyle(
-                    color: _getRoleColor(member.role),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+          if (_project!.members.isEmpty)
+            const Center(
+              child: Text(
+                'No team members assigned',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: FlownetColors.textSecondary,
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      member.userName,
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _project!.members.length,
+              itemBuilder: (context, index) {
+                final member = _project!.members[index];
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    backgroundColor: FlownetColors.surfaceHighlight,
+                    child: Text(
+                      member.userName.isNotEmpty ? member.userName[0].toUpperCase() : '?',
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                        color: FlownetColors.pureWhite,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    member.userName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: FlownetColors.pureWhite,
+                    ),
+                  ),
+                  subtitle: Text(
+                    member.userEmail,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: FlownetColors.textSecondary,
+                    ),
+                  ),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: FlownetColors.surfaceHighlight,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withAlpha(30)),
+                    ),
+                    child: Text(
+                      member.role.name.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
                         color: FlownetColors.pureWhite,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      member.userEmail,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: FlownetColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _getRoleColor(member.role).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: _getRoleColor(member.role)),
-                          ),
-                          child: Text(
-                            _getRoleDisplayName(member.role),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: _getRoleColor(member.role),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Working on this project',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: FlownetColors.textSecondary,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: FlownetColors.surfaceLight,
-              borderRadius: BorderRadius.circular(8),
+                  ),
+                );
+              },
             ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Current Activities',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: FlownetColors.textSecondary,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  '• Reviewing project requirements',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: FlownetColors.textSecondary,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  '• Collaborating on design specifications',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: FlownetColors.textSecondary,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  '• Sprint planning and task assignment',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: FlownetColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
-  }
-
-  Color _getRoleColor(ProjectRole role) {
-    switch (role) {
-      case ProjectRole.owner:
-        return Colors.purple;
-      case ProjectRole.contributor:
-        return Colors.blue;
-      case ProjectRole.viewer:
-        return Colors.grey;
-    }
-  }
-
-  String _getRoleDisplayName(ProjectRole role) {
-    switch (role) {
-      case ProjectRole.owner:
-        return 'Project Owner';
-      case ProjectRole.contributor:
-        return 'Contributor';
-      case ProjectRole.viewer:
-        return 'Viewer';
-    }
   }
 
   Widget _buildInfoChip({
@@ -1269,46 +1117,41 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: FlownetColors.surfaceHighlight,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: Colors.white.withAlpha(30)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 4),
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 12,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: FlownetColors.textSecondary,
                   fontWeight: FontWeight.w500,
-                  color: color,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: FlownetColors.pureWhite,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
         ],
       ),
     );
-  }
-
-  String _formatDate(DateTime? date) {
-    if (date == null) return 'Not set';
-    return '${date.day}/${date.month}/${date.year}';
   }
 }

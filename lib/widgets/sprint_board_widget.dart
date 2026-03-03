@@ -452,32 +452,15 @@ class _SprintBoardWidgetState extends State<SprintBoardWidget> {
           const SizedBox(height: 12),
 
           // Deliverable Details
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              if (deliverable.priority != null) ...[
+              if (deliverable.priority != null)
                 _buildPriorityChip(deliverable.priority!),
-              ],
-              const SizedBox(width: 8),
-              if (deliverable.assignee != null) ...[
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.person_outline,
-                      color: FlownetColors.pureWhite,
-                      size: 14,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      deliverable.assignee!,
-                      style: TextStyle(
-                        color: FlownetColors.pureWhite.withValues(alpha: 0.7),
-                        fontSize: 10,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              if (deliverable.assignee != null)
+                _buildAssigneeChip(deliverable.assignee!),
             ],
           ),
 
@@ -492,6 +475,41 @@ class _SprintBoardWidgetState extends State<SprintBoardWidget> {
         ],
       ),
     ),
+    );
+  }
+
+  Widget _buildAssigneeChip(String assignee) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: FlownetColors.pureWhite.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: FlownetColors.pureWhite.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.person_outline,
+            color: FlownetColors.pureWhite,
+            size: 14,
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              assignee,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: FlownetColors.pureWhite.withValues(alpha: 0.7),
+                fontSize: 10,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
