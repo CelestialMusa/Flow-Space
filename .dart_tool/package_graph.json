@@ -40,6 +40,7 @@
         "share_plus",
         "shared_preferences",
         "socket_io_client",
+        "table_calendar",
         "timezone",
         "universal_html",
         "url_launcher",
@@ -479,6 +480,15 @@
         "shared_preferences_platform_interface",
         "shared_preferences_web",
         "shared_preferences_windows"
+      ]
+    },
+    {
+      "name": "table_calendar",
+      "version": "3.2.0",
+      "dependencies": [
+        "flutter",
+        "intl",
+        "simple_gesture_detector"
       ]
     },
     {
@@ -1558,6 +1568,13 @@
       "dependencies": [
         "flutter",
         "shared_preferences_platform_interface"
+      ]
+    },
+    {
+      "name": "simple_gesture_detector",
+      "version": "0.2.1",
+      "dependencies": [
+        "flutter"
       ]
     },
     {

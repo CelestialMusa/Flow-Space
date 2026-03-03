@@ -2,22 +2,44 @@
 import pkg from 'pg';
 const { Pool } = pkg;
 
-// Safest approach: Use ONLY DATABASE_URL to avoid credential mismatches
+// Safest approach: Use DATABASE_URL if available, otherwise use individual credentials
 function createPool() {
+  if (process.env.DATABASE_URL) {
   console.log('🛜 Using DATABASE_URL (safest approach)');
-  console.log('📊 Connection URL:', process.env.DATABASE_URL ? '***CONFIGURED***' : 'NOT SET');
-  
-  if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL is not set. Please configure it in Render environment variables.');
-  }
+    console.log('📊 Connection URL:', '***CONFIGURED***');
+    
+    // Determine if SSL should be used based on connection string
+    const isLocalhost = process.env.DATABASE_URL.includes('localhost') || 
+                        process.env.DATABASE_URL.includes('127.0.0.1');
+    
+    const poolConfig = {
+      connectionString: process.env.DATABASE_URL,
+    };
+    
+    // Only use SSL for remote connections (not localhost)
+    if (!isLocalhost) {
+      poolConfig.ssl = {
+        rejectUnauthorized: false,
+      };
+    }
+    
+    return new Pool(poolConfig);
+  } else {
+    // Fallback to individual credentials for local development
+    // Default password: empty string when not set (common for local PostgreSQL); set DB_PASSWORD in .env if your postgres user has a password
+    const password = process.env.DB_PASSWORD ?? '';
+    console.log('🛜 Using individual database credentials');
+    console.log('📊 Host:', process.env.DB_HOST || 'localhost');
 
   // SUPER SAFE SSL CONFIGURATION - Always works for Render
   return new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-      rejectUnauthorized: false
-    }
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '5432', 10),
+      database: process.env.DB_NAME || 'flowspace_sit',
+      user: process.env.DB_USER || 'postgres',
+      password: password,
   });
+  }
 }
 
 const pool = createPool();

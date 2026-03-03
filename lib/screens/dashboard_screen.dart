@@ -8,6 +8,7 @@ import '../widgets/sprint_performance_chart.dart';
 import '../providers/dashboard_provider.dart';
 import '../widgets/notification_center_widget.dart';
 import '../services/backend_api_service.dart';
+import '../widgets/app_modal.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -88,7 +89,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: () {
-                          ref.read(dashboardNotifierProvider.notifier).loadDashboardData();
+                          ref
+                              .read(dashboardNotifierProvider.notifier)
+                              .loadDashboardData();
                         },
                         child: const Text('Retry'),
                       ),
@@ -169,8 +172,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Widget _buildMetricsRow(DashboardState dashboardState) {
     final totalDeliverables = dashboardState.deliverables.length;
-    final approvedDeliverables = dashboardState.deliverables.where((d) => d.status == DeliverableStatus.approved).length;
-    final pendingDeliverables = dashboardState.deliverables.where((d) => d.status == DeliverableStatus.submitted).length;
+    final approvedDeliverables = dashboardState.deliverables
+        .where((d) => d.status == DeliverableStatus.approved)
+        .length;
+    final pendingDeliverables = dashboardState.deliverables
+        .where((d) => d.status == DeliverableStatus.submitted)
+        .length;
 
     return Row(
       children: [
@@ -253,17 +260,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(height: 16),
             SizedBox(
               height: 200,
-              child: SprintPerformanceChart(sprints: dashboardState.sprints.map((sprint) {
-                return {
-                  'id': sprint.id,
-                  'name': sprint.name,
-                  'start_date': sprint.startDate.toIso8601String(),
-                  'end_date': sprint.endDate.toIso8601String(),
-                  'planned_points': sprint.committedPoints,
-                  'completed_points': sprint.completedPoints,
-                  'status': 'completed',
-                };
-              }).toList(),),
+              child: SprintPerformanceChart(
+                sprints: dashboardState.sprints.map((sprint) {
+                  return {
+                    'id': sprint.id,
+                    'name': sprint.name,
+                    'start_date': sprint.startDate.toIso8601String(),
+                    'end_date': sprint.endDate.toIso8601String(),
+                    'planned_points': sprint.committedPoints,
+                    'completed_points': sprint.completedPoints,
+                    'status': 'completed',
+                  };
+                }).toList(),
+              ),
             ),
           ],
         ),
@@ -308,28 +317,33 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(height: 8),
                 Text(
                   'Create your first deliverable to get started',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: Colors.grey),
                   textAlign: TextAlign.center,
                 ),
               ],
             ),
           )
         else
-          ...dashboardState.deliverables.take(5).map((deliverable) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: DeliverableCard(
-                  deliverable: deliverable,
-                  onTap: () {
-                    _showDeliverableDetailsDialog(deliverable);
-                  },
+          ...dashboardState.deliverables.take(5).map(
+                (deliverable) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: DeliverableCard(
+                    deliverable: deliverable,
+                    onTap: () {
+                      _showDeliverableDetailsDialog(deliverable);
+                    },
+                  ),
                 ),
-              ),),
+              ),
       ],
     );
   }
 
   void _showCreateDeliverableDialog() {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Create New Deliverable'),
@@ -373,7 +387,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Settings'),
-        content: const Text('Settings panel will be implemented in the next phase.'),
+        content:
+            const Text('Settings panel will be implemented in the next phase.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -389,7 +404,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Sprint Management'),
-        content: const Text('Sprint management features will be implemented in the next phase.'),
+        content: const Text(
+            'Sprint management features will be implemented in the next phase.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -405,7 +421,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('All Deliverables'),
-        content: const Text('Complete deliverables list will be implemented in the next phase.'),
+        content: const Text(
+            'Complete deliverables list will be implemented in the next phase.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -446,7 +463,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           TextButton(
             onPressed: () async {
               Navigator.of(context).pop();
-              
+
               // Call backend logout API and clear local tokens
               try {
                 await BackendApiService().signOut();
@@ -454,7 +471,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 // Even if backend logout fails, clear local tokens
                 debugPrint('Logout error: $e');
               }
-              
+
               // Navigate to login screen using a different approach
               if (mounted) {
                 // Use WidgetsBinding to safely navigate after async operation
