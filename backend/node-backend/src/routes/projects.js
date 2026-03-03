@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { Project, Sprint, AuditLog, User, ProjectMember } = require('../models');
+const { Project, Sprint, AuditLog, User, ProjectMember, Notification, sequelize } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
-const { Op } = require('sequelize');
+const { Op, QueryTypes } = require('sequelize');
 
 /**
  * @route GET /api/projects
@@ -209,6 +209,44 @@ router.post('/', authenticateToken, async (req, res) => {
 
       if (membersToCreate.length > 0) {
         await ProjectMember.bulkCreate(membersToCreate);
+
+        try {
+          // Notify all assigned members (including owner) about project assignment
+          const uniqueUserIds = [...new Set(membersToCreate.map(m => String(m.user_id)))];
+          const users = await User.findAll({
+            where: { id: uniqueUserIds },
+            attributes: ['id', 'first_name', 'last_name', 'email']
+          });
+
+          const notifications = users.map(user => ({
+            recipient_id: user.id,
+            sender_id: req.user.id,
+            type: 'project_assignment',
+            message: `You have been assigned to project "${project.name}".`,
+            payload: {
+              project_id: project.id,
+              project_name: project.name,
+              project_key: project.key,
+              client_name: project.client_name,
+              status: project.status,
+              priority: project.priority,
+              role: (() => {
+                const member = membersToCreate.find(m => String(m.user_id) === String(user.id));
+                return member ? member.role : null;
+              })(),
+              assigned_at: new Date(),
+              reason: 'project_member_assignment'
+            },
+            is_read: false,
+            created_at: new Date()
+          }));
+
+          if (notifications.length > 0) {
+            await Notification.bulkCreate(notifications);
+          }
+        } catch (notifyErr) {
+          console.error('Error sending project assignment notifications:', notifyErr);
+        }
       }
     } else if (projectData.owner_id) {
        // If no members list but owner is specified, add owner as member
@@ -217,6 +255,36 @@ router.post('/', authenticateToken, async (req, res) => {
          user_id: projectData.owner_id,
          role: 'owner'
        });
+
+       try {
+         // Notify owner about project assignment when they are the only member
+         const owner = await User.findByPk(projectData.owner_id, {
+           attributes: ['id', 'first_name', 'last_name', 'email']
+         });
+         if (owner) {
+           await Notification.create({
+             recipient_id: owner.id,
+             sender_id: req.user.id,
+             type: 'project_assignment',
+             message: `You have been assigned as owner of project "${project.name}".`,
+             payload: {
+               project_id: project.id,
+               project_name: project.name,
+               project_key: project.key,
+               client_name: project.client_name,
+               status: project.status,
+               priority: project.priority,
+               role: 'owner',
+               assigned_at: new Date(),
+               reason: 'project_member_assignment'
+             },
+             is_read: false,
+             created_at: new Date()
+           });
+         }
+       } catch (notifyErr) {
+         console.error('Error sending project owner assignment notification:', notifyErr);
+       }
     }
 
     // Log the project creation
@@ -286,14 +354,28 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Explicitly map incoming fields to model attributes
     const updateData = {
-      ...req.body,
+      name: req.body.name,
+      description: req.body.description,
       client_name: req.body.clientName || req.body.client_name,
       start_date: req.body.startDate || req.body.start_date,
       end_date: req.body.endDate || req.body.end_date,
       project_type: req.body.projectType || req.body.project_type,
+      status: req.body.status,
+      priority: req.body.priority,
       owner_id: req.body.ownerId || req.body.owner_id,
+      tags: req.body.tags,
+      metadata: req.body.metadata
     };
+
+    // Remove undefined fields to avoid overwriting with null
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
     
     const project = await Project.findByPk(id);
     
@@ -308,7 +390,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     const oldValues = project.toJSON();
 
     // Check for member assignment restriction
-    if (updateData.members) {
+    if (req.body.members) {
       // Allow if user is owner OR if user is creator (fallback) OR if user is admin
       const isOwner = project.owner_id && req.user.id === project.owner_id;
       
@@ -323,7 +405,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
          });
       }
       
-      if (Array.isArray(updateData.members)) {
+      if (Array.isArray(req.body.members)) {
         // Replace members
         // First delete existing (except maybe owner?)
         // For simplicity, we can remove all and re-add.
@@ -331,7 +413,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
           where: { project_id: id }
         });
         
-        const membersToCreate = updateData.members.map(member => {
+        const membersToCreate = req.body.members.map(member => {
           const userId = typeof member === 'object' ? (member.userId || member.user_id) : member;
           return {
             project_id: id,
@@ -357,22 +439,68 @@ router.put('/:id', authenticateToken, async (req, res) => {
         
         if (membersToCreate.length > 0) {
           await ProjectMember.bulkCreate(membersToCreate);
+
+          try {
+            // Notify all assigned members (including owner) about project assignment/update
+            const uniqueUserIds = [...new Set(membersToCreate.map(m => String(m.user_id)))];
+            const users = await User.findAll({
+              where: { id: uniqueUserIds },
+              attributes: ['id', 'first_name', 'last_name', 'email']
+            });
+
+            const notifications = users.map(user => ({
+              recipient_id: user.id,
+              sender_id: req.user.id,
+              type: 'project_assignment',
+              message: `You have been assigned to project "${project.name}".`,
+              payload: {
+                project_id: project.id,
+                project_name: project.name,
+                project_key: project.key,
+                client_name: project.client_name,
+                status: project.status,
+                priority: project.priority,
+                role: (() => {
+                  const member = membersToCreate.find(m => String(m.user_id) === String(user.id));
+                  return member ? member.role : null;
+                })(),
+                assigned_at: new Date(),
+                reason: 'project_member_assignment'
+              },
+              is_read: false,
+              created_at: new Date()
+            }));
+
+            if (notifications.length > 0) {
+              await Notification.bulkCreate(notifications);
+            }
+          } catch (notifyErr) {
+            console.error('Error sending project assignment notifications on update:', notifyErr);
+          }
         }
       }
     }
     
+    // Explicitly update the project with mapped data
     await project.update(updateData);
 
-    // Calculate changed fields
+    // Calculate changed fields for audit log
     const changedFields = {};
-    for (const key of Object.keys(updateData)) {
-      if (oldValues[key] !== updateData[key]) {
+    Object.keys(updateData).forEach(key => {
+      // Handle Date comparison by converting to ISO string
+      let oldVal = oldValues[key];
+      let newVal = updateData[key];
+      
+      if (oldVal instanceof Date) oldVal = oldVal.toISOString();
+      if (newVal instanceof Date) newVal = newVal.toISOString();
+      
+      if (oldVal != newVal) {
         changedFields[key] = {
           old: oldValues[key],
           new: updateData[key]
         };
       }
-    }
+    });
 
     // Log the project update
     await AuditLog.create({
@@ -748,6 +876,101 @@ router.delete('/:projectId/sprints/:sprintId', authenticateToken, async (req, re
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 
+    });
+  }
+});
+
+router.post('/:id/remind-owner', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const project = await Project.findByPk(id);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        error: 'Project not found'
+      });
+    }
+
+    if (!project.owner_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Project has no owner assigned'
+      });
+    }
+
+    const now = new Date();
+    const endDate = project.end_date ? new Date(project.end_date) : null;
+    const normalizedStatus = String(project.status || '').toLowerCase();
+
+    if (!endDate || endDate > now) {
+      return res.status(400).json({
+        success: false,
+        error: 'Reminder is only available when the project has reached or passed its due date'
+      });
+    }
+
+    if (['completed', 'cancelled'].includes(normalizedStatus)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Project is already completed or cancelled'
+      });
+    }
+
+    const userId = req.user.id;
+    const normalizedRole = String(req.user.role || '').toLowerCase().replace(/[\s_-]+/g, '');
+    const isAdmin = ['admin', 'systemadmin'].includes(normalizedRole);
+    const isOwner = project.owner_id && String(project.owner_id) === String(userId);
+    const isCreator = project.created_by && String(project.created_by) === String(userId);
+
+    if (!isAdmin && !isOwner && !isCreator) {
+      return res.status(403).json({
+        success: false,
+        error: 'Not authorized to send reminder for this project'
+      });
+    }
+
+    const body = req.body || {};
+    const force = Boolean(body.force);
+
+    if (!force) {
+      const recent = await sequelize.query(
+        "SELECT id FROM notifications WHERE type = 'system' AND payload->>'project_id' = :id AND created_at >= NOW() - INTERVAL '1 day'",
+        { type: QueryTypes.SELECT, replacements: { id: String(project.id) } }
+      );
+      if (recent && recent.length > 0) {
+        return res.json({
+          success: true,
+          data: { message: 'Recent reminder already sent for this project' }
+        });
+      }
+    }
+
+    const notification = await Notification.create({
+      recipient_id: project.owner_id,
+      sender_id: userId,
+      type: 'system',
+      message: `Reminder: Please review and update project "${project.name}" which is at or past its due date.`,
+      payload: {
+        project_id: project.id,
+        project_name: project.name,
+        end_date: project.end_date,
+        status: project.status,
+        reason: 'manual_project_due_date'
+      },
+      is_read: false,
+      created_at: new Date()
+    });
+
+    return res.json({
+      success: true,
+      data: notification
+    });
+  } catch (error) {
+    console.error('Error sending project owner reminder:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
     });
   }
 });

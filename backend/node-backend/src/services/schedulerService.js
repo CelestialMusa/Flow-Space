@@ -1,4 +1,4 @@
-const { sequelize, User, Notification, ApprovalRequest } = require('../models');
+const { sequelize, User, Notification, ApprovalRequest, Project } = require('../models');
 const { QueryTypes, Op } = require('sequelize');
 
 class SchedulerService {
@@ -103,6 +103,50 @@ class SchedulerService {
               console.error(`Error processing approval reminder for ${approval.id}:`, innerErr);
               results.errors.push(`Approval ${approval.id}: ${innerErr.message}`);
             }
+          }
+        }
+      }
+
+      const now = new Date();
+      const dueProjects = await Project.findAll({
+        where: {
+          end_date: { [Op.lte]: now },
+          status: { [Op.notIn]: ['completed', 'cancelled'] },
+          owner_id: { [Op.ne]: null },
+        },
+      });
+
+      if (dueProjects && dueProjects.length > 0) {
+        for (const project of dueProjects) {
+          try {
+            if (!options.force) {
+              const recent = await sequelize.query(
+                "SELECT id FROM notifications WHERE type = 'system' AND payload->>'project_id' = :id AND created_at >= NOW() - INTERVAL '1 day'",
+                { type: QueryTypes.SELECT, replacements: { id: String(project.id) } }
+              );
+              if (recent && recent.length > 0) continue;
+            }
+
+            await Notification.create({
+              recipient_id: project.owner_id,
+              sender_id: null,
+              type: 'system',
+              message: `Reminder: Project "${project.name}" has reached its due date and is not marked as completed.`,
+              payload: {
+                project_id: project.id,
+                project_name: project.name,
+                end_date: project.end_date,
+                status: project.status,
+                reason: 'project_due_date',
+              },
+              is_read: false,
+              created_at: new Date(),
+            });
+
+            results.remindersSent += 1;
+          } catch (innerErr) {
+            console.error(`Error processing project due-date reminder for ${project.id}:`, innerErr);
+            results.errors.push(`Project ${project.id}: ${innerErr.message}`);
           }
         }
       }

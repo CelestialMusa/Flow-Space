@@ -43,18 +43,10 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         requiredPermission: 'view_sprints',
       ),
       const _NavItem(
-        label: 'Notifications',
-        icon: Icons.notifications_outlined,
-        iconName: 'notifications',
-        route: '/notifications',
-        requiredPermission: null,
-      ),
-      const _NavItem(
-        label: 'Timeline',
-        icon: Icons.calendar_today_outlined,
-        iconName: 'timeline',
-        route: '/timeline',
-        requiredPermission: null,
+        label: 'Deliverables', 
+        icon: Icons.assignment_outlined, 
+        route: '/deliverables-overview',
+        requiredPermission: 'view_all_deliverables',
       ),
       const _NavItem(
         label: 'Approval Requests',
@@ -83,27 +75,6 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         iconName: 'role_management',
         route: '/role-management',
         requiredPermission: 'manage_users',
-      ),
-      const _NavItem(
-        label: 'Settings',
-        icon: Icons.settings_outlined,
-        iconName: 'settings',
-        route: '/settings',
-        requiredPermission: null,
-      ),
-      const _NavItem(
-        label: 'Profile',
-        icon: Icons.person_outline,
-        iconName: 'account',
-        route: '/profile',
-        requiredPermission: null,
-      ),
-      const _NavItem(
-        label: 'Project Workspace',
-        icon: Icons.work_outline,
-        iconName: 'teams',
-        route: '/project-workspace',
-        requiredPermission: 'manage_projects',
       ),
     ];
 
@@ -671,6 +642,8 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
 
   String _getPageTitle(String route) {
     switch (route) {
+      case '/deliverables-overview':
+        return 'Deliverables';
       case '/approval-requests':
         return 'Approval Requests';
       case '/notifications':

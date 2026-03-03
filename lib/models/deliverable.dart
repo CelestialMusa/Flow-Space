@@ -371,33 +371,24 @@ class Deliverable {
       sprintIds: sprintIds,
       definitionOfDone: definitionOfDone,
       evidenceLinks: evidenceLinks,
-      clientComment: json['clientComment']?.toString() ??
-          json['client_comment']?.toString(),
+      clientComment: json['clientComment']?.toString() ?? json['client_comment']?.toString(),
       approvedAt: json['approvedAt'] != null
           ? DateTime.parse(json['approvedAt'].toString())
-          : (json['approved_at'] != null
-              ? DateTime.parse(json['approved_at'].toString())
-              : null),
-      approvedBy:
-          json['approvedBy']?.toString() ?? json['approved_by']?.toString(),
-      submittedBy:
-          json['submittedBy']?.toString() ?? json['submitted_by']?.toString(),
+          : (json['approved_at'] != null ? DateTime.parse(json['approved_at'].toString()) : null),
+      approvedBy: json['approvedBy']?.toString() ?? json['approved_by']?.toString(),
+      submittedBy: json['submittedBy']?.toString() ?? json['submitted_by']?.toString(),
       submittedAt: json['submittedAt'] != null
           ? DateTime.parse(json['submittedAt'].toString())
-          : (json['submitted_at'] != null
-              ? DateTime.parse(json['submitted_at'].toString())
-              : null),
-      assignedTo:
-          json['assignedTo']?.toString() ?? json['assigned_to']?.toString(),
-      assignedToName: json['assignedToName']?.toString() ??
-          json['assigned_to_name']?.toString(),
-      createdBy:
-          json['createdBy']?.toString() ?? json['created_by']?.toString(),
-      createdByName: json['createdByName']?.toString() ??
-          json['created_by_name']?.toString(),
+          : (json['submitted_at'] != null ? DateTime.parse(json['submitted_at'].toString()) : null),
+      assignedTo: json['assignedTo']?.toString() ?? json['assigned_to']?.toString(),
+      assignedToName: json['assignedToName']?.toString() ?? json['assigned_to_name']?.toString(),
+      createdBy: json['createdBy']?.toString() ?? json['created_by']?.toString(),
+      createdByName: json['createdByName']?.toString() ?? json['created_by_name']?.toString(),
       ownerId: ownerId,
       ownerName: ownerName,
       ownerRole: ownerRole,
+      projectId: json['projectId']?.toString() ?? json['project_id']?.toString(),
+      projectName: json['projectName']?.toString() ?? json['project_name']?.toString(),
       auditLogs: auditLogs,
       artifacts: artifacts,
     );

@@ -94,6 +94,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING(50),
       defaultValue: 'planning'
     },
+    progress: {
+      type: DataTypes.FLOAT,
+      defaultValue: 0.0
+    },
     created_by: {
       type: DataTypes.STRING(255)
     },
