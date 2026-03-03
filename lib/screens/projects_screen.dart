@@ -5,6 +5,7 @@ import '../services/project_sprint_service.dart';
 import 'package:khono/models/project.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/glass_card.dart';
+import 'project_workspace_screen.dart';
 import 'project_details_screen.dart';
 
 class ProjectsScreen extends StatefulWidget {
@@ -96,7 +97,11 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   void _navigateToProjectSetup() {
-    context.go('/project-workspace/new');
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const ProjectWorkspaceScreen(),
+      ),
+    );
   }
 
   @override
@@ -235,7 +240,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => context.go('/project-workspace/new'),
+              onPressed: _navigateToProjectSetup,
               icon: const Icon(Icons.add),
               label: const Text('Create Project'),
               style: ElevatedButton.styleFrom(

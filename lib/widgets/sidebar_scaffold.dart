@@ -75,12 +75,6 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         route: '/role-management',
         requiredPermission: 'manage_users',
       ),
-      const _NavItem(
-        label: 'Project Workspace',
-        icon: Icons.work_outline,
-        route: '/project-workspace',
-        requiredPermission: 'manage_projects',
-      ),
     ];
 
     // Filter items based on user permissions
