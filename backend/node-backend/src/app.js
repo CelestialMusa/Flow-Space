@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+require('dotenv').config({ path: '../.env' });
 const env = require('./config/env-loader');
 const fs = require('fs');
 const path = require('path');

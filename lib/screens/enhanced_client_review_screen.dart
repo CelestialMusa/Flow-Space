@@ -377,7 +377,7 @@ class _EnhancedClientReviewScreenState
     return Scaffold(
       backgroundColor: FlownetColors.charcoalBlack,
       appBar: AppBar(
-        title: const FlownetLogo(showText: true),
+        title: const FlownetLogo(),
         backgroundColor: FlownetColors.charcoalBlack,
         foregroundColor: FlownetColors.pureWhite,
         centerTitle: false,
@@ -445,8 +445,7 @@ class _EnhancedClientReviewScreenState
     if (report.status == ReportStatus.approved) {
       final approvedAt = report.approvedAt ?? report.reviewedAt;
       final approver = report.approvedBy ?? report.reviewedBy ?? 'Client';
-      final when =
-          approvedAt != null ? _formatDate(approvedAt) : 'Unknown time';
+      final when = approvedAt != null ? _formatDate(approvedAt) : 'Unknown time';
       message = 'Approved by $approver on $when';
     } else if (report.status == ReportStatus.changeRequested) {
       final details = report.changeRequestDetails ??

@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show debugPrint;
+
 import '../models/docusign_config.dart';
 import 'api_client.dart';
 
@@ -19,7 +21,7 @@ class DocuSignService {
       }
       return false;
     } catch (e) {
-      print('Error loading DocuSign config: $e');
+      debugPrint('Error loading DocuSign config: $e');
       return false;
     }
   }
@@ -56,14 +58,14 @@ class DocuSignService {
 
       if (response.isSuccess && response.data != null) {
         final envelopeId = response.data!['envelopeId'] as String?;
-        print('✅ DocuSign envelope created: $envelopeId');
+        debugPrint('✅ DocuSign envelope created: $envelopeId');
         return envelopeId;
       } else {
-        print('❌ Failed to create DocuSign envelope: ${response.error}');
+        debugPrint('❌ Failed to create DocuSign envelope: ${response.error}');
         return null;
       }
     } catch (e) {
-      print('❌ Error creating DocuSign envelope: $e');
+      debugPrint('❌ Error creating DocuSign envelope: $e');
       return null;
     }
   }
@@ -78,7 +80,7 @@ class DocuSignService {
       }
       return null;
     } catch (e) {
-      print('Error getting envelope status: $e');
+      debugPrint('Error getting envelope status: $e');
       return null;
     }
   }
@@ -94,7 +96,7 @@ class DocuSignService {
       }
       return [];
     } catch (e) {
-      print('Error getting report envelopes: $e');
+      debugPrint('Error getting report envelopes: $e');
       return [];
     }
   }
@@ -108,7 +110,7 @@ class DocuSignService {
       );
       return response.isSuccess;
     } catch (e) {
-      print('Error resending envelope: $e');
+      debugPrint('Error resending envelope: $e');
       return false;
     }
   }
@@ -122,7 +124,7 @@ class DocuSignService {
       );
       return response.isSuccess;
     } catch (e) {
-      print('Error voiding envelope: $e');
+      debugPrint('Error voiding envelope: $e');
       return false;
     }
   }
@@ -147,7 +149,7 @@ class DocuSignService {
       }
       return null;
     } catch (e) {
-      print('Error getting signing URL: $e');
+      debugPrint('Error getting signing URL: $e');
       return null;
     }
   }

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import '../services/sprint_database_service.dart';
 import '../services/project_service.dart';
 import '../models/project.dart';
@@ -433,23 +432,19 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (!_isEditing && _hasActiveSprint)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withAlpha(51),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.withAlpha(128)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.warning_amber_rounded, color: Colors.red),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'You cannot create a new sprint until all existing sprints in this project are completed.',
-                          style: TextStyle(color: Colors.red[700], fontWeight: FontWeight.bold),
+              // Project selection dropdown (only show if no project was pre-selected)
+              if (widget.projectId == null) ...[
+                _isLoadingProjects
+                    ? const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    : DropdownButtonFormField<Project>(
+                        initialValue: _selectedProject,
+                        decoration: const InputDecoration(
+                          labelText: 'Project *',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.folder),
                         ),
                       ),
                     ],

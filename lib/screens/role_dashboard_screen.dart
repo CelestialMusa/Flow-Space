@@ -668,9 +668,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                   label: 'Deliverables Overview',
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(
-                        builder: (context) =>
-                            const DeliverablesMetricsScreen()),
+                    MaterialPageRoute(builder: (context) => const DeliverablesMetricsScreen()),
                   ),
                 ),
               ],

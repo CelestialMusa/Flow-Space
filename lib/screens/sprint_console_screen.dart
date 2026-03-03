@@ -3,7 +3,6 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:go_router/go_router.dart';
 import '../theme/flownet_theme.dart';
@@ -658,14 +657,55 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
     );
   }
 
-  Widget _buildSelectedProjectSprintsView() {
-    final selected = _projects.firstWhere(
-      (p) {
-        final key = p['key']?.toString();
-        final id = p['id']?.toString();
-        return key == _selectedProjectKey || id == _selectedProjectKey;
-      },
-      orElse: () => <String, dynamic>{},
+  /// Shows all sprints when no project is selected so newly created sprints are visible.
+  Widget _buildAllSprintsSection() {
+    final theme = Theme.of(context);
+    final onSurfaceColor = theme.colorScheme.onSurface;
+
+    return Column(
+      key: _sprintsSectionKey,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sprints',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: onSurfaceColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'All sprints — select a project above to filter',
+                  style: TextStyle(
+                    color: onSurfaceColor.withAlpha(179),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+            GlassButton(
+              text: 'Create Sprint',
+              onPressed: _showCreateSprintDialog,
+              icon: const Icon(Icons.add, size: 16),
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_sprints.isEmpty)
+          _buildEmptyState(
+            'No sprints yet',
+            'Create a sprint using the button above or select a project to create one there',
+          )
+        else
+          _buildSprintsList(List<Map<String, dynamic>>.from(_sprints)),
+      ],
     );
   }
 
@@ -1576,8 +1616,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           initialValue: selectedPriority,
-                          style:
-                              const TextStyle(color: FlownetColors.pureWhite),
+                          style: const TextStyle(color: FlownetColors.pureWhite),
                           decoration: const InputDecoration(
                             labelText: 'Priority',
                             labelStyle:
@@ -1622,8 +1661,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           initialValue: selectedType,
-                          style:
-                              const TextStyle(color: FlownetColors.pureWhite),
+                          style: const TextStyle(color: FlownetColors.pureWhite),
                           decoration: const InputDecoration(
                             labelText: 'Type',
                             labelStyle:
