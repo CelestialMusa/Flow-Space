@@ -242,11 +242,14 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                                 },
                                 borderRadius: BorderRadius.circular(12),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: _collapsed ? 8 : 16,
                                     vertical: 12,
                                   ),
                                   child: Row(
+                                    mainAxisAlignment: _collapsed
+                                        ? MainAxisAlignment.center
+                                        : MainAxisAlignment.start,
                                     children: [
                                       Icon(
                                         item.icon,

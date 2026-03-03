@@ -669,7 +669,8 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => const DeliverablesMetricsScreen()),
+                        builder: (context) =>
+                            const DeliverablesMetricsScreen()),
                   ),
                 ),
               ],
@@ -1744,101 +1745,6 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
           Text(label),
         ],
       ),
-    );
-  }
-
-  Future<void> _editDeliverableDialog(Map<String, dynamic> d) async {
-    final id = (d['id']?.toString() ?? d['uuid']?.toString() ?? '');
-    if (id.isEmpty) return;
-    final titleController =
-        TextEditingController(text: (d['title'] ?? d['name'] ?? '').toString());
-    final descriptionController =
-        TextEditingController(text: (d['description'] ?? '').toString());
-    final dodController = TextEditingController(
-        text: (d['definition_of_done'] ?? d['definitionOfDone'] ?? '')
-            .toString());
-    String priority = (d['priority'] ?? '').toString().toLowerCase();
-    final dueController = TextEditingController(
-        text:
-            (d['due_date'] ?? d['dueDate'] ?? d['deadline'] ?? '').toString());
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Edit Deliverable'),
-          content: SizedBox(
-            width: 480,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(
-                        labelText: 'Title', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: descriptionController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                        labelText: 'Description',
-                        border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: dodController,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                        labelText: 'Definition of Done',
-                        border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: priority.isNotEmpty ? priority : null,
-                  items: const [
-                    DropdownMenuItem(value: 'low', child: Text('Low')),
-                    DropdownMenuItem(value: 'medium', child: Text('Medium')),
-                    DropdownMenuItem(value: 'high', child: Text('High')),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) priority = v;
-                  },
-                  decoration: const InputDecoration(
-                      labelText: 'Priority', border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: dueController,
-                  readOnly: true,
-                  decoration: const InputDecoration(
-                      labelText: 'Due Date',
-                      border: OutlineInputBorder(),
-                      suffixIcon: Icon(Icons.calendar_today)),
-                  onTap: () async {
-                    final now = DateTime.now();
-                    final initial = dueController.text.isNotEmpty
-                        ? (DateTime.tryParse(dueController.text) ?? now)
-                        : now;
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: initial,
-                      firstDate: now.subtract(const Duration(days: 365)),
-                      lastDate: now.add(const Duration(days: 365 * 3)),
-                    );
-                    if (date != null) {
-                      dueController.text = date.toIso8601String();
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => context.pop(false),
-                child: const Text('Cancel')),
-            ElevatedButton(
-                onPressed: () => context.pop(true), child: const Text('Save')),
-          ],
-        );
-      },
     );
   }
 

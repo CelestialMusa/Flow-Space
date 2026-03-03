@@ -23,22 +23,23 @@ class TimelineScreen extends StatefulWidget {
 class _TimelineScreenState extends State<TimelineScreen> {
   // View state
   String _activeView = 'Month'; // 'Month' | 'Week' | 'Day' | 'Timeline'
-  
+
   // Calendar state
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.month;
-  
+
   // Events
   final List<TimelineEvent> _events = [];
-  
+
   // Calendar view constants
   static const int _startHour = 6; // 6 AM
   static const int _endHour = 22; // 10 PM
   static const double _hourHeight = 80.0; // Height of each hour slot in pixels
   static const double _minuteHeight = _hourHeight / 60.0; // Height per minute
-  static const Duration _defaultEventDuration = Duration(hours: 1); // Default 1 hour for events
-  
+  static const Duration _defaultEventDuration =
+      Duration(hours: 1); // Default 1 hour for events
+
   @override
   void initState() {
     super.initState();
@@ -184,7 +185,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
           end: Alignment.bottomRight,
           colors: [
             FlownetColors.charcoalBlack,
-            FlownetColors.charcoalBlack.withOpacity(0.95),
+            FlownetColors.charcoalBlack.withValues(alpha: 0.95),
           ],
         ),
       ),
@@ -205,19 +206,19 @@ class _TimelineScreenState extends State<TimelineScreen> {
                     // Welcome Banner
                     _buildWelcomeBanner(userName),
                     const SizedBox(height: 24),
-                    
+
                     // Quick Actions
                     _buildQuickActions(),
                     const SizedBox(height: 24),
-                    
+
                     // View Switcher
                     _buildViewSwitcher(),
                     const SizedBox(height: 24),
-                    
+
                     // Calendar/Timeline Content
                     _buildCalendarContent(),
                     const SizedBox(height: 24),
-                    
+
                     // My Deliverables
                     _buildMyDeliverables(),
                   ],
@@ -240,7 +241,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: FlownetColors.crimsonRed.withOpacity(0.2),
+              color: FlownetColors.crimsonRed.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(24),
             ),
             child: const Icon(
@@ -400,7 +401,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
             view,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                  color: isActive ? FlownetColors.crimsonRed : FlownetColors.coolGray,
+                  color: isActive
+                      ? FlownetColors.crimsonRed
+                      : FlownetColors.coolGray,
                 ),
           ),
         ],
@@ -424,9 +427,10 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
   Widget _buildWeekView() {
     final weekStart = _getWeekStart(_focusedDay);
-    final weekDays = List.generate(7, (index) => weekStart.add(Duration(days: index)));
+    final weekDays =
+        List.generate(7, (index) => weekStart.add(Duration(days: index)));
     final weekEvents = _getEventsForWeek(weekStart);
-    
+
     return GlassCard(
       padding: EdgeInsets.zero,
       child: Column(
@@ -436,17 +440,20 @@ class _TimelineScreenState extends State<TimelineScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
+                bottom: BorderSide(
+                    color: FlownetColors.slate.withValues(alpha: 0.3)),
               ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.chevron_left, color: FlownetColors.pureWhite),
+                  icon: const Icon(Icons.chevron_left,
+                      color: FlownetColors.pureWhite),
                   onPressed: () {
                     setState(() {
-                      _focusedDay = _focusedDay.subtract(const Duration(days: 7));
+                      _focusedDay =
+                          _focusedDay.subtract(const Duration(days: 7));
                     });
                   },
                 ),
@@ -458,7 +465,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                       ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.chevron_right, color: FlownetColors.pureWhite),
+                  icon: const Icon(Icons.chevron_right,
+                      color: FlownetColors.pureWhite),
                   onPressed: () {
                     setState(() {
                       _focusedDay = _focusedDay.add(const Duration(days: 7));
@@ -479,7 +487,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   width: 80,
                   decoration: BoxDecoration(
                     border: Border(
-                      right: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
+                      right: BorderSide(
+                          color: FlownetColors.slate.withValues(alpha: 0.3)),
                     ),
                   ),
                   child: Column(
@@ -491,10 +500,11 @@ class _TimelineScreenState extends State<TimelineScreen> {
                         alignment: Alignment.topRight,
                         child: Text(
                           '${_startHour + index}:00',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: FlownetColors.coolGray,
-                                fontSize: 12,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: FlownetColors.coolGray,
+                                    fontSize: 12,
+                                  ),
                         ),
                       ),
                     ),
@@ -511,19 +521,26 @@ class _TimelineScreenState extends State<TimelineScreen> {
                             date.month == day.month &&
                             date.day == day.day;
                       }).toList();
-                      
+
                       final isToday = day.year == DateTime.now().year &&
                           day.month == DateTime.now().month &&
                           day.day == DateTime.now().day;
-                      
+
                       return Expanded(
                         child: Container(
                           decoration: BoxDecoration(
                             border: Border(
-                              right: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
-                              bottom: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
+                              right: BorderSide(
+                                  color: FlownetColors.slate
+                                      .withValues(alpha: 0.3)),
+                              bottom: BorderSide(
+                                  color: FlownetColors.slate
+                                      .withValues(alpha: 0.3)),
                             ),
-                            color: isToday ? FlownetColors.crimsonRed.withOpacity(0.1) : null,
+                            color: isToday
+                                ? FlownetColors.crimsonRed
+                                    .withValues(alpha: 0.1)
+                                : null,
                           ),
                           child: Stack(
                             children: [
@@ -536,7 +553,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                     decoration: BoxDecoration(
                                       border: Border(
                                         bottom: BorderSide(
-                                          color: FlownetColors.slate.withOpacity(0.2),
+                                          color: FlownetColors.slate
+                                              .withValues(alpha: 0.2),
                                         ),
                                       ),
                                     ),
@@ -545,27 +563,41 @@ class _TimelineScreenState extends State<TimelineScreen> {
                               ),
                               // Day Header
                               Container(
-                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 8, horizontal: 4),
                                 decoration: BoxDecoration(
-                                  color: FlownetColors.graphiteGray.withOpacity(0.3),
+                                  color: FlownetColors.graphiteGray
+                                      .withValues(alpha: 0.3),
                                   border: Border(
-                                    bottom: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
+                                    bottom: BorderSide(
+                                        color: FlownetColors.slate
+                                            .withValues(alpha: 0.3)),
                                   ),
                                 ),
                                 child: Column(
                                   children: [
                                     Text(
                                       DateFormat('EEE').format(day),
-                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
                                             color: FlownetColors.coolGray,
                                             fontSize: 12,
                                           ),
                                     ),
                                     Text(
                                       '${day.day}',
-                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                            fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-                                            color: isToday ? FlownetColors.crimsonRed : FlownetColors.pureWhite,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            fontWeight: isToday
+                                                ? FontWeight.bold
+                                                : FontWeight.normal,
+                                            color: isToday
+                                                ? FlownetColors.crimsonRed
+                                                : FlownetColors.pureWhite,
                                           ),
                                     ),
                                   ],
@@ -576,17 +608,21 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                 top: 56,
                                 child: Stack(
                                   children: dayEvents.map((event) {
-                                    final startTime = _getEventStartDateTime(event);
+                                    final startTime =
+                                        _getEventStartDateTime(event);
                                     final endTime = _getEventEndDateTime(event);
                                     final top = _getEventTopPosition(startTime);
-                                    final height = _getEventHeight(startTime, endTime);
-                                    final color = _getColorForTag(event.colorTag);
-                                    
+                                    final height =
+                                        _getEventHeight(startTime, endTime);
+                                    final color =
+                                        _getColorForTag(event.colorTag);
+
                                     return Positioned(
                                       top: top,
                                       left: 4,
                                       right: 4,
-                                      height: height.clamp(36.0, double.infinity),
+                                      height:
+                                          height.clamp(36.0, double.infinity),
                                       child: _buildWeekEventCard(event, color),
                                     );
                                   }).toList(),
@@ -616,9 +652,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
         child: Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
+            color: color.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: color.withOpacity(0.5), width: 1),
+            border: Border.all(color: color.withValues(alpha: 0.5), width: 1),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -651,7 +687,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
   Widget _buildDayView() {
     final dayEvents = _getEventsForDay(_selectedDay);
-    
+
     return GlassCard(
       padding: EdgeInsets.zero,
       child: Column(
@@ -661,17 +697,20 @@ class _TimelineScreenState extends State<TimelineScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
+                bottom: BorderSide(
+                    color: FlownetColors.slate.withValues(alpha: 0.3)),
               ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.chevron_left, color: FlownetColors.pureWhite),
+                  icon: const Icon(Icons.chevron_left,
+                      color: FlownetColors.pureWhite),
                   onPressed: () {
                     setState(() {
-                      _selectedDay = _selectedDay.subtract(const Duration(days: 1));
+                      _selectedDay =
+                          _selectedDay.subtract(const Duration(days: 1));
                       _focusedDay = _selectedDay;
                     });
                   },
@@ -695,7 +734,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   ],
                 ),
                 IconButton(
-                  icon: const Icon(Icons.chevron_right, color: FlownetColors.pureWhite),
+                  icon: const Icon(Icons.chevron_right,
+                      color: FlownetColors.pureWhite),
                   onPressed: () {
                     setState(() {
                       _selectedDay = _selectedDay.add(const Duration(days: 1));
@@ -717,7 +757,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   width: 80,
                   decoration: BoxDecoration(
                     border: Border(
-                      right: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
+                      right: BorderSide(
+                          color: FlownetColors.slate.withValues(alpha: 0.3)),
                     ),
                   ),
                   child: Column(
@@ -729,10 +770,11 @@ class _TimelineScreenState extends State<TimelineScreen> {
                         alignment: Alignment.topRight,
                         child: Text(
                           '${_startHour + index}:00',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: FlownetColors.coolGray,
-                                fontSize: 12,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: FlownetColors.coolGray,
+                                    fontSize: 12,
+                                  ),
                         ),
                       ),
                     ),
@@ -751,7 +793,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                             decoration: BoxDecoration(
                               border: Border(
                                 bottom: BorderSide(
-                                  color: FlownetColors.slate.withOpacity(0.2),
+                                  color: FlownetColors.slate
+                                      .withValues(alpha: 0.2),
                                 ),
                               ),
                             ),
@@ -766,7 +809,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                           final top = _getEventTopPosition(startTime);
                           final height = _getEventHeight(startTime, endTime);
                           final color = _getColorForTag(event.colorTag);
-                          
+
                           return Positioned(
                             top: top,
                             left: 8,
@@ -796,9 +839,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
         child: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
+            color: color.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: color.withOpacity(0.5), width: 1.5),
+            border: Border.all(color: color.withValues(alpha: 0.5), width: 1.5),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -839,13 +882,16 @@ class _TimelineScreenState extends State<TimelineScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               IconButton(
-                icon: const Icon(Icons.chevron_left, color: FlownetColors.pureWhite),
+                icon: const Icon(Icons.chevron_left,
+                    color: FlownetColors.pureWhite),
                 onPressed: () {
                   setState(() {
                     if (_calendarFormat == CalendarFormat.month) {
-                      _focusedDay = DateTime(_focusedDay.year, _focusedDay.month - 1);
+                      _focusedDay =
+                          DateTime(_focusedDay.year, _focusedDay.month - 1);
                     } else {
-                      _focusedDay = _focusedDay.subtract(const Duration(days: 7));
+                      _focusedDay =
+                          _focusedDay.subtract(const Duration(days: 7));
                     }
                   });
                 },
@@ -858,11 +904,13 @@ class _TimelineScreenState extends State<TimelineScreen> {
                     ),
               ),
               IconButton(
-                icon: const Icon(Icons.chevron_right, color: FlownetColors.pureWhite),
+                icon: const Icon(Icons.chevron_right,
+                    color: FlownetColors.pureWhite),
                 onPressed: () {
                   setState(() {
                     if (_calendarFormat == CalendarFormat.month) {
-                      _focusedDay = DateTime(_focusedDay.year, _focusedDay.month + 1);
+                      _focusedDay =
+                          DateTime(_focusedDay.year, _focusedDay.month + 1);
                     } else {
                       _focusedDay = _focusedDay.add(const Duration(days: 7));
                     }
@@ -898,7 +946,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                 fontWeight: FontWeight.bold,
               ),
               todayDecoration: BoxDecoration(
-                color: FlownetColors.crimsonRed.withOpacity(0.2),
+                color: FlownetColors.crimsonRed.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: FlownetColors.crimsonRed,
@@ -906,7 +954,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                 ),
               ),
               selectedDecoration: BoxDecoration(
-                color: FlownetColors.crimsonRed.withOpacity(0.3),
+                color: FlownetColors.crimsonRed.withValues(alpha: 0.3),
                 shape: BoxShape.circle,
               ),
               markerDecoration: const BoxDecoration(
@@ -969,7 +1017,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   ),
             ),
             const SizedBox(height: 12),
-            ..._getEventsForDay(_selectedDay).map((event) => _buildEventChip(event)),
+            ..._getEventsForDay(_selectedDay)
+                .map((event) => _buildEventChip(event)),
           ],
         ],
       ),
@@ -1033,10 +1082,10 @@ class _TimelineScreenState extends State<TimelineScreen> {
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               width: 1,
             ),
           ),
@@ -1058,16 +1107,19 @@ class _TimelineScreenState extends State<TimelineScreen> {
                     Row(
                       children: [
                         Text(
-                          DateFormat('MMM d, yyyy').format(event.date ?? DateTime.now()),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: FlownetColors.coolGray,
-                              ),
+                          DateFormat('MMM d, yyyy')
+                              .format(event.date ?? DateTime.now()),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: FlownetColors.coolGray,
+                                  ),
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.2),
+                            color: color.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -1117,10 +1169,10 @@ class _TimelineScreenState extends State<TimelineScreen> {
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.15),
+            color: color.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: color.withOpacity(0.3),
+              color: color.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -1216,23 +1268,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close', style: TextStyle(color: FlownetColors.crimsonRed)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEventDetailRow(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: FlownetColors.coolGray),
-          const SizedBox(width: 12),
-          Text(
-            text,
-            style: const TextStyle(color: FlownetColors.pureWhite),
+            child: const Text('Close',
+                style: TextStyle(color: FlownetColors.crimsonRed)),
           ),
         ],
       ),
@@ -1309,7 +1346,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
               Row(
                 children: [
                   if (isApproved)
-                    const Icon(Icons.check_circle, color: FlownetColors.emeraldGreen, size: 20)
+                    const Icon(Icons.check_circle,
+                        color: FlownetColors.emeraldGreen, size: 20)
                   else
                     const SizedBox(width: 20),
                   const SizedBox(width: 8),
@@ -1323,15 +1361,17 @@ class _TimelineScreenState extends State<TimelineScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: FlownetColors.amberOrange.withOpacity(0.2),
+                      color: FlownetColors.amberOrange.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.local_fire_department, size: 14, color: FlownetColors.amberOrange),
+                        const Icon(Icons.local_fire_department,
+                            size: 14, color: FlownetColors.amberOrange),
                         const SizedBox(width: 4),
                         Text(
                           priority,
@@ -1349,7 +1389,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(Icons.calendar_today, size: 14, color: FlownetColors.coolGray),
+                  const Icon(Icons.calendar_today,
+                      size: 14, color: FlownetColors.coolGray),
                   const SizedBox(width: 4),
                   Text(
                     'In $daysRemaining days',
