@@ -633,6 +633,31 @@ app.post('/api/v1/auth/register', async (req, res) => {
 
       if (!emailResult || !emailResult.success) {
         console.log('⚠️  Verification email not sent via SendGrid:', emailResult?.error);
+        
+        // Handle configuration-specific errors
+        if (emailResult?.requiresConfigurationFix) {
+          console.log('🚫 Configuration issue detected - requires manual fix');
+          console.log('💡 User can still use the verification code shown in logs for development.');
+          
+          return res.status(201).json({
+            success: true,
+            message: 'Registration successful, but email verification requires configuration fix. Please use the verification code shown in server logs.',
+            data: {
+              user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                role: user.role,
+                createdAt: user.created_at,
+                isActive: user.is_active
+              },
+              token: token,
+              token_type: 'Bearer',
+              emailConfigIssue: true
+            }
+          });
+        }
+        
         console.log('💡 User can still use the verification code shown in logs for development.');
       }
     } catch (emailError) {

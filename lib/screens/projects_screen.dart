@@ -56,17 +56,16 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         _projects = projects;
         _isLoading = false;
       });
+      
+      if (projects.isEmpty) {
+        _showEmptyStateMessage();
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading projects: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showErrorMessage(e);
       }
     }
   }
@@ -115,6 +114,31 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
   void _navigateToProjectSetup() {
     context.go('/project-setup');
+  }
+
+  void _showErrorMessage(dynamic error) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Failed to load projects: ${error.toString()}'),
+        backgroundColor: Colors.red,
+        action: SnackBarAction(
+          label: 'Retry',
+          textColor: Colors.white,
+          onPressed: _loadProjects,
+        ),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
+  void _showEmptyStateMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('No projects found. Create your first project to get started!'),
+        backgroundColor: Colors.blue,
+        duration: Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
