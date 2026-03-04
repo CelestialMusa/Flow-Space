@@ -99,11 +99,11 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         requiredPermission: null,
       ),
       const _NavItem(
-        label: 'Project Workspace',
-        icon: Icons.work_outline,
+        label: 'Projects',
+        icon: Icons.folder_outlined,
         iconName: 'teams',
         route: '/project-workspace',
-        requiredPermission: 'manage_projects',
+        requiredPermission: null,
       ),
     ];
 

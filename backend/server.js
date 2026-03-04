@@ -606,17 +606,16 @@ app.post('/api/v1/auth/register', async (req, res) => {
     
     // Generate and display verification code
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const verificationExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     await pool.query(
       `UPDATE users
        SET email_verified = false,
            email_verified_at = NULL,
            email_verification_code = $1,
-           email_verification_expires_at = $2,
+           email_verification_expires_at = NOW() + INTERVAL '15 minutes',
            updated_at = NOW()
-       WHERE id = $3`,
-      [verificationCode, verificationExpiresAt.toISOString(), user.id]
+       WHERE id = $2`,
+      [verificationCode, user.id]
     );
     
     console.log('\n🎉 ===========================================');
@@ -709,8 +708,13 @@ app.post('/api/v1/auth/verify-email', async (req, res) => {
       });
     }
 
-    const expiresAt = new Date(user.email_verification_expires_at);
-    if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() < Date.now()) {
+    // Use database time to avoid timezone parsing issues
+    const expCheck = await pool.query(
+      'SELECT (email_verification_expires_at > NOW()) AS not_expired FROM users WHERE id = $1',
+      [user.id]
+    );
+    const notExpired = expCheck.rows[0]?.not_expired === true;
+    if (!notExpired) {
       return res.status(400).json({
         success: false,
         error: 'Verification code expired. Please request a new code.'
@@ -1076,9 +1080,14 @@ app.post('/api/v1/auth/resend-verification', async (req, res) => {
     // Generate new verification code
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     
-    // Update user with new verification code
+    // Update user with new verification code and fresh expiry
     await pool.query(
-      'UPDATE users SET email_verification_code = $1, email_verified = false WHERE id = $2',
+      `UPDATE users 
+       SET email_verification_code = $1,
+           email_verification_expires_at = NOW() + INTERVAL '15 minutes',
+           email_verified = false,
+           updated_at = NOW()
+       WHERE id = $2`,
       [verificationCode, user.id]
     );
 
