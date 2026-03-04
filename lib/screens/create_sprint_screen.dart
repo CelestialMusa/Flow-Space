@@ -64,16 +64,6 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
   DateTime? _projectEndDate;
   bool _hasActiveSprint = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchProjectDates();
-    _checkActiveSprints();
-    if (_isEditing) {
-      _fillSprintData();
-    }
-  }
-
   Future<void> _checkActiveSprints() async {
     if (widget.projectId == null || _isEditing) return;
 
@@ -176,8 +166,14 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
   void initState() {
     super.initState();
     _selectedProjectId = widget.projectId;
+    if (_isEditing) {
+      _fillSprintData();
+    }
     if (widget.projectId == null) {
       _loadProjects();
+    } else {
+      _fetchProjectDates();
+      _checkActiveSprints();
     }
   }
 

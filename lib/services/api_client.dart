@@ -14,7 +14,9 @@ class ApiClient {
   ApiClient._internal();
 
 static String get _baseUrlWithVersion => Environment.apiBaseUrl;
-  static const Duration _timeout = Duration(seconds: 45); // Increased timeout for Render
+  static Duration get _timeout => kIsWeb
+      ? const Duration(seconds: 90)
+      : const Duration(seconds: 45); // Increased timeout for Render
 
   String? _accessToken;
   String? _refreshToken;

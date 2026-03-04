@@ -10,6 +10,7 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/user_data_service.dart';
 import '../services/project_service.dart';
+import '../providers/service_providers.dart';
 
 class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
   final String? projectId;
@@ -47,6 +48,7 @@ class _ProjectWorkspaceScreenState
   User? _selectedOwner;
 
   bool _isLoading = false;
+  bool _isSendingReminder = false;
   bool _isEditing = false;
   Project? _currentProject;
   List<Project> _projects = [];
@@ -306,7 +308,8 @@ class _ProjectWorkspaceScreenState
         saved = await ApiService.updateProject(project);
         if (saved) _showSuccessSnackBar('Project updated successfully');
       } else {
-        saved = await ApiService.createProjectModel(project);
+        final created = await ApiService.createProjectModel(project);
+        saved = created != null;
         if (saved) _showSuccessSnackBar('Project created successfully');
       }
 
@@ -452,7 +455,7 @@ class _ProjectWorkspaceScreenState
           _showProjectsList
               ? 'Project Workspace'
               : (_isEditing ? 'Edit Project' : 'Create New Project'),
-          style: TextStyle(
+          style: const TextStyle(
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),

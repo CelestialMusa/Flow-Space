@@ -947,6 +947,15 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
         final sprint = sprints[index];
         final isSelected = _selectedSprintId == sprint['id']?.toString();
 
+        final startStr = (sprint['start_date'] ?? sprint['startDate'])?.toString();
+        final endStr = (sprint['end_date'] ?? sprint['endDate'])?.toString();
+        final sprintStart = startStr != null ? DateTime.tryParse(startStr) : null;
+        final sprintEnd = endStr != null ? DateTime.tryParse(endStr) : null;
+        final startBound = projectStartDate;
+        final endBound = projectEndDate;
+        final isOutOfRange = (startBound != null && sprintStart != null && sprintStart.isBefore(startBound)) ||
+            (endBound != null && sprintEnd != null && sprintEnd.isAfter(endBound));
+
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
