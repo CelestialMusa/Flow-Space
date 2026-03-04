@@ -38,11 +38,13 @@ class AuthService {
     }
     return _currentUser;
   }
+
   bool get isAuthenticated => _isAuthenticated;
   UserRole? get currentUserRole => _currentUser?.role;
   String? get accessToken => _apiService.accessToken;
   String? get lastAuthError => _lastAuthError;
-  bool get isClientUser => _currentUser != null && _isClientRole(_currentUser!.role);
+  bool get isClientUser =>
+      _currentUser != null && _isClientRole(_currentUser!.role);
 
   // Initialize the service
   Future<void> initialize() async {
@@ -60,9 +62,11 @@ class AuthService {
       final response = await _apiService.getCurrentUser();
       if (response.isSuccess && response.data != null) {
         _currentUser = _apiService.parseUserFromResponse(response);
-        if (_currentUser != null && (_currentUser!.isActive || _currentUser!.isSystemAdmin)) {
+        if (_currentUser != null &&
+            (_currentUser!.isActive || _currentUser!.isSystemAdmin)) {
           _isAuthenticated = true;
-          debugPrint('User session restored: ${_currentUser!.name} (${_currentUser!.roleDisplayName})');
+          debugPrint(
+              'User session restored: ${_currentUser!.name} (${_currentUser!.roleDisplayName})');
           try {
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString('current_user_id', _currentUser!.id);
@@ -111,16 +115,18 @@ class AuthService {
   Future<bool> signIn(String email, String password) async {
     try {
       final response = await _apiService.signIn(email, password);
-      
+
       if (response.isSuccess && response.data != null) {
         // Extract user data from the nested "user" field in login response
         final userData = response.data!['user'] ?? response.data!;
         final userResponse = ApiResponse.success(userData, response.statusCode);
-        
+
         _currentUser = _apiService.parseUserFromResponse(userResponse);
-        if (_currentUser != null && (_currentUser!.isActive || _currentUser!.isSystemAdmin)) {
+        if (_currentUser != null &&
+            (_currentUser!.isActive || _currentUser!.isSystemAdmin)) {
           _isAuthenticated = true;
-          debugPrint('User signed in: ${_currentUser!.name} (${_currentUser!.roleDisplayName})');
+          debugPrint(
+              'User signed in: ${_currentUser!.name} (${_currentUser!.roleDisplayName})');
           try {
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString('current_user_id', _currentUser!.id);
@@ -137,6 +143,8 @@ class AuthService {
         }
       } else {
         debugPrint('Sign in failed: ${response.error}');
+        debugPrint('Sign in response data: ${response.data}');
+        debugPrint('Sign in response status: ${response.statusCode}');
         _lastAuthError = response.error;
       }
       return false;
@@ -147,15 +155,19 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>> signUp(String email, String password, String fullName, UserRole role) async {
+  Future<Map<String, dynamic>> signUp(
+      String email, String password, String fullName, UserRole role) async {
     try {
-      final response = await _apiService.signUp(email, password, fullName, role);
-      
+      final response =
+          await _apiService.signUp(email, password, fullName, role);
+
       if (response.isSuccess && response.data != null) {
         _currentUser = _apiService.parseUserFromResponse(response);
-        if (_currentUser != null && (_currentUser!.isActive || _currentUser!.isSystemAdmin)) {
+        if (_currentUser != null &&
+            (_currentUser!.isActive || _currentUser!.isSystemAdmin)) {
           _isAuthenticated = true;
-          debugPrint('User signed up: ${_currentUser!.name} (${_currentUser!.roleDisplayName})');
+          debugPrint(
+              'User signed up: ${_currentUser!.name} (${_currentUser!.roleDisplayName})');
           try {
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString('current_user_id', _currentUser!.id);
@@ -172,7 +184,10 @@ class AuthService {
         }
       } else {
         debugPrint('Sign up failed: ${response.error}');
-        return {'success': false, 'error': response.error ?? 'Registration failed'};
+        return {
+          'success': false,
+          'error': response.error ?? 'Registration failed'
+        };
       }
     } catch (e) {
       debugPrint('Sign up error: $e');
@@ -233,9 +248,11 @@ class AuthService {
   get token => null;
 
   // Additional authentication methods
-  Future<bool> changePassword(String currentPassword, String newPassword) async {
+  Future<bool> changePassword(
+      String currentPassword, String newPassword) async {
     try {
-      final response = await _apiService.changePassword(currentPassword, newPassword);
+      final response =
+          await _apiService.changePassword(currentPassword, newPassword);
       return response.isSuccess;
     } catch (e) {
       debugPrint('Change password error: $e');
@@ -288,7 +305,6 @@ class AuthService {
     return PermissionManager.getPermissionNamesForRole(_currentUser!.role);
   }
 
-
   Future<ApiResponse> resendVerificationEmail(String email) async {
     try {
       return await _apiService.resendVerificationEmail(email);
@@ -338,70 +354,17 @@ class AuthService {
       case '/sprint-board':
         return hasPermission('view_sprints');
       case '/system-metrics':
-        return hasPermission('view_team_dashboard') || (_currentUser?.isSystemAdmin ?? false);
+        return hasPermission('view_team_dashboard') ||
+            (_currentUser?.isSystemAdmin ?? false);
       case '/system-health':
         return _currentUser?.isSystemAdmin ?? false;
       case '/audit-logs':
-        return hasPermission('view_audit_logs') || (_currentUser?.isSystemAdmin ?? false);
+        return hasPermission('view_audit_logs') ||
+            (_currentUser?.isSystemAdmin ?? false);
       case '/notifications':
         return _isAuthenticated;
       default:
         return true;
-      }
-    }
-
-  // Authenticate with JWT token from external system
-  Future<bool> authenticateWithJwtToken(String token, Map<String, dynamic> userData) async {
-    try {
-      // Save the JWT token
-      await _apiService.saveTokens(token, '', DateTime.now().add(const Duration(hours: 24)));
-      
-      // Create user from token data
-      final user = User(
-        id: userData['user_id'] ?? '',
-        email: userData['email'] ?? '',
-        name: userData['full_name'] ?? userData['email']?.split('@')[0] ?? 'User',
-        role: _mapStringToUserRole(userData['role'] ?? 'user'),
-        isActive: true,
-        createdAt: DateTime.now(),
-        lastLoginAt: DateTime.now(),
-      );
-      
-      _currentUser = user;
-      _isAuthenticated = true;
-      
-      debugPrint('✅ User authenticated with JWT: ${user.name} (${user.roleDisplayName})');
-      return true;
-    } catch (e) {
-      debugPrint('JWT authentication error: $e');
-      return false;
-    }
-  }
-
-  // Map string role to UserRole enum
-  UserRole _mapStringToUserRole(String roleString) {
-    switch (roleString.toLowerCase()) {
-      case 'system admin':
-      case 'system_admin':
-      case 'admin':
-      case 'system administrator':
-        return UserRole.systemAdmin;
-      case 'client reviewer':
-      case 'client_reviewer':
-      case 'client':
-        return UserRole.clientReviewer;
-      case 'delivery lead':
-      case 'delivery_lead':
-      case 'delivery':
-        return UserRole.deliveryLead;
-      case 'team member':
-      case 'team_member':
-      case 'team':
-        return UserRole.teamMember;
-      case 'manager':
-        return UserRole.deliveryLead; // Map manager to delivery lead
-      default:
-        return UserRole.teamMember; // Default to team member
     }
   }
 }

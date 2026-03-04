@@ -7,7 +7,6 @@ const { User, UserProfile } = require('../models');
 const EmailService = require('../services/emailService');
 const emailService = new EmailService();
 const { authenticateToken } = require('../middleware/auth');
-const { validateJwtToken, extractUserInfo, JWTValidationError } = require('../utils/jwtValidator');
 
 /**
  * @route POST /api/auth/register
@@ -135,6 +134,7 @@ router.post('/register', async (req, res) => {
     console.error('Registration error:', error);
     console.error('Error details:', error.message);
     console.error('Error stack:', error.stack);
+    console.error('Request body was:', JSON.stringify(req.body, null, 2));
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to register user',
@@ -215,6 +215,8 @@ router.post('/login', async (req, res) => {
 
   } catch (error) {
     console.error('Login error:', error);
+    console.error('Error details:', error.message);
+    console.error('Request body was:', JSON.stringify(req.body, null, 2));
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to login'
@@ -363,16 +365,18 @@ router.post('/resend-verification', async (req, res) => {
 
 router.post('/verify-email', async (req, res) => {
   try {
-    const { email, verificationCode, verification_code } = req.body || {};
-    const code = verificationCode || verification_code;
-    if (!email || !code) {
+    const { email, verificationCode, verification_code, code } = req.body || {};
+    const verificationCodeFinal = verificationCode || verification_code || code;
+    console.log('Verify email request:', { email, verificationCodeFinal });
+    
+    if (!email || !verificationCodeFinal) {
       return res.status(400).json({ success: false, error: 'Email and verification code are required' });
     }
     const user = await User.findOne({ where: { email } });
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
-    if (user.verification_token !== code) {
+    if (user.verification_token !== verificationCodeFinal) {
       return res.status(400).json({ success: false, error: 'Invalid verification code' });
     }
     await user.update({ is_verified: true, verification_token: null });
@@ -461,111 +465,5 @@ router.post('/change-password', authenticateToken, async (req, res) => {
     });
   }
 });
-
-/**
- * @route POST /api/auth/validate-token
- * @desc Validate external JWT token and return user information
- * @access Public
- */
-router.post('/validate-token', async (req, res) => {
-  try {
-    const { token } = req.body;
-
-    if (!token) {
-      return res.status(400).json({
-        error: 'Token is required',
-        message: 'Please provide a JWT token for validation'
-      });
-    }
-
-    // Validate the JWT token
-    const decodedToken = validateJwtToken(token);
-    
-    // Extract user information
-    const userInfo = extractUserInfo(decodedToken);
-    
-    // Get user role from token (if available)
-    let userRole = decodedToken.role || decodedToken.user_role || 'user';
-    
-    // Check if roles is an array and extract relevant role
-    if (decodedToken.roles && Array.isArray(decodedToken.roles)) {
-      // Look for specific roles in the roles array
-      const roleMapping = {
-        'system admin': ['system admin', 'system_admin', 'admin', 'system administrator'],
-        'client reviewer': ['client reviewer', 'client_reviewer', 'client'],
-        'delivery lead': ['delivery lead', 'delivery_lead', 'delivery'],
-        'team member': ['team member', 'team_member', 'team']
-      };
-      
-      // Find the first matching role
-      for (const [mappedRole, keywords] of Object.entries(roleMapping)) {
-        if (decodedToken.roles.some(role => 
-          keywords.some(keyword => role.toLowerCase().includes(keyword.toLowerCase()))
-        )) {
-          userRole = mappedRole;
-          break;
-        }
-      }
-    }
-    
-    // Determine dashboard URL based on role
-    const dashboardUrl = getDashboardUrl(userRole);
-    
-    // Return success response with user information
-    res.json({
-      success: true,
-      message: 'Token validated successfully',
-      user: {
-        ...userInfo,
-        role: userRole
-      },
-      redirect: {
-        url: dashboardUrl,
-        role: userRole
-      },
-      token: decodedToken // Include full decoded token for additional data
-    });
-
-  } catch (error) {
-    if (error instanceof JWTValidationError) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid token',
-        message: error.message
-      });
-    } else {
-      console.error('Unexpected error in token validation:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'Validation failed',
-        message: 'An unexpected error occurred during token validation'
-      });
-    }
-  }
-});
-
-/**
- * Helper function to determine dashboard URL based on user role
- * @param {string} role - User role
- * @returns {string} Dashboard URL
- */
-function getDashboardUrl(role) {
-  const dashboardRoutes = {
-    'system admin': '/admin/dashboard',
-    'system_admin': '/admin/dashboard',
-    'client reviewer': '/client/dashboard',
-    'client_reviewer': '/client/dashboard',
-    'delivery lead': '/delivery/dashboard',
-    'delivery_lead': '/delivery/dashboard',
-    'team member': '/team/dashboard',
-    'team_member': '/team/dashboard',
-    'admin': '/admin/dashboard',
-    'manager': '/manager/dashboard', 
-    'developer': '/developer/dashboard',
-    'user': '/user/dashboard'
-  };
-  
-  return dashboardRoutes[role.toLowerCase()] || '/user/dashboard';
-}
 
 module.exports = router;
