@@ -119,15 +119,15 @@ class GlassContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectiveBorderColor = borderColor ?? 
-        Colors.white.withOpacity(0.18);
+        Colors.white.withAlpha(46);
     
     final effectiveGradientColors = gradientColors ?? [
-      Colors.white.withOpacity(0.1),
-      Colors.white.withOpacity(0.05),
+      Colors.white.withAlpha(25),
+      Colors.white.withAlpha(13),
     ];
 
     final effectiveShadow = shadow ?? BoxShadow(
-      color: Colors.black.withOpacity(0.1),
+      color: Colors.black.withValues(alpha: 0.1),
       blurRadius: 20,
       spreadRadius: 0,
       offset: const Offset(0, 4),
@@ -159,7 +159,7 @@ class GlassContainer extends StatelessWidget {
                 end: gradientEnd,
                 colors: effectiveGradientColors,
               ),
-              color: Colors.white.withOpacity(opacity),
+              color: Colors.white.withValues(alpha: opacity),
             ),
             padding: padding,
             child: child,
@@ -216,8 +216,7 @@ class _GlassButtonState extends State<GlassButton>
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
-  bool _isHovered = false;
-
+  
   @override
   void initState() {
     super.initState();
@@ -240,9 +239,6 @@ class _GlassButtonState extends State<GlassButton>
   }
 
   void _handleHover(bool isHovered) {
-    setState(() {
-      _isHovered = isHovered;
-    });
     if (isHovered) {
       _controller.forward();
     } else {

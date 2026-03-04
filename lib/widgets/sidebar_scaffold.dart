@@ -339,35 +339,35 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                                   elevation: 0,
                                   itemBuilder: (BuildContext context) {
                                     return [
-                                      PopupMenuItem<String>(
+                                      const PopupMenuItem<String>(
                                         value: 'profile',
                                         child: Row(
                                           children: [
                                             Icon(Icons.person_outline,
                                                 size: 20),
-                                            const SizedBox(width: 8),
+                                            SizedBox(width: 8),
                                             Text('Profile'),
                                           ],
                                         ),
                                       ),
-                                      PopupMenuItem<String>(
+                                      const PopupMenuItem<String>(
                                         value: 'settings',
                                         child: Row(
                                           children: [
                                             Icon(Icons.settings_outlined,
                                                 size: 20),
-                                            const SizedBox(width: 8),
+                                            SizedBox(width: 8),
                                             Text('Settings'),
                                           ],
                                         ),
                                       ),
-                                      PopupMenuItem<String>(
+                                      const PopupMenuItem<String>(
                                         value: 'notifications',
                                         child: Row(
                                           children: [
                                             Icon(Icons.notifications_outlined,
                                                 size: 20),
-                                            const SizedBox(width: 8),
+                                            SizedBox(width: 8),
                                             Text('Notifications'),
                                           ],
                                         ),
@@ -541,8 +541,8 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                   ),
                 ),
                 // Version display - always show in mobile drawer, separate from logout
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(12, 0, 12, 16),
                   child: SidebarVersionDisplay(
                     isSidebarCollapsed: false, // Always show in mobile drawer
                   ),

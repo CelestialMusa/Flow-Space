@@ -3,7 +3,6 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:go_router/go_router.dart';
 import '../theme/flownet_theme.dart';
@@ -420,10 +419,11 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
             backgroundColor: Colors.red),
       );
     } finally {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
+      }
     }
   }
 
@@ -803,10 +803,14 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                     ?.toString();
                 if (projectId != null &&
                     projectId.isNotEmpty &&
-                    pid == projectId) return true;
+                    pid == projectId) {
+                  return true;
+                }
                 if (projectKey != null &&
                     projectKey.isNotEmpty &&
-                    pkey == projectKey) return true;
+                    pkey == projectKey) {
+                  return true;
+                }
 
                 // Heuristic: match by name or description containing project name/key
                 final name = (s['name'] ?? '').toString().toLowerCase();
@@ -814,9 +818,13 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                 final pName = projectName.toLowerCase();
                 final pKey = (projectKey ?? '').toLowerCase();
                 if (pName.isNotEmpty &&
-                    (name.contains(pName) || desc.contains(pName))) return true;
+                    (name.contains(pName) || desc.contains(pName))) {
+                  return true;
+                }
                 if (pKey.isNotEmpty &&
-                    (name.contains(pKey) || desc.contains(pKey))) return true;
+                    (name.contains(pKey) || desc.contains(pKey))) {
+                  return true;
+                }
               } catch (_) {}
               return false;
             }).toList(),
@@ -1656,12 +1664,16 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                                 ? lines.first.trim()
                                 : 'New Sprint Ticket';
                             d = lines.skip(1).join('\n').trim();
-                            if (d.isEmpty) d = content.trim();
+                            if (d.isEmpty) {
+                              d = content.trim();
+                            }
                           }
-                          if (titleController.text.isEmpty)
+                          if (titleController.text.isEmpty) {
                             titleController.text = t;
-                          if (descriptionController.text.isEmpty)
+                          }
+                          if (descriptionController.text.isEmpty) {
                             descriptionController.text = d;
+                          }
                         }
                       } catch (_) {}
                       dialogSetState(() {

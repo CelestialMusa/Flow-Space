@@ -121,7 +121,7 @@ class SignatureDisplayWidget extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.2),
+                    color: Colors.green.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(color: Colors.green),
                   ),
@@ -286,7 +286,7 @@ class SignatureDisplayCompact extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.green.withOpacity(0.1),
+        color: Colors.green.withValues(alpha: 0.1),
         border: Border.all(color: Colors.green),
         borderRadius: BorderRadius.circular(4),
       ),

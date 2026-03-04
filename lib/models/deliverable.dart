@@ -211,12 +211,15 @@ class Deliverable {
 
       final lower = statusStr.toLowerCase();
       // Explicit mappings for backend values
-      if (lower == 'review' || lower == 'in_review')
+      if (lower == 'review' || lower == 'in_review') {
         return DeliverableStatus.inReview;
-      if (lower == 'completed' || lower == 'signed_off')
+      }
+      if (lower == 'completed' || lower == 'signed_off') {
         return DeliverableStatus.signedOff;
-      if (lower == 'in_progress' || lower == 'active')
+      }
+      if (lower == 'in_progress' || lower == 'active') {
         return DeliverableStatus.inProgress;
+      }
 
       // Handle snake_case or camelCase
       final normalized = lower.replaceAll('_', '');

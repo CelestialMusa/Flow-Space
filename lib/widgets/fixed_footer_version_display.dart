@@ -22,7 +22,7 @@ class FixedFooterVersionDisplay extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w400, // Regular weight
-                color: Colors.white.withOpacity(0.65), // ~0.65 opacity
+                color: Colors.white.withValues(alpha: 0.65), // ~0.65 opacity
                 letterSpacing: 0.3,
               ),
               textAlign: TextAlign.center,
