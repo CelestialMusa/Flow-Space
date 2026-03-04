@@ -282,7 +282,7 @@ class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScr
       return Scaffold(
         backgroundColor: FlownetColors.charcoalBlack,
         appBar: AppBar(
-          title: const FlownetLogo(),
+          title: const FlownetLogo(showText: true),
           backgroundColor: FlownetColors.charcoalBlack,
           foregroundColor: FlownetColors.pureWhite,
           centerTitle: false,
@@ -298,7 +298,7 @@ class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScr
     return Scaffold(
       backgroundColor: FlownetColors.charcoalBlack,
       appBar: AppBar(
-        title: const FlownetLogo(),
+        title: const FlownetLogo(showText: true),
         backgroundColor: FlownetColors.charcoalBlack,
         foregroundColor: FlownetColors.pureWhite,
         centerTitle: false,

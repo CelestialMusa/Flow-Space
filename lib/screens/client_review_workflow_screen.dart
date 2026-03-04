@@ -871,7 +871,7 @@ class _ClientReviewWorkflowScreenState extends ConsumerState<ClientReviewWorkflo
     return Scaffold(
       backgroundColor: FlownetColors.charcoalBlack,
       appBar: AppBar(
-        title: const FlownetLogo(),
+        title: const FlownetLogo(showText: true),
         backgroundColor: FlownetColors.charcoalBlack,
         foregroundColor: FlownetColors.pureWhite,
         actions: [

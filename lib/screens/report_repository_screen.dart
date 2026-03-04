@@ -786,7 +786,7 @@ class _ReportRepositoryScreenState extends ConsumerState<ReportRepositoryScreen>
       centered: false,
       scrollable: false,
       appBar: AppBar(
-        title: const FlownetLogo(),
+        title: const FlownetLogo(showText: true),
         backgroundColor: Colors.transparent,
         foregroundColor: FlownetColors.pureWhite,
         centerTitle: false,

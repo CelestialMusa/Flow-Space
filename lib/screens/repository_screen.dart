@@ -530,7 +530,7 @@ class _RepositoryScreenState extends State<RepositoryScreen> {
       scrollable: false,
       useGlassContainer: false,
       appBar: AppBar(
-        title: const FlownetLogo(),
+        title: const FlownetLogo(showText: true),
         backgroundColor: Colors.transparent,
         foregroundColor: FlownetColors.pureWhite,
         centerTitle: false,
