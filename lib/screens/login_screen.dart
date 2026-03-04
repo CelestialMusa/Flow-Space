@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../services/auth_service.dart';
-import '../services/error_handler.dart';
-import '../theme/flownet_theme.dart';
-import '../widgets/app_scaffold.dart';
+import 'package:khono/services/auth_service.dart';
+import 'package:khono/services/backend_settings_service.dart';
+import 'package:khono/services/error_handler.dart';
+import 'package:khono/theme/flownet_theme.dart';
+import 'package:khono/widgets/app_scaffold.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -42,13 +43,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
 
       if (success && mounted) {
+        final user = authService.currentUser;
+        if (user != null) {
+          await BackendSettingsService.saveUserId(user.id);
+        }
+        // ignore: use_build_context_synchronously
         ErrorHandler().showSuccessSnackBar(context, 'Login successful!');
-        // Small delay to show success message
-        await Future.delayed(const Duration(milliseconds: 500));
         if (mounted) {
           context.go('/dashboard');
         }
       } else if (mounted) {
+        final msg = authService.lastAuthError ?? 'Invalid email or password. Please check your credentials and try again.';
+        ErrorHandler().showErrorSnackBar(context, msg);
         ErrorHandler().showErrorSnackBar(context,
             'Invalid email or password. Please check your credentials and try again.');
       }

@@ -2,7 +2,11 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/flownet_theme.dart';
+import 'notification_center_widget.dart';
 import '../services/auth_service.dart';
+import '../services/api_service.dart';
+import 'package:http/http.dart' as http;
+import 'dart:typed_data';
 import 'background_image.dart';
 
 class SidebarScaffold extends StatefulWidget {
@@ -22,6 +26,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
   List<_NavItem> get _navItems {
     final authService = AuthService();
     final allItems = [
+      // Work-focused items only
       const _NavItem(
         label: 'Dashboard', 
         icon: Icons.dashboard_outlined,
@@ -29,28 +34,28 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         requiredPermission: null, // All authenticated users can access dashboard
       ),
       const _NavItem(
+        label: 'Projects', 
+        icon: Icons.folder_outlined,
+        route: '/projects',
+        requiredPermission: null, // All authenticated users can access projects
+      ),
+      const _NavItem(
         label: 'Sprints', 
         icon: Icons.timer_outlined, 
         route: '/sprint-console',
-        requiredPermission: 'manage_sprints',
+        requiredPermission: 'view_sprints',
       ),
       const _NavItem(
-        label: 'Epics', 
-        icon: Icons.rocket_launch_outlined, 
-        route: '/epics',
-        requiredPermission: 'manage_sprints',
+        label: 'Deliverables', 
+        icon: Icons.assignment_outlined, 
+        route: '/deliverables-overview',
+        requiredPermission: 'view_all_deliverables',
       ),
       const _NavItem(
-        label: 'Notifications',
-        icon: Icons.notifications_outlined,
-        route: '/notifications',
-        requiredPermission: null, // All users can access notifications
-      ),
-      const _NavItem(
-        label: 'Approvals',
-        icon: Icons.check_box_outlined,
-        route: '/approvals',
-        requiredPermission: 'approve_deliverable',
+        label: 'Approval Requests',
+        icon: Icons.assignment_outlined,
+        route: '/approval-requests',
+        requiredPermission: 'view_approvals',
       ),
       const _NavItem(
         label: 'Repository', 
@@ -62,25 +67,13 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         label: 'Reports', 
         icon: Icons.assessment_outlined, 
         route: '/report-repository',
-        requiredPermission: null, // Allow all authenticated users (especially client reviewers)
+        requiredPermission: 'view_all_deliverables',
       ),
       const _NavItem(
         label: 'Role Management',
         icon: Icons.admin_panel_settings_outlined,
         route: '/role-management',
         requiredPermission: 'manage_users',
-      ),
-      const _NavItem(
-        label: 'Settings', 
-        icon: Icons.settings_outlined, 
-        route: '/settings',
-        requiredPermission: null, // All authenticated users can access settings
-      ),
-      const _NavItem(
-        label: 'Profile', 
-        icon: Icons.person_outline, 
-        route: '/profile',
-        requiredPermission: null, // All users can access profile
       ),
     ];
 
@@ -171,7 +164,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                                     _collapsed
                                         ? Icons.chevron_right
                                         : Icons.chevron_left,
-                                    color: FlownetColors.coolGray,
+                                    color: FlownetColors.textSecondary,
                                     size: 20,
                                   ),
                                 ),
@@ -217,7 +210,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                                           item.icon,
                                           color: active
                                               ? FlownetColors.crimsonRed
-                                              : FlownetColors.coolGray,
+                                              : FlownetColors.textSecondary,
                                           size: 20,
                                         ),
                                       ),
@@ -246,7 +239,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 32),
                             child: _buildLogoutButton(),
                           ),
                         ],
@@ -261,20 +254,21 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                   color: Colors.transparent,
                   child: Column(
                     children: [
-                      // Top navigation bar with back/forward buttons
-                      if (routeLocation != '/dashboard')
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8,),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withAlpha((0.08 * 255).round()),
-                            border: const Border(
-                              bottom: BorderSide(
-                                  color: FlownetColors.slate, width: 1,),
-                            ),
+                      // Top navigation bar with user menu
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8,),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withAlpha((0.08 * 255).round()),
+                          border: const Border(
+                            bottom: BorderSide(
+                                color: FlownetColors.slate, width: 1,),
                           ),
-                          child: Row(
-                            children: [
+                        ),
+                        child: Row(
+                          children: [
+                            // Only show back/forward buttons on non-dashboard pages
+                            if (routeLocation != '/dashboard') ...[
                               IconButton(
                                 icon: const Icon(Icons.arrow_back),
                                 onPressed: () {
@@ -304,18 +298,22 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                                 tooltip: 'Forward',
                                 color: FlownetColors.pureWhite,
                               ),
-                              const Spacer(),
-                              // Current page indicator
-                              Text(
-                                _getPageTitle(routeLocation),
-                                style: const TextStyle(
-                                  color: FlownetColors.coolGray,
-                                  fontSize: 14,
-                                ),
-                              ),
                             ],
-                          ),
+                            const Spacer(),
+                            // User menu icons (always visible)
+                            _buildTopNavIcons(),
+                            const SizedBox(width: 16),
+                            // Current page indicator
+                            Text(
+                              _getPageTitle(routeLocation),
+                              style: const TextStyle(
+                                color: FlownetColors.textSecondary,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
+                      ),
                       Expanded(child: widget.child),
                     ],
                   ),
@@ -344,6 +342,25 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                 onPressed: () => Navigator.of(context).pop(),
                 tooltip: 'Back',
               ),
+            // Profile Icon
+            IconButton(
+              onPressed: () => context.go('/profile'),
+              icon: const Icon(Icons.person_outline),
+              tooltip: 'Profile',
+              color: FlownetColors.pureWhite,
+              iconSize: 20,
+            ),
+            // Settings Icon
+            IconButton(
+              onPressed: () => context.go('/settings'),
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Settings',
+              color: FlownetColors.pureWhite,
+              iconSize: 20,
+            ),
+            const NotificationCenterWidget(),
+            const SizedBox(width: 8),
+            const _UserAvatarButton(),
           ],
         ),
         drawer: Drawer(
@@ -423,7 +440,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                   child: ListTile(
                     leading: const Icon(
                       Icons.logout,
-                      color: FlownetColors.coolGray,
+                      color: FlownetColors.textSecondary,
                     ),
                     title: const Text(
                       'Logout',
@@ -482,7 +499,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                       Text(
                         _getPageTitle(routeLocation),
                         style: const TextStyle(
-                          color: FlownetColors.coolGray,
+                          color: FlownetColors.textSecondary,
                           fontSize: 14,
                         ),
                       ),
@@ -505,19 +522,29 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
   }
 
   Widget _buildLogoutButton() {
-    return SizedBox(
+    return Container(
       width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: FlownetColors.crimsonRed.withAlpha((0.1 * 255).round()),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: FlownetColors.crimsonRed.withAlpha((0.3 * 255).round()),
+          width: 1,
+        ),
+      ),
       child: TextButton.icon(
         onPressed: () => _handleLogout(context),
         icon: const Icon(
           Icons.logout,
-          color: FlownetColors.coolGray,
+          color: FlownetColors.crimsonRed,
           size: 20,
         ),
         label: const Text(
           'Logout',
           style: TextStyle(
-            color: FlownetColors.coolGray,
+            color: FlownetColors.crimsonRed,
+            fontWeight: FontWeight.w600,
           ),
         ),
         style: TextButton.styleFrom(
@@ -527,10 +554,70 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
     );
   }
 
+  Widget _buildTopNavIcons() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Burger Menu with Dropdown
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert, color: FlownetColors.pureWhite),
+          tooltip: 'Menu',
+          onSelected: (String value) {
+            switch (value) {
+              case 'profile':
+                context.go('/profile');
+                break;
+              case 'settings':
+                context.go('/settings');
+                break;
+              case 'notifications':
+                context.go('/notifications');
+                break;
+            }
+          },
+          itemBuilder: (BuildContext context) => [
+            const PopupMenuItem<String>(
+              value: 'profile',
+              child: Row(
+                children: [
+                  Icon(Icons.person_outline, size: 20),
+                  SizedBox(width: 8),
+                  Text('Profile'),
+                ],
+              ),
+            ),
+            const PopupMenuItem<String>(
+              value: 'settings',
+              child: Row(
+                children: [
+                  Icon(Icons.settings_outlined, size: 20),
+                  SizedBox(width: 8),
+                  Text('Settings'),
+                ],
+              ),
+            ),
+            const PopupMenuItem<String>(
+              value: 'notifications',
+              child: Row(
+                children: [
+                  Icon(Icons.notifications_outlined, size: 20),
+                  SizedBox(width: 8),
+                  Text('Notifications'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   String _getPageTitle(String route) {
     switch (route) {
-      case '/approvals':
-        return 'Approvals';
+      case '/deliverables-overview':
+        return 'Deliverables';
+      case '/approval-requests':
+        return 'Approval Requests';
       case '/notifications':
         return 'Notifications';
       case '/repository':
@@ -543,6 +630,68 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         return 'Profile';
       default:
         return 'Flownet Workspaces';
+    }
+  }
+}
+
+class _UserAvatarButton extends StatelessWidget {
+  const _UserAvatarButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = AuthService();
+    final user = auth.currentUser;
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: () => context.go('/profile?mode=view'),
+        borderRadius: BorderRadius.circular(20),
+        child: FutureBuilder<Uint8List?>(
+          future: _loadAvatarBytes(user?.id),
+          builder: (context, snapshot) {
+            final hasImage = snapshot.hasData && (snapshot.data?.isNotEmpty ?? false);
+            return CircleAvatar(
+              radius: 16,
+              backgroundImage: hasImage ? MemoryImage(snapshot.data!) : null,
+              child: hasImage ? null : const Icon(Icons.person, size: 18),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<Uint8List?> _loadAvatarBytes(String? userId) async {
+    try {
+      if (userId == null || userId.isEmpty) return null;
+      final base = Uri.parse(ApiService.baseUrl);
+      final url = '${base.scheme}://${base.host}:${base.port.toString()}/api/v1/profile/$userId/picture?t=${DateTime.now().millisecondsSinceEpoch}';
+      final headers = await ApiService.getAuthHeaders();
+      final resp = await http.get(Uri.parse(url), headers: headers);
+      
+      if (resp.statusCode == 200) {
+        final bodyBytes = resp.bodyBytes;
+        
+        // Check if response is actually image data (not JSON)
+        if (bodyBytes.isNotEmpty) {
+          // Check file header to detect if it's an image
+          final header = bodyBytes.take(4).toList();
+          // Common image file signatures: PNG (0x89 0x50 0x4E 0x47), JPEG (0xFF 0xD8 0xFF 0xE0)
+          final isImage = (header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47) ||
+                          (header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF && header[3] == 0xE0);
+          
+          if (isImage) {
+            return bodyBytes;
+          } else {
+            // Response is likely JSON, not an image
+            debugPrint('⚠️ Avatar endpoint returned non-image data for user $userId');
+            return null;
+          }
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 }
