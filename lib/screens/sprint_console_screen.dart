@@ -3,6 +3,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:go_router/go_router.dart';
 import '../theme/flownet_theme.dart';
@@ -407,7 +408,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return AppScaffold(
-        useBackgroundImage: false,
+        useBackgroundImage: true,
         centered: false,
         body: Center(
           child: CircularProgressIndicator(
@@ -418,7 +419,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
     }
 
     return AppScaffold(
-      useBackgroundImage: false,
+      useBackgroundImage: true,
       centered: false,
       body: _buildBody(),
     );
@@ -544,12 +545,12 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                 ),
                 const SizedBox(width: 8),
-            GlassButton(
-              text: 'Create Project',
-              onPressed: () => _navigateToCreateProject(),
-              icon: const Icon(Icons.add, size: 16),
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+                GlassButton(
+                  text: 'Create Project',
+                  onPressed: () => _navigateToCreateProject(),
+                  icon: const Icon(Icons.add, size: 16),
+                  height: 40,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                 ),
               ],
             ),
@@ -603,6 +604,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
   Widget _buildAllSprintsSection() {
     final theme = Theme.of(context);
     final onSurfaceColor = theme.colorScheme.onSurface;
+    final primaryColor = theme.colorScheme.primary;
 
     return Column(
       key: _sprintsSectionKey,
@@ -655,12 +657,12 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
     Map<String, dynamic> selected = const {};
     try {
       selected = _projects.firstWhere(
-      (p) {
-        final keyOrId = p['key']?.toString() ?? p['id']?.toString();
-        return keyOrId == _selectedProjectKey;
-      },
-      orElse: () => <String, dynamic>{},
-    );
+        (p) {
+          final keyOrId = p['key']?.toString() ?? p['id']?.toString();
+          return keyOrId == _selectedProjectKey;
+        },
+        orElse: () => <String, dynamic>{},
+      );
     } catch (_) {}
     return _buildProjectNestedSprints(selected);
   }
@@ -735,12 +737,12 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                   tooltip: 'Back to projects',
                 ),
                 const SizedBox(width: 8),
-            Text(
-              'Sprints in $projectName',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: onSurfaceColor,
-                fontWeight: FontWeight.bold,
-              ),
+                Text(
+                  'Sprints in $projectName',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: onSurfaceColor,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -1075,13 +1077,13 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
     
     if (key != null && key.isNotEmpty) {
       try {
-    final selectedProject = _projects.firstWhere(
+        final selectedProject = _projects.firstWhere(
           (p) {
             final pid = p['id']?.toString();
             final pkey = p['key']?.toString();
             return pid == key || pkey == key;
           },
-    );
+        );
         projectId = selectedProject['id']?.toString();
         projectName = selectedProject['name']?.toString();
         if (projectId != null && projectId.isNotEmpty) {
@@ -1104,7 +1106,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
           debugPrint('🔵 Building CreateSprintScreen widget');
           return CreateSprintScreen(
             projectId: projectId, // Can be null - screen will show dropdown
-          projectName: projectName,
+            projectName: projectName,
           );
         },
       ),
@@ -1147,8 +1149,8 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
           ),
           const SizedBox(height: 16),
           _buildEmptyState(
-        'No tickets in this sprint',
-        'Add tickets to this sprint to start tracking work',
+            'No tickets in this sprint',
+            'Add tickets to this sprint to start tracking work',
           ),
         ],
       );
@@ -1161,8 +1163,8 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-        Text(
-          'Tickets',
+            Text(
+              'Tickets',
               style: theme.textTheme.titleLarge?.copyWith(
                 color: theme.colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
@@ -1381,7 +1383,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedPriority,
+                          value: selectedPriority,
                           style: const TextStyle(color: FlownetColors.pureWhite),
                           decoration: const InputDecoration(
                             labelText: 'Priority',
@@ -1406,7 +1408,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedType,
+                          value: selectedType,
                           style: const TextStyle(color: FlownetColors.pureWhite),
                           decoration: const InputDecoration(
                             labelText: 'Type',
@@ -1447,7 +1449,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                   try {
                     final backend = BackendApiService();
                                   final foundSprint = _sprints.firstWhere(
-                      (s) => (s['id']?.toString() ?? '') == _selectedSprintId,
+                                    (s) => (s['id']?.toString() ?? '') == _selectedSprintId,
                                     orElse: () => <String, dynamic>{},
                                   );
                                   final sprintName = foundSprint['name']?.toString() ?? '';
