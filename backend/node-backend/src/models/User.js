@@ -12,7 +12,8 @@ module.exports = (sequelize, DataTypes) => {
     },
     hashed_password: {
       type: DataTypes.STRING(255),
-      allowNull: false
+      allowNull: false,
+      field: 'password_hash'
     },
     first_name: {
       type: DataTypes.STRING(100),
@@ -35,13 +36,12 @@ module.exports = (sequelize, DataTypes) => {
     },
     is_verified: {
       type: DataTypes.BOOLEAN,
-      defaultValue: false
+      defaultValue: false,
+      field: 'email_verified'
     },
     verification_token: {
-      type: DataTypes.STRING(255)
-    },
-    reset_token: {
-      type: DataTypes.STRING(255)
+      type: DataTypes.STRING(255),
+      field: 'verification_code'
     },
     last_login: {
       type: DataTypes.DATE

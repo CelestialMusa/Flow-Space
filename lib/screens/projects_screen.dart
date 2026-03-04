@@ -20,11 +20,29 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   bool _isLoading = false;
   String? _selectedProjectId;
   Map<String, dynamic>? _projectSprints;
+  bool _hasLoadedOnce = false;
 
   @override
   void initState() {
     super.initState();
     _loadProjects();
+    _hasLoadedOnce = true;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reload projects when navigating back to this screen
+    // This ensures newly created projects appear
+    // Only reload if we've already loaded once to avoid infinite loops
+    if (_hasLoadedOnce && mounted && !_isLoading) {
+      // Use a small delay to avoid conflicts with navigation
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          _loadProjects();
+        }
+      });
+    }
   }
 
   Future<void> _loadProjects() async {
@@ -186,6 +204,16 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                                 backgroundColor: Colors.purple,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            IconButton(
+                              onPressed: _loadProjects,
+                              icon: const Icon(Icons.refresh),
+                              tooltip: 'Refresh Projects',
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.grey[800],
+                                foregroundColor: Colors.white,
                               ),
                             ),
                           ],

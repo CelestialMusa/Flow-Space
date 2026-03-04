@@ -2,9 +2,45 @@ const express = require('express');
 const router = express.Router();
 const { Signoff, AuditLog, Deliverable, Sprint, User, sequelize } = require('../models');
 const { QueryTypes } = require('sequelize');
+const { verifyToken } = require('../utils/authUtils');
+
 function safeParseJson(text) {
   try { return JSON.parse(text); } catch (_) { return {}; }
 }
+
+/**
+ * Extract and validate client review token from request
+ * @param {object} req - Express request object
+ * @returns {object|null} - Token payload with reportId and clientEmail, or null if invalid
+ */
+function extractReviewToken(req) {
+  try {
+    // Check for token in query, body, or header
+    let token = req.query.token || req.body.token || req.headers['x-review-token'];
+    if (!token && req.headers.authorization) {
+      const authHeader = req.headers.authorization;
+      if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+    
+    if (!token) return null;
+    
+    const payload = verifyToken(token);
+    if (!payload || payload.type !== 'client_review') {
+      return null;
+    }
+    
+    return {
+      reportId: payload.reportId,
+      clientEmail: payload.clientEmail,
+      token: token
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
 let reportsTableReady = false;
 async function ensureReportsTable() {
   if (reportsTableReady) return;
@@ -407,7 +443,27 @@ router.post('/:id/approve', async (req, res) => {
     const base = req.baseUrl || '';
     if (base.endsWith('/sign-off-reports')) {
       await ensureReportsTable();
-      const { comment, digitalSignature } = req.body || {};
+      const { comment, digitalSignature, clientId } = req.body || {};
+      
+      // Check for review token (token-based access)
+      const reviewToken = extractReviewToken(req);
+      let approvedBy = null;
+      let clientEmail = null;
+      
+      if (reviewToken) {
+        // Validate token matches report ID
+        if (reviewToken.reportId !== id.toString()) {
+          return res.status(403).json({ error: 'Token is not valid for this report' });
+        }
+        approvedBy = clientId || reviewToken.clientEmail; // Use clientId from body or email from token
+        clientEmail = reviewToken.clientEmail;
+      } else if (req.user) {
+        // Authenticated user
+        approvedBy = req.user.id;
+      } else {
+        // Try to use clientId from body if provided
+        approvedBy = clientId;
+      }
       
       // Seal check: Prevent re-approval
       const [existing] = await sequelize.query(
@@ -419,8 +475,8 @@ router.post('/:id/approve', async (req, res) => {
       }
 
       const [results] = await sequelize.query(
-        "UPDATE sign_off_reports SET status = $2, content = COALESCE(content, '{}'::jsonb) || jsonb_build_object('approvedAt', NOW(), 'approvedBy', $3::text, 'clientComment', $4::text, 'digitalSignature', $5::text), updated_at = NOW() WHERE id = $1 RETURNING id, deliverable_id, created_by, status, content, created_at, updated_at",
-        { bind: [id, 'approved', (req.user && req.user.id) || null, comment ?? null, digitalSignature ?? null] }
+        "UPDATE sign_off_reports SET status = $2, content = COALESCE(content, '{}'::jsonb) || jsonb_build_object('approvedAt', NOW(), 'approvedBy', $3::text, 'clientComment', $4::text, 'digitalSignature', $5::text, 'clientEmail', $6::text), updated_at = NOW() WHERE id = $1 RETURNING id, deliverable_id, created_by, status, content, created_at, updated_at",
+        { bind: [id, 'approved', approvedBy, comment ?? null, digitalSignature ?? null, clientEmail] }
       );
       if (!results || results.length === 0) {
         return res.status(404).json({ error: 'Report not found' });
@@ -807,7 +863,36 @@ router.post('/:id/request-changes', async (req, res) => {
     const { id } = req.params;
     const base = req.baseUrl || '';
     if (base.endsWith('/sign-off-reports')) {
-      const { changeRequestDetails } = req.body || {};
+      const { changeRequestDetails, clientId } = req.body || {};
+      
+      // Server-side validation: comment is mandatory
+      if (!changeRequestDetails || typeof changeRequestDetails !== 'string' || changeRequestDetails.trim().length === 0) {
+        return res.status(400).json({ 
+          error: 'Change request details are required',
+          message: 'Please provide details for the requested changes'
+        });
+      }
+      
+      // Check for review token (token-based access)
+      const reviewToken = extractReviewToken(req);
+      let reviewedBy = null;
+      let clientEmail = null;
+      
+      if (reviewToken) {
+        // Validate token matches report ID
+        if (reviewToken.reportId !== id.toString()) {
+          return res.status(403).json({ error: 'Token is not valid for this report' });
+        }
+        reviewedBy = clientId || reviewToken.clientEmail; // Use clientId from body or email from token
+        clientEmail = reviewToken.clientEmail;
+      } else if (req.user) {
+        // Authenticated user
+        reviewedBy = req.user.id;
+      } else {
+        // Try to use clientId from body if provided
+        reviewedBy = clientId;
+      }
+      
       await ensureReportsTable();
       const [existing] = await sequelize.query(
         "SELECT id, deliverable_id, created_by, status, content, created_at, updated_at FROM sign_off_reports WHERE id = $1",
@@ -840,7 +925,8 @@ router.post('/:id/request-changes', async (req, res) => {
         changeRequestHistory: history,
         changeRequestDetails: changeRequestDetails ?? null,
         reviewedAt: new Date().toISOString(),
-        reviewedBy: (req.user && req.user.id) ? String(req.user.id) : (curC.reviewedBy || null)
+        reviewedBy: reviewedBy ? String(reviewedBy) : (curC.reviewedBy || null),
+        clientEmail: clientEmail || curC.clientEmail || null
       };
       const [results] = await sequelize.query(
         "UPDATE sign_off_reports SET status = $2, content = $3::jsonb, updated_at = NOW() WHERE id = $1 RETURNING id, deliverable_id, created_by, status, content, created_at, updated_at",
@@ -862,21 +948,69 @@ router.post('/:id/request-changes', async (req, res) => {
       try {
         const did = parseInt(row.deliverable_id);
         if (Number.isFinite(did)) {
-          const { Deliverable, Notification } = require('../models');
+          const { Deliverable, Notification, User } = require('../models');
+          const { Op } = require('sequelize');
           const d = await Deliverable.findByPk(did);
           if (d) {
             await d.update({ status: 'change_requested' });
           }
           if (Notification) {
-            await Notification.create({
-              recipient_id: (row.created_by || null),
+            // Notify all team members assigned to the deliverable
+            const recipientIds = new Set();
+            
+            // Add report creator
+            if (row.created_by) {
+              recipientIds.add(row.created_by.toString());
+            }
+            
+            // Add deliverable assignee
+            if (d && d.assigned_to) {
+              recipientIds.add(d.assigned_to.toString());
+            }
+            
+            // Add deliverable owner
+            if (d && d.owner_id) {
+              recipientIds.add(d.owner_id.toString());
+            }
+            
+            // Add project team members (if deliverable has project_id)
+            if (d && d.project_id) {
+              try {
+                const projectTeam = await User.findAll({
+                  where: {
+                    [Op.or]: [
+                      { project_id: d.project_id },
+                      { role: { [Op.in]: ['deliveryLead', 'scrumMaster', 'developer', 'qaEngineer', 'projectManager'] } }
+                    ],
+                    is_active: true
+                  }
+                });
+                projectTeam.forEach(user => {
+                  if (user.id) recipientIds.add(user.id.toString());
+                });
+              } catch (teamErr) {
+                console.error('Error fetching project team:', teamErr);
+              }
+            }
+            
+            // Create notifications for all recipients
+            const notifications = Array.from(recipientIds).map(recipientId => ({
+              recipient_id: recipientId,
               sender_id: (req.user && req.user.id) || null,
-              type: 'approval',
+              type: 'change_request',
               message: `Changes requested: "${report.reportTitle}"`,
-              payload: { report_id: report.id, deliverable_id: did },
+              payload: { 
+                report_id: report.id, 
+                deliverable_id: did,
+                change_request_details: changeRequestDetails
+              },
               is_read: false,
               created_at: new Date()
-            });
+            }));
+            
+            if (notifications.length > 0) {
+              await Notification.bulkCreate(notifications);
+            }
           }
           try {
             const { ApprovalRequest } = require('../models');
@@ -1060,5 +1194,269 @@ router.get('/:entity_type/:entity_id/report', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+/**
+ * @route POST /api/client-review-links
+ * @desc Create a secure review link token for a sign-off report
+ * @access Private (requires authentication)
+ */
+router.post('/client-review-links', async (req, res) => {
+  try {
+    const { reportId, clientEmail, expiresInSeconds } = req.body;
+    
+    if (!reportId) {
+      return res.status(400).json({ error: 'reportId is required' });
+    }
+    
+    if (!clientEmail || typeof clientEmail !== 'string' || !clientEmail.includes('@')) {
+      return res.status(400).json({ error: 'Valid clientEmail is required' });
+    }
+    
+    // Default to 7 days if not specified
+    const expiresIn = expiresInSeconds || (7 * 24 * 60 * 60);
+    const expiresAt = new Date(Date.now() + expiresIn * 1000);
+    
+    await ensureReportsTable();
+    
+    // Verify report exists
+    const [reportCheck] = await sequelize.query(
+      'SELECT id, status FROM sign_off_reports WHERE id = $1',
+      { bind: [reportId] }
+    );
+    
+    if (!reportCheck || reportCheck.length === 0) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+    
+    // Generate JWT token with report info
+    const { createAccessToken } = require('../utils/authUtils');
+    const token = createAccessToken({
+      reportId: reportId.toString(),
+      clientEmail,
+      type: 'client_review',
+      singleUse: false // Can be made configurable
+    }, expiresIn);
+    
+    // Store token metadata in audit log for tracking
+    try {
+      const { AuditLog } = require('../models');
+      const user = req.user || {};
+      await AuditLog.create({
+        entity_type: 'signoff',
+        entity_id: reportId,
+        action: 'review_link_created',
+        actor_id: user.id || null,
+        actor_name: user.first_name && user.last_name 
+          ? `${user.first_name} ${user.last_name}` 
+          : (user.username || 'Unknown User'),
+        details: { 
+          clientEmail,
+          expiresAt: expiresAt.toISOString(),
+          tokenType: 'client_review'
+        },
+        created_at: new Date()
+      });
+    } catch (auditErr) {
+      console.error('Error creating audit log for review link:', auditErr);
+    }
+    
+    res.status(201).json({
+      linkToken: token,
+      expiresAt: expiresAt.toISOString(),
+      reportId: reportId.toString()
+    });
+  } catch (error) {
+    console.error('Error creating client review link:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * @route GET /api/client-review/:token
+ * @desc Get sign-off report and performance metrics via secure token
+ * @access Public (token-based, no auth required)
+ */
+router.get('/client-review/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    // Verify and decode token
+    const { verifyToken } = require('../utils/authUtils');
+    const payload = verifyToken(token);
+    
+    if (!payload || payload.type !== 'client_review') {
+      return res.status(401).json({ 
+        error: 'Invalid or expired token',
+        message: 'This review link is invalid or has expired'
+      });
+    }
+    
+    const reportId = payload.reportId;
+    if (!reportId) {
+      return res.status(400).json({ error: 'Invalid token: missing reportId' });
+    }
+    
+    await ensureReportsTable();
+    
+    // Fetch report
+    const [results] = await sequelize.query(
+      'SELECT id, deliverable_id, created_by, status, content, created_at, updated_at FROM sign_off_reports WHERE id = $1',
+      { bind: [reportId] }
+    );
+    
+    if (!results || results.length === 0) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+    
+    const row = results[0];
+    const c = typeof row.content === 'string' ? safeParseJson(row.content) : (row.content || {});
+    
+    // Fetch deliverable info
+    let deliverable = null;
+    if (row.deliverable_id) {
+      try {
+        const { Deliverable } = require('../models');
+        const d = await Deliverable.findByPk(parseInt(row.deliverable_id));
+        if (d) {
+          deliverable = {
+            id: d.id,
+            title: d.title,
+            description: d.description,
+            status: d.status,
+            dueDate: d.due_date
+          };
+        }
+      } catch (_) {}
+    }
+    
+    // Generate performance metrics from sprint data if sprintIds exist
+    let performanceMetrics = null;
+    const sprintIds = c.sprintIds || c.sprint_ids || [];
+    if (sprintIds.length > 0) {
+      try {
+        performanceMetrics = await generatePerformanceMetrics(sprintIds);
+      } catch (err) {
+        console.error('Error generating performance metrics:', err);
+        // Continue without metrics if generation fails
+      }
+    }
+    
+    // Build response (read-only view)
+    const report = {
+      id: row.id,
+      deliverableId: (row.deliverable_id || '').toString(),
+      reportTitle: (c.reportTitle || c.report_title || 'Untitled Report'),
+      reportContent: (c.reportContent || c.report_content || ''),
+      sprintIds: sprintIds,
+      sprintPerformanceData: performanceMetrics ? JSON.stringify(performanceMetrics) : (c.sprintPerformanceData || c.sprint_performance_data || null),
+      knownLimitations: c.knownLimitations || c.known_limitations || null,
+      nextSteps: c.nextSteps || c.next_steps || null,
+      status: row.status || 'draft',
+      createdAt: row.created_at,
+      createdBy: (row.created_by || '').toString(),
+      approvedAt: c.approvedAt || c.approved_at || null,
+      approvedBy: c.approvedBy || c.approved_by || null,
+      changeRequestDetails: c.changeRequestDetails || c.change_request_details || null,
+      digitalSignature: c.digitalSignature || c.digital_signature || null
+    };
+    
+    res.json({
+      report,
+      deliverable,
+      performanceMetrics: performanceMetrics || (c.sprintPerformanceData ? safeParseJson(c.sprintPerformanceData) : null)
+    });
+  } catch (error) {
+    console.error('Error fetching client review:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Generate performance metrics from sprint data
+ * @param {Array<string|number>} sprintIds - Array of sprint IDs
+ * @returns {Promise<Array>} Array of sprint performance data
+ */
+async function generatePerformanceMetrics(sprintIds) {
+  try {
+    const { Sprint, sequelize } = require('../models');
+    const metrics = [];
+    
+    for (const sprintId of sprintIds) {
+      try {
+        // Fetch sprint
+        const sprint = await Sprint.findByPk(parseInt(sprintId));
+        if (!sprint) continue;
+        
+        // Fetch sprint metrics if available
+        const [metricsRows] = await sequelize.query(
+          `SELECT 
+            committed_points, completed_points, carried_over_points,
+            test_pass_rate, defects_opened, defects_closed,
+            critical_defects, high_defects, medium_defects, low_defects,
+            points_added_during_sprint, points_removed_during_sprint,
+            recorded_at
+          FROM sprint_metrics 
+          WHERE sprint_id = $1 
+          ORDER BY recorded_at DESC 
+          LIMIT 1`,
+          { bind: [sprintId] }
+        );
+        
+        const metric = metricsRows && metricsRows.length > 0 ? metricsRows[0] : null;
+        
+        // Calculate velocity (completed points)
+        const velocity = metric ? (metric.completed_points || 0) : 0;
+        const committed = metric ? (metric.committed_points || 0) : 0;
+        const completed = metric ? (metric.completed_points || 0) : 0;
+        
+        // Defect data
+        const defectsOpened = metric ? (metric.defects_opened || 0) : 0;
+        const defectsClosed = metric ? (metric.defects_closed || 0) : 0;
+        const defectSeverityMix = {
+          critical: metric ? (metric.critical_defects || 0) : 0,
+          high: metric ? (metric.high_defects || 0) : 0,
+          medium: metric ? (metric.medium_defects || 0) : 0,
+          low: metric ? (metric.low_defects || 0) : 0
+        };
+        
+        // Test pass rate
+        const testPassRate = metric ? (metric.test_pass_rate || 0) : 0;
+        
+        // Scope changes
+        const pointsAdded = metric ? (metric.points_added_during_sprint || 0) : 0;
+        const pointsRemoved = metric ? (metric.points_removed_during_sprint || 0) : 0;
+        
+        metrics.push({
+          sprintId: sprintId.toString(),
+          name: sprint.name || `Sprint ${sprintId}`,
+          startDate: sprint.start_date ? sprint.start_date.toISOString() : null,
+          endDate: sprint.end_date ? sprint.end_date.toISOString() : null,
+          velocity: velocity,
+          completed_points: completed,
+          planned_points: committed,
+          committed_points: committed,
+          test_pass_rate: testPassRate,
+          defects_opened: defectsOpened,
+          defects_closed: defectsClosed,
+          defect_count: defectsOpened,
+          defect_severity_mix: defectSeverityMix,
+          points_added: pointsAdded,
+          points_removed: pointsRemoved,
+          scope_change_indicator: pointsAdded > 0 || pointsRemoved > 0 ? 
+            `${pointsAdded > 0 ? '+' + pointsAdded : ''}${pointsRemoved > 0 ? (pointsAdded > 0 ? ', ' : '') + '-' + pointsRemoved : ''}` : 
+            'No change'
+        });
+      } catch (err) {
+        console.error(`Error processing sprint ${sprintId}:`, err);
+        // Continue with other sprints
+      }
+    }
+    
+    return metrics;
+  } catch (error) {
+    console.error('Error generating performance metrics:', error);
+    return [];
+  }
+}
 
 module.exports = router;

@@ -5,6 +5,7 @@ import '../services/notification_service.dart';
 import '../services/auth_service.dart';
 import '../theme/flownet_theme.dart';
 import '../widgets/flownet_logo.dart';
+import '../widgets/app_modal.dart';
 
 class RealNotificationsScreen extends ConsumerStatefulWidget {
   const RealNotificationsScreen({super.key});
@@ -294,7 +295,7 @@ class _RealNotificationsScreenState extends ConsumerState<RealNotificationsScree
   }
 
   void _showNotificationDetail(NotificationItem notification) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: FlownetColors.charcoalBlack,
@@ -467,3 +468,4 @@ class _RealNotificationsScreenState extends ConsumerState<RealNotificationsScree
     }
   }
 }
+

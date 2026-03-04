@@ -4,6 +4,7 @@ import '../services/realtime_service.dart';
 import '../providers/service_providers.dart';
 import '../theme/flownet_theme.dart';
 import '../widgets/flownet_logo.dart';
+import '../widgets/app_modal.dart';
 
 class NotificationCenterScreen extends ConsumerStatefulWidget {
   const NotificationCenterScreen({super.key});
@@ -191,7 +192,7 @@ class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScr
   }
 
   void _showReminderDialog(NotificationItem notification) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: FlownetColors.graphiteGray,
@@ -237,7 +238,7 @@ class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScr
   }
 
   void _showApprovalDialog(NotificationItem notification) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: FlownetColors.graphiteGray,
@@ -674,3 +675,4 @@ enum NotificationPriority {
   high,
   urgent,
 }
+

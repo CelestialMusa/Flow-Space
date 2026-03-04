@@ -9,32 +9,35 @@ import '../widgets/glass_card.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/user_data_service.dart';
+import '../services/project_service.dart';
 
 class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
   final String? projectId;
-  
+
   const ProjectWorkspaceScreen({
     super.key,
     this.projectId,
   });
 
   @override
-  ConsumerState<ProjectWorkspaceScreen> createState() => _ProjectWorkspaceScreenState();
+  ConsumerState<ProjectWorkspaceScreen> createState() =>
+      _ProjectWorkspaceScreenState();
 }
 
-class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen> {
+class _ProjectWorkspaceScreenState
+    extends ConsumerState<ProjectWorkspaceScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-    final _descriptionController = TextEditingController();
+  final _descriptionController = TextEditingController();
   final _clientNameController = TextEditingController();
   final _tagsController = TextEditingController();
-  
+
   ProjectStatus _selectedStatus = ProjectStatus.planning;
   ProjectPriority _selectedPriority = ProjectPriority.medium;
   String _selectedProjectType = 'software';
   DateTime? _startDate;
   DateTime? _endDate;
-  
+
   List<ProjectMember> _members = [];
   List<String> _deliverableIds = [];
   List<String> _sprintIds = [];
@@ -42,22 +45,74 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   List<Sprint> _availableSprints = [];
   List<User> _availableUsers = [];
   User? _selectedOwner;
-  
+
   bool _isLoading = false;
   bool _isEditing = false;
   Project? _currentProject;
+  List<Project> _projects = [];
+  bool _showProjectsList = false;
 
   @override
   void initState() {
     super.initState();
+    // Show projects list only if projectId is null or empty (not 'new')
+    _showProjectsList = widget.projectId == null || widget.projectId == '';
     _initData();
   }
 
+  @override
+  void didUpdateWidget(ProjectWorkspaceScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // When returning from create form (projectId was 'new', now list) refetch so new project appears
+    final wasCreateForm = oldWidget.projectId == 'new';
+    final isListNow = widget.projectId == null || widget.projectId == '';
+    if (wasCreateForm && isListNow) {
+      _showProjectsList = true;
+      _loadProjects();
+    } else if (widget.projectId != oldWidget.projectId) {
+      _showProjectsList = widget.projectId == null || widget.projectId == '';
+      if (_showProjectsList) {
+        _loadProjects();
+      }
+    }
+  }
+
   Future<void> _initData() async {
-    await _loadAvailableData();
-    if (widget.projectId != null && widget.projectId != 'new') {
-      _isEditing = true;
-      await _loadProject();
+    if (_showProjectsList) {
+      await _loadProjects();
+    } else {
+      await _loadAvailableData();
+      // If projectId is 'new', show create form (not editing)
+      // If projectId is an actual ID, load the project for editing
+      if (widget.projectId != null && widget.projectId != 'new') {
+        _isEditing = true;
+        await _loadProject();
+      }
+      // If projectId is 'new', _isEditing stays false, showing create form
+    }
+  }
+
+  Future<void> _loadProjects() async {
+    setState(() => _isLoading = true);
+    try {
+      final projects = await ProjectService.getAllProjects(limit: 1000);
+      setState(() {
+        _projects = projects;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _projects = [];
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not load projects. Tap refresh to retry.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -72,7 +127,7 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
 
   Future<void> _loadProject() async {
     if (widget.projectId == null || widget.projectId == 'new') return;
-    
+
     setState(() => _isLoading = true);
     try {
       final project = await ApiService.getProject(widget.projectId!);
@@ -91,17 +146,20 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
           _members = project.members;
           _deliverableIds = project.deliverableIds;
           _sprintIds = project.sprintIds;
-          
+
           // Set selected owner
           try {
-             // Prefer ownerId from project if available (frontend model update pending in other files)
-             // or fallback to finding member with owner role
-             if (project.ownerId != null) {
-               _selectedOwner = _availableUsers.firstWhere((u) => u.id == project.ownerId);
-             } else {
-               final ownerMember = _members.firstWhere((m) => m.role == ProjectRole.owner);
-               _selectedOwner = _availableUsers.firstWhere((u) => u.id == ownerMember.userId);
-             }
+            // Prefer ownerId from project if available (frontend model update pending in other files)
+            // or fallback to finding member with owner role
+            if (project.ownerId != null) {
+              _selectedOwner =
+                  _availableUsers.firstWhere((u) => u.id == project.ownerId);
+            } else {
+              final ownerMember =
+                  _members.firstWhere((m) => m.role == ProjectRole.owner);
+              _selectedOwner =
+                  _availableUsers.firstWhere((u) => u.id == ownerMember.userId);
+            }
           } catch (_) {}
         });
       }
@@ -117,20 +175,22 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
       final deliverables = await ApiService.getDeliverables();
       final sprints = await ApiService.getSprints();
       final users = await UserDataService().getUsers(limit: 1000);
-      
+
       setState(() {
-        _availableDeliverables = deliverables.map((d) => Deliverable.fromJson(d)).toList();
+        _availableDeliverables =
+            deliverables.map((d) => Deliverable.fromJson(d)).toList();
         _availableSprints = sprints.map((s) => Sprint.fromJson(s)).toList();
         _availableUsers = users;
 
         // Set default owner if creating new project
         if (!_isEditing && _selectedOwner == null) {
-           final currentUserId = AuthService().currentUser?.id;
-           if (currentUserId != null) {
-             try {
-               _selectedOwner = _availableUsers.firstWhere((u) => u.id == currentUserId);
-             } catch (_) {}
-           }
+          final currentUserId = AuthService().currentUser?.id;
+          if (currentUserId != null) {
+            try {
+              _selectedOwner =
+                  _availableUsers.firstWhere((u) => u.id == currentUserId);
+            } catch (_) {}
+          }
         }
       });
     } catch (e) {
@@ -156,36 +216,6 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
     );
   }
 
-  String _generateProjectKey(String projectName) {
-    // Remove spaces and special characters, convert to uppercase
-    final String cleanName = projectName
-        .replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), '')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    
-    // Take first 3-4 letters of each word
-    final List<String> words = cleanName.split(' ');
-    String key = '';
-    
-    for (String word in words) {
-      if (word.isNotEmpty) {
-        key += word.length >= 3 ? word.substring(0, 3).toUpperCase() : word.toUpperCase();
-      }
-    }
-    
-    // Limit to 10 characters and ensure it starts with a letter
-    if (key.length > 10) {
-      key = key.substring(0, 10);
-    }
-    
-    // If key is empty or doesn't start with a letter, use a default
-    if (key.isEmpty || !RegExp(r'^[A-Z]').hasMatch(key)) {
-      key = 'PRJ${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
-    }
-    
-    return key;
-  }
-
   Future<void> _saveProject() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -194,18 +224,39 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
     setState(() => _isLoading = true);
 
     try {
+      // Derive a sensible project key if creating a new project
+      String deriveProjectKey() {
+        if (_isEditing && _currentProject != null) {
+          return _currentProject!.key;
+        }
+        final name = _nameController.text.trim();
+        if (name.isEmpty) return 'PRJ';
+        final parts =
+            name.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+        final key = parts.map((p) => p[0]).take(4).join().toUpperCase();
+        return key.isEmpty ? 'PRJ' : key;
+      }
+
       final project = Project(
-        id: _isEditing ? _currentProject!.id : DateTime.now().millisecondsSinceEpoch.toString(),
-        name: _nameController.text.trim(),
-        key: _isEditing ? _currentProject!.key : _generateProjectKey(_nameController.text.trim()),
-        description: _descriptionController.text.trim(),
-        clientName: _clientNameController.text.trim().isEmpty ? null : _clientNameController.text.trim(),
+        id: _isEditing
+            ? _currentProject!.id
+            : DateTime.now().millisecondsSinceEpoch.toString(),
+        name: _nameController.text,
+        key: deriveProjectKey(),
+        description: _descriptionController.text,
+        clientName: _clientNameController.text.trim().isEmpty
+            ? null
+            : _clientNameController.text.trim(),
         status: _selectedStatus,
         priority: _selectedPriority,
         projectType: _selectedProjectType,
         startDate: _startDate ?? DateTime.now(),
         endDate: _endDate,
-        tags: _tagsController.text.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList(),
+        tags: _tagsController.text
+            .split(',')
+            .map((t) => t.trim())
+            .where((t) => t.isNotEmpty)
+            .toList(),
         members: _members,
         deliverableIds: _deliverableIds,
         sprintIds: _sprintIds,
@@ -216,16 +267,24 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
         ownerId: _selectedOwner?.id,
       );
 
+      bool saved = false;
       if (_isEditing) {
-        await ApiService.updateProject(project);
-        _showSuccessSnackBar('Project updated successfully');
+        saved = await ApiService.updateProject(project);
+        if (saved) _showSuccessSnackBar('Project updated successfully');
       } else {
-        await ApiService.createProjectModel(project);
-        _showSuccessSnackBar('Project created successfully');
+        saved = await ApiService.createProjectModel(project);
+        if (saved) _showSuccessSnackBar('Project created successfully');
       }
 
-      if (mounted) {
-        Navigator.of(context).pop();
+      if (mounted && saved) {
+        // Only navigate after a successful save so the list will show the new/updated project
+        try {
+          context.go('/project-workspace');
+        } catch (e) {
+          try {
+            context.go('/dashboard');
+          } catch (_) {}
+        }
       }
     } catch (e) {
       _showErrorSnackBar('Failed to save project: $e');
@@ -243,8 +302,10 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
         onSelect: (selectedUsers) {
           setState(() {
             // Keep existing members who are still selected
-            final existingMembers = _members.where((m) => selectedUsers.any((u) => u.id == m.userId)).toList();
-            
+            final existingMembers = _members
+                .where((m) => selectedUsers.any((u) => u.id == m.userId))
+                .toList();
+
             // Add new members
             for (var user in selectedUsers) {
               if (!existingMembers.any((m) => m.userId == user.id)) {
@@ -309,7 +370,9 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
         title: Text(
-          _isEditing ? 'Edit Project' : 'Create New Project',
+          _showProjectsList
+              ? 'Project Workspace'
+              : (_isEditing ? 'Edit Project' : 'Create New Project'),
           style: TextStyle(
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
@@ -330,6 +393,20 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
             ),
           ),
         ),
+        actions: _showProjectsList
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: () => context.go('/project-workspace/new'),
+                  tooltip: 'Create New Project',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _loadProjects,
+                  tooltip: 'Refresh Projects',
+                ),
+              ]
+            : null,
       ),
       body: _isLoading
           ? Center(
@@ -337,44 +414,272 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
                 valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
               ),
             )
-          : Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    colorScheme.surface,
-                    colorScheme.surface.withAlpha(240),
-                    colorScheme.surface.withAlpha(220),
-                  ],
-                ),
-              ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildBasicInfoSection(colorScheme),
-                      const SizedBox(height: 24),
-                      _buildMetadataSection(colorScheme),
-                      const SizedBox(height: 24),
-                      _buildDatesSection(colorScheme),
-                      const SizedBox(height: 24),
-                      _buildMembersSection(colorScheme),
-                      const SizedBox(height: 24),
-                      _buildDeliverablesSection(colorScheme),
-                      const SizedBox(height: 24),
-                      _buildSprintsSection(colorScheme),
-                      const SizedBox(height: 32),
-                      _buildActionButtons(colorScheme),
-                    ],
+          : _showProjectsList
+              ? _buildProjectsList(colorScheme)
+              : Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        colorScheme.surface,
+                        colorScheme.surface.withAlpha(240),
+                        colorScheme.surface.withAlpha(220),
+                      ],
+                    ),
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildBasicInfoSection(colorScheme),
+                          const SizedBox(height: 24),
+                          _buildMetadataSection(colorScheme),
+                          const SizedBox(height: 24),
+                          _buildDatesSection(colorScheme),
+                          const SizedBox(height: 24),
+                          _buildMembersSection(colorScheme),
+                          const SizedBox(height: 24),
+                          _buildDeliverablesSection(colorScheme),
+                          const SizedBox(height: 24),
+                          _buildSprintsSection(colorScheme),
+                          const SizedBox(height: 32),
+                          _buildActionButtons(colorScheme),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
+    );
+  }
+
+  Widget _buildProjectsList(ColorScheme colorScheme) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            colorScheme.surface,
+            colorScheme.surface.withAlpha(240),
+            colorScheme.surface.withAlpha(220),
+          ],
+        ),
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            GlassCard(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withAlpha(51),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: colorScheme.primary.withAlpha(128)),
+                        ),
+                        child: Icon(
+                          Icons.folder_outlined,
+                          color: colorScheme.primary,
+                          size: 32,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Projects',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'View and manage your projects and their sprints',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: colorScheme.onSurface.withAlpha(179),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
+            const SizedBox(height: 24),
+            // Projects List
+            if (_projects.isEmpty)
+              GlassCard(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.folder_outlined,
+                      size: 64,
+                      color: colorScheme.onSurface.withAlpha(128),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No projects yet',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Create your first project to get started',
+                      style: TextStyle(
+                        color: colorScheme.onSurface.withAlpha(179),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () => context.go('/project-workspace/new'),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Create Project'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Your Projects',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _projects.length,
+                    itemBuilder: (context, index) {
+                      final project = _projects[index];
+                      return _buildProjectCard(project, colorScheme);
+                    },
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
     );
+  }
+
+  Widget _buildProjectCard(Project project, ColorScheme colorScheme) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: GlassCard(
+        padding: const EdgeInsets.all(20),
+        child: InkWell(
+          onTap: () => context.go('/project-workspace/${project.id}'),
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          project.name,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                        if (project.description.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            project.description,
+                            style: TextStyle(
+                              color: colorScheme.onSurface.withAlpha(230),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color:
+                          _getProjectStatusColor(project.status).withAlpha(51),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _getProjectStatusColor(project.status),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      project.status.name.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: _getProjectStatusColor(project.status),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getProjectStatusColor(ProjectStatus status) {
+    switch (status) {
+      case ProjectStatus.active:
+        return Colors.green;
+      case ProjectStatus.completed:
+        return Colors.blue;
+      case ProjectStatus.onHold:
+        return Colors.orange;
+      case ProjectStatus.cancelled:
+        return Colors.red;
+      case ProjectStatus.planning:
+        return Colors.grey;
+    }
   }
 
   Widget _buildBasicInfoSection(ColorScheme colorScheme) {
@@ -421,11 +726,13 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
               prefixIcon: Icon(Icons.work_outline, color: colorScheme.primary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colorScheme.outline.withAlpha(100)),
+                borderSide:
+                    BorderSide(color: colorScheme.outline.withAlpha(100)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colorScheme.outline.withAlpha(50)),
+                borderSide:
+                    BorderSide(color: colorScheme.outline.withAlpha(50)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -452,14 +759,17 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
             decoration: InputDecoration(
               labelText: 'Description *',
               hintText: 'Describe the project goals and objectives',
-              prefixIcon: Icon(Icons.description_outlined, color: colorScheme.primary),
+              prefixIcon:
+                  Icon(Icons.description_outlined, color: colorScheme.primary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colorScheme.outline.withAlpha(100)),
+                borderSide:
+                    BorderSide(color: colorScheme.outline.withAlpha(100)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colorScheme.outline.withAlpha(50)),
+                borderSide:
+                    BorderSide(color: colorScheme.outline.withAlpha(50)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -485,14 +795,17 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
             decoration: InputDecoration(
               labelText: 'Client Name',
               hintText: 'Enter client or customer name',
-              prefixIcon: Icon(Icons.business_outlined, color: colorScheme.primary),
+              prefixIcon:
+                  Icon(Icons.business_outlined, color: colorScheme.primary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colorScheme.outline.withAlpha(100)),
+                borderSide:
+                    BorderSide(color: colorScheme.outline.withAlpha(100)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colorScheme.outline.withAlpha(50)),
+                borderSide:
+                    BorderSide(color: colorScheme.outline.withAlpha(50)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -518,21 +831,27 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
             },
             decoration: InputDecoration(
               labelText: 'Project Owner *',
-              prefixIcon: Icon(Icons.person_outline, color: colorScheme.primary),
+              prefixIcon:
+                  Icon(Icons.person_outline, color: colorScheme.primary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colorScheme.outline.withAlpha(100)),
+                borderSide:
+                    BorderSide(color: colorScheme.outline.withAlpha(100)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colorScheme.outline.withAlpha(50)),
+                borderSide:
+                    BorderSide(color: colorScheme.outline.withAlpha(50)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: colorScheme.primary, width: 2),
               ),
               filled: true,
-              fillColor: _isEditing ? colorScheme.surface.withAlpha(100) : colorScheme.surface.withAlpha(50), // Visual cue for disabled state
+              fillColor: _isEditing
+                  ? colorScheme.surface.withAlpha(100)
+                  : colorScheme.surface
+                      .withAlpha(50), // Visual cue for disabled state
             ),
             style: TextStyle(
               fontSize: 16,
@@ -596,14 +915,17 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
             initialValue: _selectedStatus,
             decoration: InputDecoration(
               labelText: 'Status',
-              prefixIcon: Icon(Icons.flag_outlined, color: colorScheme.secondary),
+              prefixIcon:
+                  Icon(Icons.flag_outlined, color: colorScheme.secondary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colorScheme.outline.withAlpha(100)),
+                borderSide:
+                    BorderSide(color: colorScheme.outline.withAlpha(100)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colorScheme.outline.withAlpha(50)),
+                borderSide:
+                    BorderSide(color: colorScheme.outline.withAlpha(50)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -633,14 +955,17 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
             initialValue: _selectedPriority,
             decoration: InputDecoration(
               labelText: 'Priority',
-              prefixIcon: Icon(Icons.priority_high_outlined, color: colorScheme.secondary),
+              prefixIcon: Icon(Icons.priority_high_outlined,
+                  color: colorScheme.secondary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colorScheme.outline.withAlpha(100)),
+                borderSide:
+                    BorderSide(color: colorScheme.outline.withAlpha(100)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colorScheme.outline.withAlpha(50)),
+                borderSide:
+                    BorderSide(color: colorScheme.outline.withAlpha(50)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -670,14 +995,17 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
             initialValue: _selectedProjectType,
             decoration: InputDecoration(
               labelText: 'Project Type',
-              prefixIcon: Icon(Icons.category_outlined, color: colorScheme.secondary),
+              prefixIcon:
+                  Icon(Icons.category_outlined, color: colorScheme.secondary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colorScheme.outline.withAlpha(100)),
+                borderSide:
+                    BorderSide(color: colorScheme.outline.withAlpha(100)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colorScheme.outline.withAlpha(50)),
+                borderSide:
+                    BorderSide(color: colorScheme.outline.withAlpha(50)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -709,14 +1037,17 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
             decoration: InputDecoration(
               labelText: 'Tags (comma-separated)',
               hintText: 'e.g. mobile, frontend, urgent',
-              prefixIcon: Icon(Icons.tag_outlined, color: colorScheme.secondary),
+              prefixIcon:
+                  Icon(Icons.tag_outlined, color: colorScheme.secondary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colorScheme.outline.withAlpha(100)),
+                borderSide:
+                    BorderSide(color: colorScheme.outline.withAlpha(100)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colorScheme.outline.withAlpha(50)),
+                borderSide:
+                    BorderSide(color: colorScheme.outline.withAlpha(50)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -790,12 +1121,15 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
                 ),
               ),
               subtitle: Text(
-                _startDate != null ? _startDate!.toString().split(' ')[0] : 'Not set',
+                _startDate != null
+                    ? _startDate!.toString().split(' ')[0]
+                    : 'Not set',
                 style: TextStyle(
                   color: colorScheme.onSurface.withAlpha(180),
                 ),
               ),
-              trailing: Icon(Icons.arrow_drop_down, color: colorScheme.tertiary),
+              trailing:
+                  Icon(Icons.arrow_drop_down, color: colorScheme.tertiary),
               onTap: () async {
                 final date = await showDatePicker(
                   context: context,
@@ -830,16 +1164,20 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
                 ),
               ),
               subtitle: Text(
-                _endDate != null ? _endDate!.toString().split(' ')[0] : 'Not set',
+                _endDate != null
+                    ? _endDate!.toString().split(' ')[0]
+                    : 'Not set',
                 style: TextStyle(
                   color: colorScheme.onSurface.withAlpha(180),
                 ),
               ),
-              trailing: Icon(Icons.arrow_drop_down, color: colorScheme.tertiary),
+              trailing:
+                  Icon(Icons.arrow_drop_down, color: colorScheme.tertiary),
               onTap: () async {
                 final date = await showDatePicker(
                   context: context,
-                  initialDate: _endDate ?? DateTime.now().add(const Duration(days: 30)),
+                  initialDate:
+                      _endDate ?? DateTime.now().add(const Duration(days: 30)),
                   firstDate: DateTime(2020),
                   lastDate: DateTime(2030),
                 );
@@ -858,7 +1196,8 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
 
   Widget _buildMembersSection(ColorScheme colorScheme) {
     final currentUserId = AuthService().currentUser?.id;
-    final isOwner = _selectedOwner?.id != null && _selectedOwner!.id == currentUserId;
+    final isOwner =
+        _selectedOwner?.id != null && _selectedOwner!.id == currentUserId;
     // Allow member assignment if it's a new project or if the current user is the owner
     // User requirement: "only the project owner can assign users to projects."
     final canAssignMembers = !_isEditing || isOwner;
@@ -887,7 +1226,8 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
               padding: const EdgeInsets.only(bottom: 8.0),
               child: Text(
                 'Only the project owner can assign members.',
-                style: TextStyle(color: colorScheme.error, fontStyle: FontStyle.italic),
+                style: TextStyle(
+                    color: colorScheme.error, fontStyle: FontStyle.italic),
               ),
             ),
           InkWell(
@@ -895,22 +1235,37 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
             child: InputDecorator(
               decoration: InputDecoration(
                 labelText: 'Assign Members',
-                prefixIcon: Icon(Icons.group_add_outlined, color: canAssignMembers ? colorScheme.primary : colorScheme.outline),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                prefixIcon: Icon(Icons.group_add_outlined,
+                    color: canAssignMembers
+                        ? colorScheme.primary
+                        : colorScheme.outline),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 enabled: canAssignMembers,
                 filled: true,
-                fillColor: canAssignMembers ? colorScheme.surface.withAlpha(100) : colorScheme.surface.withAlpha(50),
-                suffixIcon: Icon(Icons.arrow_drop_down, color: canAssignMembers ? colorScheme.primary : colorScheme.outline),
+                fillColor: canAssignMembers
+                    ? colorScheme.surface.withAlpha(100)
+                    : colorScheme.surface.withAlpha(50),
+                suffixIcon: Icon(Icons.arrow_drop_down,
+                    color: canAssignMembers
+                        ? colorScheme.primary
+                        : colorScheme.outline),
               ),
               child: _members.isEmpty
-                  ? Text('Select members...', style: TextStyle(color: colorScheme.onSurface.withAlpha(100)))
+                  ? Text('Select members...',
+                      style: TextStyle(
+                          color: colorScheme.onSurface.withAlpha(100)))
                   : Wrap(
                       spacing: 8.0,
                       runSpacing: 4.0,
-                      children: _members.map((member) => Chip(
-                        label: Text(member.userName),
-                        onDeleted: canAssignMembers ? () => _removeMember(member.userId) : null,
-                      )).toList(),
+                      children: _members
+                          .map((member) => Chip(
+                                label: Text(member.userName),
+                                onDeleted: canAssignMembers
+                                    ? () => _removeMember(member.userId)
+                                    : null,
+                              ))
+                          .toList(),
                     ),
             ),
           ),
@@ -1070,24 +1425,25 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
                       width: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(colorScheme.onPrimary),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            colorScheme.onPrimary),
                       ),
                     )
-                  : _isEditing 
-                  ? const Text(
-                      'Update Project',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    )
-                  : const Text(
-                      'Create Project',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                  : _isEditing
+                      ? const Text(
+                          'Update Project',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )
+                      : const Text(
+                          'Create Project',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
             ),
           ),
           const SizedBox(width: 16),
@@ -1159,7 +1515,7 @@ class _SelectMembersDialogState extends State<_SelectMembersDialog> {
           itemBuilder: (context, index) {
             final user = widget.availableUsers[index];
             final isSelected = _selectedIds.contains(user.id);
-            
+
             return CheckboxListTile(
               title: Text(user.name),
               subtitle: Text(user.email),
@@ -1209,7 +1565,8 @@ class _SelectDeliverablesDialog extends StatefulWidget {
   });
 
   @override
-  State<_SelectDeliverablesDialog> createState() => _SelectDeliverablesDialogState();
+  State<_SelectDeliverablesDialog> createState() =>
+      _SelectDeliverablesDialogState();
 }
 
 class _SelectDeliverablesDialogState extends State<_SelectDeliverablesDialog> {
@@ -1233,7 +1590,7 @@ class _SelectDeliverablesDialogState extends State<_SelectDeliverablesDialog> {
           itemBuilder: (context, index) {
             final deliverable = widget.availableDeliverables[index];
             final isSelected = _selectedIds.contains(deliverable.id);
-            
+
             return CheckboxListTile(
               title: Text(deliverable.title),
               subtitle: Text(deliverable.statusDisplayName),
@@ -1304,7 +1661,7 @@ class _SelectSprintsDialogState extends State<_SelectSprintsDialog> {
           itemBuilder: (context, index) {
             final sprint = widget.availableSprints[index];
             final isSelected = _selectedIds.contains(sprint.id);
-            
+
             return CheckboxListTile(
               title: Text(sprint.name),
               subtitle: Text(sprint.statusText),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import '../models/sign_off_report.dart';
@@ -717,6 +718,142 @@ class _ClientReviewWorkflowScreenState extends ConsumerState<ClientReviewWorkflo
     }
   }
 
+  Future<void> _showGenerateReviewLinkDialog() async {
+    if (_report == null) return;
+    final emailController = TextEditingController(text: AuthService().currentUser?.email ?? '');
+    final expiresController = TextEditingController(text: '7');
+    String? generatedLink;
+    String? error;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Generate Review Link'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Create a secure link for the client to review this report without logging in.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: emailController,
+                      decoration: const InputDecoration(
+                        labelText: 'Client Email *',
+                        hintText: 'client@example.com',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      autocorrect: false,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: expiresController,
+                      decoration: const InputDecoration(
+                        labelText: 'Expiration (days)',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    if (error != null) ...[
+                      const SizedBox(height: 12),
+                      Text(error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                    ],
+                    if (generatedLink != null) ...[
+                      const SizedBox(height: 16),
+                      const Text('Review link (copy and share):', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      SelectableText(
+                        generatedLink!,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: () {
+                          if (generatedLink != null) {
+                            Clipboard.setData(ClipboardData(text: generatedLink!));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Link copied to clipboard')),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.copy),
+                        label: const Text('Copy link'),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                if (generatedLink != null)
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Done'),
+                  )
+                else ...[
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () async {
+                      final email = emailController.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        setDialogState(() {
+                          error = 'Please enter a valid client email.';
+                        });
+                        return;
+                      }
+                      setDialogState(() {
+                        error = null;
+                      });
+                      final days = int.tryParse(expiresController.text.trim()) ?? 7;
+                      final expiresInSeconds = days * 24 * 60 * 60;
+                      final resp = await _apiService.createClientReviewLink(
+                        widget.reportId,
+                        email,
+                        expiresInSeconds: expiresInSeconds,
+                      );
+                      if (!mounted) return;
+                      if (resp.isSuccess && resp.data != null) {
+                        final data = resp.data as Map<String, dynamic>;
+                        final token = data['linkToken']?.toString();
+                        if (token != null && token.isNotEmpty) {
+                          final base = Uri.base;
+                          final link = '${base.origin}${base.path}#/client-review-token/$token';
+                          setDialogState(() {
+                            generatedLink = link;
+                          });
+                        } else {
+                          setDialogState(() {
+                            error = 'No link token in response.';
+                          });
+                        }
+                      } else {
+                        setDialogState(() {
+                          error = resp.error ?? 'Failed to generate link.';
+                        });
+                      }
+                    },
+                    child: const Text('Generate'),
+                  ),
+                ],
+              ],
+            );
+          },
+        );
+      },
+    );
+    emailController.dispose();
+    expiresController.dispose();
+  }
+
   @override
   void dispose() {
     _commentController.dispose();
@@ -728,6 +865,7 @@ class _ClientReviewWorkflowScreenState extends ConsumerState<ClientReviewWorkflo
   Widget build(BuildContext context) {
     final userRole = AuthService().currentUser?.role;
     final canReview = userRole == UserRole.clientReviewer;
+    final isDeliveryLead = userRole == UserRole.deliveryLead;
     final isApproved = _report?.status == ReportStatus.approved;
 
     return Scaffold(
@@ -736,6 +874,14 @@ class _ClientReviewWorkflowScreenState extends ConsumerState<ClientReviewWorkflo
         title: const FlownetLogo(showText: true),
         backgroundColor: FlownetColors.charcoalBlack,
         foregroundColor: FlownetColors.pureWhite,
+        actions: [
+          if (isDeliveryLead && _report != null && !isApproved)
+            IconButton(
+              icon: const Icon(Icons.link),
+              tooltip: 'Generate Review Link',
+              onPressed: _showGenerateReviewLinkDialog,
+            ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

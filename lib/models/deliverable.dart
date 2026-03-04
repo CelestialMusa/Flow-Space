@@ -200,7 +200,7 @@ class Deliverable {
       'projectName': projectName,
       'artifacts': artifacts.map((e) => e.toJson()).toList(),
       // We don't necessarily need to send audit logs back to server, but good for completeness
-      // 'auditLogs': auditLogs.map((e) => e.toJson()).toList(), 
+      // 'auditLogs': auditLogs.map((e) => e.toJson()).toList(),
     };
   }
 
@@ -208,13 +208,16 @@ class Deliverable {
     // Helper to parse status
     DeliverableStatus parseStatus(String? statusStr) {
       if (statusStr == null) return DeliverableStatus.draft;
-      
+
       final lower = statusStr.toLowerCase();
       // Explicit mappings for backend values
-      if (lower == 'review' || lower == 'in_review') return DeliverableStatus.inReview;
-      if (lower == 'completed' || lower == 'signed_off') return DeliverableStatus.signedOff;
-      if (lower == 'in_progress' || lower == 'active') return DeliverableStatus.inProgress;
-      
+      if (lower == 'review' || lower == 'in_review')
+        return DeliverableStatus.inReview;
+      if (lower == 'completed' || lower == 'signed_off')
+        return DeliverableStatus.signedOff;
+      if (lower == 'in_progress' || lower == 'active')
+        return DeliverableStatus.inProgress;
+
       // Handle snake_case or camelCase
       final normalized = lower.replaceAll('_', '');
       for (var val in DeliverableStatus.values) {
@@ -244,11 +247,12 @@ class Deliverable {
         } catch (_) {
           // Not JSON, split by newline
           if (dodValue.trim().isNotEmpty) {
-             return dodValue.split('\n')
-               .map((s) => s.trim())
-               .where((s) => s.isNotEmpty)
-               .map((s) => DoDItem(text: s))
-               .toList();
+            return dodValue
+                .split('\n')
+                .map((s) => s.trim())
+                .where((s) => s.isNotEmpty)
+                .map((s) => DoDItem(text: s))
+                .toList();
           }
         }
       }
@@ -271,40 +275,55 @@ class Deliverable {
       }
       return [];
     }
-    
+
     // Handle camelCase and snake_case keys
     final id = json['id']?.toString() ?? json['uuid']?.toString() ?? '';
     final title = json['title']?.toString() ?? json['name']?.toString() ?? '';
     final description = json['description']?.toString() ?? '';
     final priority = json['priority']?.toString() ?? 'medium';
-    final status = parseStatus(json['status']?.toString() ?? json['review_status']?.toString());
-    
-    final createdStr = json['createdAt']?.toString() ?? json['created_at']?.toString();
-    final createdAt = createdStr != null ? DateTime.parse(createdStr) : DateTime.now();
-    
-    final dueStr = json['dueDate']?.toString() ?? json['due_date']?.toString() ?? json['deadline']?.toString();
-    final dueDate = dueStr != null ? DateTime.parse(dueStr) : DateTime.now().add(const Duration(days: 7));
-    
+    final status = parseStatus(
+        json['status']?.toString() ?? json['review_status']?.toString());
+
+    final createdStr =
+        json['createdAt']?.toString() ?? json['created_at']?.toString();
+    final createdAt =
+        createdStr != null ? DateTime.parse(createdStr) : DateTime.now();
+
+    final dueStr = json['dueDate']?.toString() ??
+        json['due_date']?.toString() ??
+        json['deadline']?.toString();
+    final dueDate = dueStr != null
+        ? DateTime.parse(dueStr)
+        : DateTime.now().add(const Duration(days: 7));
+
     final sprintIds = parseSprintIds(json);
-    
+
     final dodValue = json['definitionOfDone'] ?? json['definition_of_done'];
     final definitionOfDone = parseDoD(dodValue);
-    
+
     final evidenceValue = json['evidenceLinks'] ?? json['evidence_links'];
-    final evidenceLinks = evidenceValue != null ? List<String>.from(evidenceValue) : <String>[];
-    
+    final evidenceLinks =
+        evidenceValue != null ? List<String>.from(evidenceValue) : <String>[];
+
     // Handle nested owner object
-    String? ownerId = json['ownerId']?.toString() ?? json['owner_id']?.toString();
-    String? ownerName = json['ownerName']?.toString() ?? json['owner_name']?.toString();
-    String? ownerRole = json['ownerRole']?.toString() ?? json['owner_role']?.toString();
-    
+    String? ownerId =
+        json['ownerId']?.toString() ?? json['owner_id']?.toString();
+    String? ownerName =
+        json['ownerName']?.toString() ?? json['owner_name']?.toString();
+    String? ownerRole =
+        json['ownerRole']?.toString() ?? json['owner_role']?.toString();
+
     if (json['owner'] != null && json['owner'] is Map) {
       final ownerMap = json['owner'] as Map;
       ownerId ??= ownerMap['id']?.toString();
       ownerRole ??= ownerMap['role']?.toString();
       if (ownerName == null) {
-        final first = ownerMap['first_name']?.toString() ?? ownerMap['firstName']?.toString() ?? '';
-        final last = ownerMap['last_name']?.toString() ?? ownerMap['lastName']?.toString() ?? '';
+        final first = ownerMap['first_name']?.toString() ??
+            ownerMap['firstName']?.toString() ??
+            '';
+        final last = ownerMap['last_name']?.toString() ??
+            ownerMap['lastName']?.toString() ??
+            '';
         final email = ownerMap['email']?.toString() ?? '';
         if (first.isNotEmpty || last.isNotEmpty) {
           ownerName = '$first $last'.trim();
@@ -352,15 +371,30 @@ class Deliverable {
       sprintIds: sprintIds,
       definitionOfDone: definitionOfDone,
       evidenceLinks: evidenceLinks,
-      clientComment: json['clientComment']?.toString() ?? json['client_comment']?.toString(),
-      approvedAt: json['approvedAt'] != null ? DateTime.parse(json['approvedAt'].toString()) : (json['approved_at'] != null ? DateTime.parse(json['approved_at'].toString()) : null),
-      approvedBy: json['approvedBy']?.toString() ?? json['approved_by']?.toString(),
-      submittedBy: json['submittedBy']?.toString() ?? json['submitted_by']?.toString(),
-      submittedAt: json['submittedAt'] != null ? DateTime.parse(json['submittedAt'].toString()) : (json['submitted_at'] != null ? DateTime.parse(json['submitted_at'].toString()) : null),
-      assignedTo: json['assignedTo']?.toString() ?? json['assigned_to']?.toString(),
-      assignedToName: json['assignedToName']?.toString() ?? json['assigned_to_name']?.toString(),
-      createdBy: json['createdBy']?.toString() ?? json['created_by']?.toString(),
-      createdByName: json['createdByName']?.toString() ?? json['created_by_name']?.toString(),
+      clientComment: json['clientComment']?.toString() ??
+          json['client_comment']?.toString(),
+      approvedAt: json['approvedAt'] != null
+          ? DateTime.parse(json['approvedAt'].toString())
+          : (json['approved_at'] != null
+              ? DateTime.parse(json['approved_at'].toString())
+              : null),
+      approvedBy:
+          json['approvedBy']?.toString() ?? json['approved_by']?.toString(),
+      submittedBy:
+          json['submittedBy']?.toString() ?? json['submitted_by']?.toString(),
+      submittedAt: json['submittedAt'] != null
+          ? DateTime.parse(json['submittedAt'].toString())
+          : (json['submitted_at'] != null
+              ? DateTime.parse(json['submitted_at'].toString())
+              : null),
+      assignedTo:
+          json['assignedTo']?.toString() ?? json['assigned_to']?.toString(),
+      assignedToName: json['assignedToName']?.toString() ??
+          json['assigned_to_name']?.toString(),
+      createdBy:
+          json['createdBy']?.toString() ?? json['created_by']?.toString(),
+      createdByName: json['createdByName']?.toString() ??
+          json['created_by_name']?.toString(),
       ownerId: ownerId,
       ownerName: ownerName,
       ownerRole: ownerRole,
@@ -374,9 +408,9 @@ class Deliverable {
   Color get statusColor => status.color;
 
   bool get isOverdue {
-    return DateTime.now().isAfter(dueDate) && 
-           status != DeliverableStatus.approved && 
-           status != DeliverableStatus.signedOff;
+    return DateTime.now().isAfter(dueDate) &&
+        status != DeliverableStatus.approved &&
+        status != DeliverableStatus.signedOff;
   }
 
   int get daysUntilDue {

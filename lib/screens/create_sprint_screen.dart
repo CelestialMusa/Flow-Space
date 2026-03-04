@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../services/sprint_database_service.dart';
+import '../services/project_service.dart';
+import '../models/project.dart';
 
 class CreateSprintScreen extends StatefulWidget {
   final String? projectId;
@@ -21,6 +24,12 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _plannedPointsController = TextEditingController();
+  
+  // Project selection
+  List<Project> _projects = [];
+  Project? _selectedProject;
+  bool _isLoadingProjects = false;
+  String? _selectedProjectId;
   final TextEditingController _committedPointsController = TextEditingController();
   final TextEditingController _completedPointsController = TextEditingController();
   final TextEditingController _carriedOverPointsController = TextEditingController();
@@ -44,6 +53,44 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
 
   DateTime? _startDate;
   DateTime? _endDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedProjectId = widget.projectId;
+    if (widget.projectId == null) {
+      _loadProjects();
+    }
+  }
+
+  Future<void> _loadProjects() async {
+    setState(() => _isLoadingProjects = true);
+    try {
+      final projects = await ProjectService.getAllProjects(limit: 1000);
+      setState(() {
+        _projects = projects;
+        _isLoadingProjects = false;
+        // If projectId was passed, try to find and select it
+        if (widget.projectId != null) {
+          try {
+            _selectedProject = _projects.firstWhere(
+              (p) => p.id == widget.projectId,
+            );
+            _selectedProjectId = _selectedProject?.id;
+          } catch (_) {
+            // Project not found in list, that's okay
+          }
+        }
+      });
+    } catch (e) {
+      setState(() => _isLoadingProjects = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading projects: $e')),
+        );
+      }
+    }
+  }
 
   Future<void> _selectStartDate() async {
     final DateTime? picked = await showDatePicker(
@@ -94,11 +141,21 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
         }
       }
 
+      // Use selected project ID if no projectId was passed
+      final projectIdToUse = _selectedProjectId ?? widget.projectId;
+      
+      if (projectIdToUse == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select a project')),
+        );
+        return;
+      }
+
       await _sprintService.createSprint(
         name: _nameController.text,
         startDate: _startDate!,
         endDate: _endDate!,
-        projectId: widget.projectId,
+        projectId: projectIdToUse,
         plannedPoints: int.tryParse(_plannedPointsController.text) ?? 0,
         committedPoints: int.tryParse(_committedPointsController.text),
         completedPoints: int.tryParse(_completedPointsController.text),
@@ -129,8 +186,12 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
     } catch (e) {
       debugPrint('Error creating sprint: $e');
       if (mounted) {
+        final msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : 'Error creating sprint';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error creating sprint')),
+          SnackBar(
+            content: Text(msg.isEmpty ? 'Error creating sprint' : (msg.length > 150 ? '${msg.substring(0, 150)}...' : msg)),
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     }
@@ -177,6 +238,7 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('🟢 CreateSprintScreen.build() called - projectId: ${widget.projectId}, projectName: ${widget.projectName}');
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.projectName == null
@@ -192,7 +254,42 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (widget.projectName != null)
+              // Project selection dropdown (only show if no project was pre-selected)
+              if (widget.projectId == null) ...[
+                _isLoadingProjects
+                    ? const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    : DropdownButtonFormField<Project>(
+                        initialValue: _selectedProject,
+                        decoration: const InputDecoration(
+                          labelText: 'Project *',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.folder),
+                        ),
+                        hint: const Text('Select a project'),
+                        items: _projects.map((project) {
+                          return DropdownMenuItem<Project>(
+                            value: project,
+                            child: Text(project.name),
+                          );
+                        }).toList(),
+                        onChanged: (Project? project) {
+                          setState(() {
+                            _selectedProject = project;
+                            _selectedProjectId = project?.id;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null) {
+                            return 'Please select a project';
+                          }
+                          return null;
+                        },
+                      ),
+                const SizedBox(height: 16),
+              ] else if (widget.projectName != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8.0),
                   child: Text(

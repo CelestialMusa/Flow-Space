@@ -38,6 +38,7 @@ class FlownetColors {
   static const Color emeraldGreen = Color(0xFF34C759);
   static const Color amberOrange = Color(0xFFFF9500);
   static const Color crimsonRed = Color(0xFFC10D00);
+  static const Color purple = Color(0xFF9C27B0);
   
   // Gradients
   static const LinearGradient primaryGradient = LinearGradient(
@@ -104,39 +105,39 @@ class FlownetTheme {
       ),
       // Dialogs (AlertDialog, SimpleDialog)
       dialogTheme: DialogThemeData(
-        backgroundColor: Colors.white.withAlpha((0.12 * 255).round()),
+        backgroundColor: const Color(0xF21E1E1E),
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.white.withAlpha((0.18 * 255).round())),
+          side: BorderSide(color: Colors.white.withAlpha((0.35 * 255).round())),
         ),
       ),
       // Bottom sheets
-      bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: Colors.white.withAlpha((0.10 * 255).round()),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Color(0xF21E1E1E),
         surfaceTintColor: Colors.transparent,
-        shape: const RoundedRectangleBorder(
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
       ),
       // Inputs
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white.withAlpha((0.10 * 255).round()),
+        fillColor: Colors.white.withAlpha((0.18 * 255).round()),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withAlpha((0.30 * 255).round())),
+          borderSide: BorderSide(color: Colors.white.withAlpha((0.40 * 255).round())),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withAlpha((0.30 * 255).round())),
+          borderSide: BorderSide(color: Colors.white.withAlpha((0.40 * 255).round())),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: FlownetColors.primary, width: 2),
         ),
-        labelStyle: TextStyle(color: Colors.white.withAlpha((0.70 * 255).round())),
-        hintStyle: TextStyle(color: Colors.white.withAlpha((0.50 * 255).round())),
+        labelStyle: TextStyle(color: Colors.white.withAlpha((0.80 * 255).round())),
+        hintStyle: TextStyle(color: Colors.white.withAlpha((0.65 * 255).round())),
         errorStyle: const TextStyle(color: FlownetColors.error),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
