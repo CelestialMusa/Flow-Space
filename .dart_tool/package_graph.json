@@ -493,11 +493,10 @@
     },
     {
       "name": "fl_chart",
-      "version": "1.1.1",
+      "version": "0.65.0",
       "dependencies": [
         "equatable",
-        "flutter",
-        "vector_math"
+        "flutter"
       ]
     },
     {
@@ -665,7 +664,7 @@
     },
     {
       "name": "meta",
-      "version": "1.17.0",
+      "version": "1.16.0",
       "dependencies": []
     },
     {
@@ -957,7 +956,7 @@
     },
     {
       "name": "test_api",
-      "version": "0.7.7",
+      "version": "0.7.6",
       "dependencies": [
         "async",
         "boolean_selector",

@@ -753,7 +753,6 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
   }
 
   Widget _buildQuickActions() {
-    final canCreate = _authService.canCreateDeliverable();
     return Row(
       children: [
         Expanded(
@@ -782,23 +781,6 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
           ),
         ),
         const SizedBox(width: 12),
-        if (canCreate)
-          Expanded(
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: _buildActionButton(
-                  icon: Icons.description_outlined,
-                  label: 'Build Report',
-                  onTap: () {
-                    final first = _dashboardDeliverables.isNotEmpty ? _dashboardDeliverables.first : null;
-                    final id = first != null ? (first['id']?.toString() ?? first['uuid']?.toString() ?? '') : '';
-                    if (id.isNotEmpty) context.go('/report-builder/$id');
-                  },
-                ),
-              ),
-            ),
-          ),
       ],
     );
   }

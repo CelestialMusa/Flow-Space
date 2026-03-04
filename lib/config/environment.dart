@@ -1,5 +1,7 @@
 // ignore_for_file: prefer_single_quotes
 
+import 'package:flutter/foundation.dart';
+
 class Environment {
   // App Configuration
   static const String appName = 'Khonology';
@@ -17,6 +19,12 @@ class Environment {
     // First try build-time variable
     if (_apiBaseUrl != "http://localhost:3001/api/v1") {
       return _apiBaseUrl;
+    }
+
+    // For Flutter Web dev, default to the deployed backend when no override provided.
+    // (Localhost backend is often not running, causing `Failed to fetch` in Chrome.)
+    if (kIsWeb) {
+      return "https://flow-space.onrender.com/api/v1";
     }
     
     // Fallback to production URL if deployed on Render

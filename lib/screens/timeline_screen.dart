@@ -295,27 +295,17 @@ class _TimelineScreenState extends State<TimelineScreen> {
                 icon: Icons.add_task,
                 title: 'Create Deliverable',
                 onTap: () {
-                  context.go('/deliverable-setup');
+                  context.go('/create-deliverable');
                 },
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             Expanded(
               child: _buildQuickActionCard(
-                icon: Icons.timeline,
+                icon: Icons.trending_up,
                 title: 'Open Sprint Console',
                 onTap: () {
                   context.go('/sprint-console');
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildQuickActionCard(
-                icon: Icons.assessment,
-                title: 'Build Report',
-                onTap: () {
-                  context.go('/report-repository');
                 },
               ),
             ),

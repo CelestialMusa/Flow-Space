@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:khono/models/user.dart';
 import 'package:khono/models/user_role.dart';
@@ -13,6 +14,8 @@ class AuthService {
     return _instance;
   }
   AuthService._internal();
+
+  static const String _cachedUserKey = 'cached_user';
 
   final BackendApiService _apiService = BackendApiService();
   User? _currentUser;
@@ -63,6 +66,7 @@ class AuthService {
           try {
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString('current_user_id', _currentUser!.id);
+            await prefs.setString(_cachedUserKey, jsonEncode(_currentUser!.toJson()));
           } catch (_) {}
         } else {
           await _apiService.signOut();
@@ -74,8 +78,32 @@ class AuthService {
       }
     } catch (e) {
       debugPrint('Error loading current user: $e');
+      final apiClient = ApiClient();
+      if (apiClient.isAuthenticated) {
+        final cachedUser = await _loadCachedUser();
+        if (cachedUser != null) {
+          _currentUser = cachedUser;
+          _isAuthenticated = true;
+          debugPrint('Using cached user due to network error: ${_currentUser!.name} (${_currentUser!.roleDisplayName})');
+          return;
+        }
+      }
+
       _currentUser = null;
       _isAuthenticated = false;
+    }
+  }
+
+  Future<User?> _loadCachedUser() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_cachedUserKey);
+      if (raw == null || raw.isEmpty) return null;
+      final parsed = jsonDecode(raw);
+      if (parsed is! Map) return null;
+      return User.fromJson(Map<String, dynamic>.from(parsed));
+    } catch (_) {
+      return null;
     }
   }
 
@@ -96,6 +124,7 @@ class AuthService {
           try {
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString('current_user_id', _currentUser!.id);
+            await prefs.setString(_cachedUserKey, jsonEncode(_currentUser!.toJson()));
           } catch (_) {}
           return true;
         } else {
@@ -130,6 +159,7 @@ class AuthService {
           try {
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString('current_user_id', _currentUser!.id);
+            await prefs.setString(_cachedUserKey, jsonEncode(_currentUser!.toJson()));
           } catch (_) {}
           return {'success': true};
         } else {
@@ -158,6 +188,11 @@ class AuthService {
     } finally {
       _currentUser = null;
       _isAuthenticated = false;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('current_user_id');
+        await prefs.remove(_cachedUserKey);
+      } catch (_) {}
       debugPrint('User signed out');
     }
   }

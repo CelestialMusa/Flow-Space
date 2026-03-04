@@ -6,6 +6,8 @@ analyzer:
     - Flow-Space/**
     - build/**
     - .dart_tool/**
+    - test/**
+    - test_*.dart
   errors:
     require_trailing_commas: ignore
 

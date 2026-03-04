@@ -56,8 +56,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       } else if (mounted) {
         final msg = authService.lastAuthError ?? 'Invalid email or password. Please check your credentials and try again.';
         ErrorHandler().showErrorSnackBar(context, msg);
-        ErrorHandler().showErrorSnackBar(context,
-            'Invalid email or password. Please check your credentials and try again.');
       }
     } catch (e) {
       if (mounted) {
