@@ -158,54 +158,96 @@ class Project {
       'key': key,
       'description': description,
       'clientName': clientName,
+      'client_name': clientName,
       'status': status.name,
       'priority': priority.name,
       'projectType': projectType,
+      'project_type': projectType,
       'startDate': startDate.toIso8601String(),
+      'start_date': startDate.toIso8601String(),
       'endDate': endDate?.toIso8601String(),
+      'end_date': endDate?.toIso8601String(),
       'tags': tags,
       'members': members.map((m) => m.toJson()).toList(),
       'deliverableIds': deliverableIds,
+      'deliverable_ids': deliverableIds,
       'sprintIds': sprintIds,
+      'sprint_ids': sprintIds,
       'createdBy': createdBy,
+      'created_by': createdBy,
       'createdAt': createdAt.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
       'updatedBy': updatedBy,
+      'updated_by': updatedBy,
       'ownerId': ownerId,
+      'owner_id': ownerId,
       'metadata': metadata,
     };
   }
 
   factory Project.fromJson(Map<String, dynamic> json) {
+    String? asString(dynamic value) {
+      return value?.toString();
+    }
+
+    List<String> asStringList(dynamic value) {
+      if (value is List) {
+        return value.map((e) => e.toString()).toList();
+      }
+      return [];
+    }
+
+    final startStr = asString(json['startDate']) ?? asString(json['start_date']);
+    final endStr = asString(json['endDate']) ?? asString(json['end_date']);
+    final createdAtStr = asString(json['createdAt']) ?? asString(json['created_at']);
+    final updatedAtStr = asString(json['updatedAt']) ?? asString(json['updated_at']);
+
     return Project(
-      id: json['id']?.toString() ?? '',
-      name: json['name']?.toString() ?? '',
-      key: json['key']?.toString() ?? '',
-      description: json['description']?.toString() ?? '',
-      clientName: json['clientName']?.toString(),
+      id: asString(json['id']) ?? '',
+      name: asString(json['name']) ?? '',
+      key: asString(json['key'] ?? json['projectKey'] ?? json['project_key']) ?? '',
+      description: asString(json['description']) ?? '',
+      clientName: asString(json['clientName'] ?? json['client_name']),
       status: ProjectStatus.values.firstWhere(
-        (e) => e.name == json['status']?.toString(),
+        (e) => e.name == asString(json['status']),
         orElse: () => ProjectStatus.planning,
       ),
       priority: ProjectPriority.values.firstWhere(
-        (e) => e.name == json['priority']?.toString(),
+        (e) => e.name == asString(json['priority']),
         orElse: () => ProjectPriority.medium,
       ),
-      projectType: json['projectType']?.toString() ?? 'software',
-      startDate: DateTime.parse(json['startDate']?.toString() ?? DateTime.now().toIso8601String()),
-      endDate: json['endDate'] != null ? DateTime.parse(json['endDate']?.toString() ?? '') : null,
-      tags: List<String>.from(json['tags'] ?? []),
+      projectType: asString(json['projectType'] ?? json['project_type']) ?? 'software',
+      startDate: startStr != null && startStr.isNotEmpty
+          ? DateTime.parse(startStr)
+          : DateTime.now(),
+      endDate: endStr != null && endStr.isNotEmpty ? DateTime.parse(endStr) : null,
+      tags: asStringList(json['tags']),
       members: (json['members'] as List<dynamic>?)
-          ?.map((m) => ProjectMember.fromJson(Map<String, dynamic>.from(m)))
-          .toList() ?? [],
-      deliverableIds: List<String>.from(json['deliverableIds'] ?? []),
-      sprintIds: List<String>.from(json['sprintIds'] ?? []),
-      createdBy: json['createdBy']?.toString() ?? '',
-      createdAt: DateTime.parse(json['createdAt']?.toString() ?? DateTime.now().toIso8601String()),
-      updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']?.toString() ?? '') : null,
-      updatedBy: json['updatedBy']?.toString(),
-      ownerId: json['ownerId']?.toString(),
-      metadata: Map<String, dynamic>.from(json['metadata'] ?? {}),
+              ?.map((m) => ProjectMember.fromJson(Map<String, dynamic>.from(m)))
+              .toList() ??
+          [],
+      deliverableIds: asStringList(json['deliverableIds'] ?? json['deliverable_ids']),
+      sprintIds: asStringList(json['sprintIds'] ?? json['sprint_ids']),
+      createdBy: asString(json['createdBy'] ?? json['created_by']) ?? '',
+      createdAt: createdAtStr != null && createdAtStr.isNotEmpty
+          ? DateTime.parse(createdAtStr)
+          : DateTime.now(),
+      updatedAt: updatedAtStr != null && updatedAtStr.isNotEmpty
+          ? DateTime.parse(updatedAtStr)
+          : null,
+      updatedBy: asString(json['updatedBy'] ?? json['updated_by']),
+      ownerId: asString(json['ownerId']) ??
+          asString(json['owner_id']) ??
+          (json['owner'] != null && json['owner'] is Map
+              ? asString((json['owner'] as Map)['id'])
+              : null),
+      metadata: json['metadata'] is Map<String, dynamic>
+          ? Map<String, dynamic>.from(json['metadata'] as Map<String, dynamic>)
+          : (json['metadata'] is Map
+              ? Map<String, dynamic>.from(json['metadata'] as Map)
+              : <String, dynamic>{}),
     );
   }
 

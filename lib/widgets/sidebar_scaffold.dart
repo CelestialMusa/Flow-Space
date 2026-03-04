@@ -671,6 +671,8 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
 
   String _getPageTitle(String route) {
     switch (route) {
+      case '/deliverables-overview':
+        return 'Deliverables';
       case '/approval-requests':
         return 'Approval Requests';
       case '/notifications':

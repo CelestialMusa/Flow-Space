@@ -1418,6 +1418,22 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     if (_isLoadingDashboardProjects) {
       return const Center(child: CircularProgressIndicator());
     }
+    final now = DateTime.now();
+    final overdueProjects = _dashboardProjects.where((p) {
+      try {
+        final status = (p['status'] ?? '').toString().toLowerCase();
+        if (status == 'completed' || status == 'cancelled') {
+          return false;
+        }
+        final endStr = p['end_date']?.toString() ?? p['endDate']?.toString() ?? '';
+        if (endStr.isEmpty) return false;
+        final end = DateTime.parse(endStr);
+        return now.isAfter(end);
+      } catch (_) {
+        return false;
+      }
+    }).toList();
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1433,6 +1449,7 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
               final title = p['name'] ?? 'Untitled Project';
               final status = (p['status'] ?? '').toString();
               final id = p['id']?.toString() ?? '';
+              final isOverdue = overdueProjects.any((op) => op['id'] == p['id']);
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: InkWell(
@@ -1441,7 +1458,11 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
                       : null,
                   child: Row(
                     children: [
-                      const Icon(Icons.folder_open, size: 18),
+                      Icon(
+                        Icons.folder_open,
+                        size: 18,
+                        color: isOverdue ? Colors.redAccent : null,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                           child: Text(

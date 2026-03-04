@@ -401,6 +401,8 @@ class Deliverable {
       ownerId: ownerId,
       ownerName: ownerName,
       ownerRole: ownerRole,
+      projectId: json['projectId']?.toString() ?? json['project_id']?.toString(),
+      projectName: json['projectName']?.toString() ?? json['project_name']?.toString(),
       auditLogs: auditLogs,
       artifacts: artifacts,
     );

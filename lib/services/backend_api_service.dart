@@ -375,6 +375,14 @@ class BackendApiService {
     return await _apiClient.delete('/projects/$projectId');
   }
 
+  Future<ApiResponse> remindProjectOwner(String projectId, {bool force = false}) async {
+    final body = <String, dynamic>{};
+    if (force) {
+      body['force'] = true;
+    }
+    return await _apiClient.post('/projects/$projectId/remind-owner', body: body.isEmpty ? null : body);
+  }
+
   // Project member management
   Future<ApiResponse> addProjectMember(String projectId, Map<String, dynamic> memberData) async {
     return await _apiClient.post('/projects/$projectId/members', body: memberData);
@@ -386,19 +394,23 @@ class BackendApiService {
 
   // Project deliverable linking
   Future<ApiResponse> linkDeliverableToProject(String projectId, String deliverableId) async {
-    return await _apiClient.post('/projects/$projectId/deliverables', body: {
-      'deliverableId': deliverableId,
+    // Implement by updating the deliverable's project_id field
+    return await _apiClient.put('/deliverables/$deliverableId', body: {
+      'project_id': projectId,
     });
   }
 
   Future<ApiResponse> unlinkDeliverableFromProject(String projectId, String deliverableId) async {
-    return await _apiClient.delete('/projects/$projectId/deliverables/$deliverableId');
+    // Implement by clearing the deliverable's project_id field
+    return await _apiClient.put('/deliverables/$deliverableId', body: {
+      'project_id': null,
+    });
   }
 
   // Project sprint association
-  Future<ApiResponse> associateSprintWithProject(String projectId, String sprintId) async {
+  Future<ApiResponse> associateSprintWithProject(String projectId, List<String> sprintIds) async {
     return await _apiClient.post('/projects/$projectId/sprints', body: {
-      'sprintId': sprintId,
+      'sprintIds': sprintIds,
     });
   }
 

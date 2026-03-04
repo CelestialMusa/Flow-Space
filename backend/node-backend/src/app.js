@@ -155,7 +155,11 @@ app.get('/api/v1/sprints/:id/tickets', async (req, res) => {
     res.json({ success: true, data: tickets });
   } catch (error) {
     console.error('Error fetching sprint tickets:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message,
+      stack: error.stack
+    });
   }
 });
 

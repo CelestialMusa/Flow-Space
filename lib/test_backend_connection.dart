@@ -23,7 +23,6 @@ void main() {
       final authService = AuthService();
       await authService.initialize();
       final registrationResult = await authService.signUp(uniqueEmail, 'password', 'Test Admin', UserRole.systemAdmin);
-
       if (registrationResult['success'] is bool && registrationResult['success'] != true) {
         print('Admin registration failed: ${registrationResult['error']}');
         
