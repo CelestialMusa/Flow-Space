@@ -16,30 +16,20 @@ class EmailService {
     this.replyTo = process.env.EMAIL_REPLY_TO || this.fromEmail;
   }
 
-  // Test SMTP connection (skip verify when credentials missing — test mode)
+  // Test SMTP connection
   async testConnection() {
-    const hasCreds = process.env.SMTP_USER && (process.env.SMTP_PASS || '').trim();
-    if (!hasCreds) {
-      console.log('📧 Email not configured — test mode: verification codes appear in server logs only. Sprint creation and all features work normally.');
-      return false;
-    }
     try {
       await this.transporter.verify();
       console.log('✅ SMTP connection successful');
       return true;
     } catch (error) {
-      console.log('📧 Email not configured — test mode:', error.message);
-      console.log('💡 Sprint creation, registration (code in logs), and all other features work without email.');
+      console.error('❌ SMTP connection failed:', error.message);
       return false;
     }
   }
 
-  // Send verification email (no-op in test mode when email not configured)
+  // Send verification email
   async sendVerificationEmail(toEmail, userName, verificationCode) {
-    const hasCreds = process.env.SMTP_USER && (process.env.SMTP_PASS || '').trim();
-    if (!hasCreds) {
-      return { success: false, error: 'Email not configured (test mode)' };
-    }
     try {
       const mailOptions = {
         from: {
@@ -56,7 +46,7 @@ class EmailService {
       console.log('✅ Verification email sent successfully:', result.messageId);
       return { success: true, messageId: result.messageId };
     } catch (error) {
-      console.log('📧 Verification email not sent (test mode ok):', error.message);
+      console.error('❌ Failed to send verification email:', error.message);
       return { success: false, error: error.message };
     }
   }

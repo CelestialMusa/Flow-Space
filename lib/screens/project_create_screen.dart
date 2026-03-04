@@ -152,7 +152,7 @@ class _ProjectCreateScreenState extends State<ProjectCreateScreen> {
       }
       
       if (mounted) {
-        context.go('/project-workspace');
+        context.go('/projects');
       }
     } catch (e) {
       if (mounted) {

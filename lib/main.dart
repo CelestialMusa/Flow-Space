@@ -163,21 +163,34 @@ final GoRouter _router = GoRouter(
         ),
       ),
     ),
-    // Redirect /projects to /project-workspace
     GoRoute(
       path: '/projects',
-      redirect: (context, state) => '/project-workspace',
+      builder: (context, state) => const RoleGuard(
+        requiredPermission: 'authenticated',
+        child: SidebarScaffold(
+          child: ProjectsScreen(),
+        ),
+      ),
     ),
-    // Redirect old project routes to project-workspace
     GoRoute(
       path: '/projects/create',
-      redirect: (context, state) => '/project-workspace/new',
+      builder: (context, state) => const RoleGuard(
+        requiredPermission: 'authenticated',
+        child: SidebarScaffold(
+          child: ProjectCreateScreen(),
+        ),
+      ),
     ),
     GoRoute(
       path: '/projects/:projectId/edit',
-      redirect: (context, state) {
+      builder: (context, state) {
         final projectId = state.pathParameters['projectId']!;
-        return '/project-workspace/$projectId';
+        return RoleGuard(
+          requiredPermission: 'authenticated',
+          child: SidebarScaffold(
+            child: ProjectCreateScreen(projectId: projectId),
+          ),
+        );
       },
     ),
     GoRoute(
@@ -360,7 +373,7 @@ final GoRouter _router = GoRouter(
               route: '/sprint-console',
               child: SidebarScaffold(
                 child: SprintConsoleScreen(
-                  initialProjectKey: state.uri.queryParameters['projectKey'] ?? state.uri.queryParameters['projectId'],
+                  initialProjectKey: state.uri.queryParameters['projectKey'],
                 ),
               ),
             ),

@@ -1098,9 +1098,7 @@ if (response.statusCode == 200 || response.statusCode == 201) {
       final response = await backendService.getProject(projectId);
 
       if (response.isSuccess && response.data != null) {
-        final raw = response.data!;
-        final projectJson = raw is Map && raw.containsKey('data') ? raw['data'] : raw;
-        return Project.fromJson(Map<String, dynamic>.from(projectJson as Map));
+        return Project.fromJson(response.data!);
       } else {
         debugPrint('Failed to load project: ${response.statusCode} - ${response.error}');
         return null;
@@ -1130,27 +1128,39 @@ if (response.statusCode == 200 || response.statusCode == 201) {
   }
 
   static Future<bool> createProjectModel(Project project) async {
-    final backendService = BackendApiService();
-    final response = await backendService.createProject(project.toJson());
+    try {
+      final backendService = BackendApiService();
+      final response = await backendService.createProject(project.toJson());
 
-    if (response.isSuccess) {
-      debugPrint('Project created successfully');
-      return true;
+      if (response.isSuccess) {
+        debugPrint('Project created successfully');
+        return true;
+      } else {
+        debugPrint('Failed to create project: ${response.statusCode} - ${response.error}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error creating project: $e');
+      return false;
     }
-    debugPrint('Failed to create project: ${response.statusCode} - ${response.error}');
-    throw Exception(response.error ?? 'Failed to create project: ${response.statusCode}');
   }
 
   static Future<bool> updateProject(Project project) async {
-    final backendService = BackendApiService();
-    final response = await backendService.updateProject(project.id, project.toJson());
+    try {
+      final backendService = BackendApiService();
+      final response = await backendService.updateProject(project.id, project.toJson());
 
-    if (response.isSuccess) {
-      debugPrint('Project updated successfully');
-      return true;
+      if (response.isSuccess) {
+        debugPrint('Project updated successfully');
+        return true;
+      } else {
+        debugPrint('Failed to update project: ${response.statusCode} - ${response.error}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error updating project: $e');
+      return false;
     }
-    debugPrint('Failed to update project: ${response.statusCode} - ${response.error}');
-    throw Exception(response.error ?? 'Failed to update project: ${response.statusCode}');
   }
 
   static Future<bool> deleteProject(String projectId) async {
