@@ -488,6 +488,17 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
 
     return GlassCard(
       padding: const EdgeInsets.all(20),
+      blur: 8.0,
+      color: Colors.white.withAlpha(12),
+      border: Border.all(color: Colors.white.withAlpha(18), width: 0.8),
+      boxShadow: const [
+        BoxShadow(
+          color: Color.fromARGB(16, 0, 0, 0),
+          blurRadius: 8,
+          spreadRadius: 0.5,
+          offset: Offset(0, 4),
+        ),
+      ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -586,8 +597,17 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
             padding: const EdgeInsets.only(bottom: 16),
             child: GlassCard(
               padding: const EdgeInsets.all(12),
-              color: primaryColor.withAlpha(26),
-              border: Border.all(color: primaryColor.withAlpha(77)),
+              blur: 8.0,
+              color: Colors.white.withAlpha(12),
+              border: Border.all(color: Colors.white.withAlpha(18), width: 0.8),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color.fromARGB(16, 0, 0, 0),
+                  blurRadius: 8,
+                  spreadRadius: 0.5,
+                  offset: Offset(0, 4),
+                ),
+              ],
               child: Row(
                 children: [
                   Icon(Icons.info_outline, color: primaryColor, size: 16),

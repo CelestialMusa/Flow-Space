@@ -9,6 +9,8 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1006,26 +1008,79 @@ app.get('/api/v1/users', authenticateToken, async (req, res) => {
     const search = req.query.search || '';
     const offset = (page - 1) * limit;
 
-    let query = `
+    // Primary query uses first_name/last_name; fallback uses name
+    const params = [];
+    let paramCount = 0;
+    let primaryQuery = `
       SELECT id, email, first_name, last_name, role, created_at, is_active 
       FROM users 
       WHERE 1=1
     `;
-    const params = [];
-    let paramCount = 0;
-
     if (search) {
       paramCount++;
-      query += ` AND (email ILIKE $${paramCount} OR first_name ILIKE $${paramCount} OR last_name ILIKE $${paramCount})`;
+      primaryQuery += ` AND (email ILIKE $${paramCount} OR first_name ILIKE $${paramCount} OR last_name ILIKE $${paramCount})`;
       params.push(`%${search}%`);
     }
-
-    query += ` ORDER BY created_at DESC LIMIT $${++paramCount} OFFSET $${++paramCount}`;
+    primaryQuery += ` ORDER BY created_at DESC LIMIT $${++paramCount} OFFSET $${++paramCount}`;
     params.push(limit, offset);
 
-    const result = await pool.query(query, params);
+    let result;
+    try {
+      result = await pool.query(primaryQuery, params);
+    } catch (colErr) {
+      if (colErr?.code === '42703' || (colErr?.message && /column.*does not exist/i.test(colErr.message))) {
+        // Fallback to single name column
+        const fParams = [];
+        let fCount = 0;
+        let fallbackQuery = `
+          SELECT id, email, name, role, created_at, is_active 
+          FROM users 
+          WHERE 1=1
+        `;
+        if (search) {
+          fCount++;
+          fallbackQuery += ` AND (email ILIKE $${fCount} OR name ILIKE $${fCount})`;
+          fParams.push(`%${search}%`);
+        }
+        fallbackQuery += ` ORDER BY created_at DESC LIMIT $${++fCount} OFFSET $${++fCount}`;
+        fParams.push(limit, offset);
+        result = await pool.query(fallbackQuery, fParams);
 
-    // Get total count for pagination
+        // Also compute total with fallback
+        let fCountQuery = 'SELECT COUNT(*) FROM users WHERE 1=1';
+        const fCountParams = [];
+        if (search) {
+          fCountQuery += ` AND (email ILIKE $1 OR name ILIKE $1)`;
+          fCountParams.push(`%${search}%`);
+        }
+        const fTotal = await pool.query(fCountQuery, fCountParams);
+        const total = parseInt(fTotal.rows[0].count, 10);
+        const users = result.rows.map(row => ({
+          id: row.id,
+          email: row.email,
+          name: row.name || row.email,
+          firstName: null,
+          lastName: null,
+          role: row.role,
+          createdAt: row.created_at,
+          isActive: row.is_active,
+        }));
+        return res.json({
+          success: true,
+          data: users,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+          },
+        });
+      } else {
+        throw colErr;
+      }
+    }
+
+    // Compute total for primary path
     let countQuery = 'SELECT COUNT(*) FROM users WHERE 1=1';
     const countParams = [];
     if (search) {
@@ -1225,10 +1280,22 @@ app.get('/api/v1/auth/me', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     
-    const result = await pool.query(
-      'SELECT id, email, first_name, last_name, role, created_at, is_active FROM users WHERE id = $1',
-      [userId]
-    );
+    let result;
+    try {
+      result = await pool.query(
+        'SELECT id, email, first_name, last_name, role, created_at, is_active FROM users WHERE id = $1',
+        [userId]
+      );
+    } catch (colErr) {
+      if (colErr?.message && /column.*does not exist/i.test(colErr.message)) {
+        result = await pool.query(
+          'SELECT id, email, name, role, created_at, is_active FROM users WHERE id = $1',
+          [userId]
+        );
+      } else {
+        throw colErr;
+      }
+    }
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -1238,9 +1305,9 @@ app.get('/api/v1/auth/me', authenticateToken, async (req, res) => {
     }
     
     const user = result.rows[0];
-    const userName = user.first_name && user.last_name 
-      ? `${user.first_name} ${user.last_name}` 
-      : (user.first_name || user.last_name || user.email);
+    const userName = (user.first_name && user.last_name)
+      ? `${user.first_name} ${user.last_name}`
+      : (user.first_name || user.last_name || user.name || user.email);
     
     res.json({
       success: true,
@@ -1486,7 +1553,34 @@ app.get('/api/v1/count', authenticateToken, async (req, res) => {
         });
     }
 
-    const result = await pool.query(query, params);
+    let result;
+    try {
+      result = await pool.query(query, params);
+    } catch (colErr) {
+      if (colErr?.code === '42703' || (colErr?.message && /column.*does not exist/i.test(colErr.message))) {
+        // Fallback to schema with single name column
+        let fbQuery = `
+          SELECT p.*, COALESCE(u.name, '') as owner_name
+          FROM projects p
+          LEFT JOIN users u ON p.owner_id = u.id
+          WHERE p.id = $1
+        `;
+        const fbParams = [projectId];
+        if (userRole === 'teamMember') {
+          fbQuery = `
+            SELECT p.*, COALESCE(u.name, '') as owner_name
+            FROM projects p
+            LEFT JOIN users u ON p.owner_id = u.id
+            LEFT JOIN project_members pm ON pm.project_id = p.id
+            WHERE p.id = $1 AND (p.owner_id = $2 OR pm.user_id = $2)
+          `;
+          fbParams.push(userId);
+        }
+        result = await pool.query(fbQuery, fbParams);
+      } else {
+        throw colErr;
+      }
+    }
     count = parseInt(result.rows[0].count) || 0;
 
     res.json({
@@ -1537,31 +1631,45 @@ app.get('/api/v1/projects', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const userRole = req.user.role;
-
-    let query = `
+    
+    // Build primary query (first_name/last_name) and fallback query (name)
+    const basePrimary = `
       SELECT 
         p.*,
         TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) as owner_name
       FROM projects p
       LEFT JOIN users u ON p.owner_id = u.id
     `;
+    const baseFallback = `
+      SELECT 
+        p.*,
+        COALESCE(u.name, '') as owner_name
+      FROM projects p
+      LEFT JOIN users u ON p.owner_id = u.id
+    `;
     const params = [];
-
+    let suffix = ' ORDER BY p.created_at DESC';
     if (userRole === 'teamMember') {
-      query += `
+      suffix = `
         LEFT JOIN project_members pm ON pm.project_id = p.id
         WHERE p.owner_id = $1 OR pm.user_id = $1
+        ORDER BY p.created_at DESC
       `;
       params.push(userId);
     }
 
-    query += ' ORDER BY p.created_at DESC';
-    const result = await pool.query(query, params);
+    let result;
+    try {
+      result = await pool.query(basePrimary + suffix, params);
+    } catch (colErr) {
+      if (colErr?.message && /column.*does not exist/i.test(colErr.message)) {
+        result = await pool.query(baseFallback + suffix, params);
+      } else {
+        throw colErr;
+      }
+    }
 
-    res.json({
-      success: true,
-      data: result.rows
-    });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching projects:', error);
     if (error && error.code === '42P01') {
@@ -1768,7 +1876,34 @@ app.get('/api/v1/projects/:projectId', authenticateToken, async (req, res) => {
       params.push(userId);
     }
 
-    const result = await pool.query(query, params);
+    let result;
+    try {
+      result = await pool.query(query, params);
+    } catch (colErr) {
+      if (colErr?.code === '42703' || (colErr?.message && /column.*does not exist/i.test(colErr.message))) {
+        // Fallback to schema with single name column
+        let fbQuery = `
+          SELECT p.*, COALESCE(u.name, '') as owner_name
+          FROM projects p
+          LEFT JOIN users u ON p.owner_id = u.id
+          WHERE p.id = $1
+        `;
+        const fbParams = [projectId];
+        if (userRole === 'teamMember') {
+          fbQuery = `
+            SELECT p.*, COALESCE(u.name, '') as owner_name
+            FROM projects p
+            LEFT JOIN users u ON p.owner_id = u.id
+            LEFT JOIN project_members pm ON pm.project_id = p.id
+            WHERE p.id = $1 AND (p.owner_id = $2 OR pm.user_id = $2)
+          `;
+          fbParams.push(userId);
+        }
+        result = await pool.query(fbQuery, fbParams);
+      } else {
+        throw colErr;
+      }
+    }
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Project not found' });
     }
@@ -2374,26 +2509,44 @@ app.get('/api/v1/sprints/:sprintId/tickets', authenticateToken, async (req, res)
 app.get('/api/v1/notifications/me', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    
-    const result = await pool.query(`
-      SELECT 
-        n.id,
-        n.title,
-        n.message,
-        n.type,
-        n.is_read,
-        n.created_at,
-        TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) as user_name
-      FROM notifications n
-      LEFT JOIN users u ON n.user_id = u.id
-      WHERE n.user_id = $1
-      ORDER BY n.created_at DESC
-    `, [userId]);
+    let result;
+    try {
+      result = await pool.query(`
+        SELECT 
+          n.id,
+          n.title,
+          n.message,
+          n.type,
+          n.is_read,
+          n.created_at,
+          TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) as user_name
+        FROM notifications n
+        LEFT JOIN users u ON n.user_id = u.id
+        WHERE n.user_id = $1
+        ORDER BY n.created_at DESC
+      `, [userId]);
+    } catch (colErr) {
+      if (colErr?.code === '42703' || (colErr?.message && /column.*does not exist/i.test(colErr.message))) {
+        result = await pool.query(`
+          SELECT 
+            n.id,
+            n.title,
+            n.message,
+            n.type,
+            n.is_read,
+            n.created_at,
+            COALESCE(u.name, '') as user_name
+          FROM notifications n
+          LEFT JOIN users u ON n.user_id = u.id
+          WHERE n.user_id = $1
+          ORDER BY n.created_at DESC
+        `, [userId]);
+      } else {
+        throw colErr;
+      }
+    }
 
-    res.json({
-      success: true,
-      data: result.rows
-    });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching notifications:', error);
     if (error && error.code === '42P01') {
@@ -2406,26 +2559,44 @@ app.get('/api/v1/notifications/me', authenticateToken, async (req, res) => {
 app.get('/api/v1/notifications', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    
-    const result = await pool.query(`
-      SELECT 
-        n.id,
-        n.title,
-        n.message,
-        n.type,
-        n.is_read,
-        n.created_at,
-        TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) as user_name
-      FROM notifications n
-      LEFT JOIN users u ON n.user_id = u.id
-      WHERE n.user_id = $1
-      ORDER BY n.created_at DESC
-    `, [userId]);
+    let result;
+    try {
+      result = await pool.query(`
+        SELECT 
+          n.id,
+          n.title,
+          n.message,
+          n.type,
+          n.is_read,
+          n.created_at,
+          TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) as user_name
+        FROM notifications n
+        LEFT JOIN users u ON n.user_id = u.id
+        WHERE n.user_id = $1
+        ORDER BY n.created_at DESC
+      `, [userId]);
+    } catch (colErr) {
+      if (colErr?.code === '42703' || (colErr?.message && /column.*does not exist/i.test(colErr.message))) {
+        result = await pool.query(`
+          SELECT 
+            n.id,
+            n.title,
+            n.message,
+            n.type,
+            n.is_read,
+            n.created_at,
+            COALESCE(u.name, '') as user_name
+          FROM notifications n
+          LEFT JOIN users u ON n.user_id = u.id
+          WHERE n.user_id = $1
+          ORDER BY n.created_at DESC
+        `, [userId]);
+      } else {
+        throw colErr;
+      }
+    }
 
-    res.json({
-      success: true,
-      data: result.rows
-    });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching notifications:', error);
     if (error && error.code === '42P01') {
@@ -2762,14 +2933,13 @@ app.get('/api/v1/deliverables', authenticateToken, async (req, res) => {
     try {
       result = await pool.query(query, params);
     } catch (queryError) {
-      // Older schemas may not have sprint_id, so retry without the sprints join
-      if (queryError && queryError.code === '42703' && (queryError.message || '').includes('d.sprint_id')) {
-        console.log('⚠️  deliverables.sprint_id column not found, fetching deliverables without sprint join');
-
+      // Handle older schemas missing columns (e.g., sprint_id or first/last names)
+      if (queryError && queryError.code === '42703') {
+        console.log('⚠️  Missing column in deliverables query; retrying with simplified fallback');
         let fallbackQuery = `
           SELECT d.*,
-                 TRIM(COALESCE(u1.first_name, '') || ' ' || COALESCE(u1.last_name, '')) as created_by_name,
-                 TRIM(COALESCE(u2.first_name, '') || ' ' || COALESCE(u2.last_name, '')) as assigned_to_name
+                 COALESCE(u1.name, '') as created_by_name,
+                 COALESCE(u2.name, '') as assigned_to_name
           FROM deliverables d
           LEFT JOIN users u1 ON d.created_by = u1.id
           LEFT JOIN users u2 ON d.assigned_to = u2.id
@@ -3720,7 +3890,35 @@ app.get('/api/v1/approval-requests', authenticateToken, async (req, res) => {
     
     query += ` ORDER BY ar.created_at DESC`;
     
-    const result = await pool.query(query, params);
+    let result;
+    try {
+      result = await pool.query(query, params);
+    } catch (colErr) {
+      if (colErr && (colErr.code === '42703' || /column\s+.*does not exist/i.test(colErr.message || ''))) {
+        // Fallback for schemas using a single users.name column
+        let fbQuery = `
+          SELECT ar.*,
+            COALESCE(u1.name, u1.email, '') as requested_by_name,
+            COALESCE(u2.name, u2.email, '') as reviewed_by_name
+          FROM approval_requests ar
+          LEFT JOIN users u1 ON ar.requested_by = u1.id
+          LEFT JOIN users u2 ON ar.reviewed_by = u2.id
+          WHERE 1=1
+        `;
+        const fbParams = [];
+        if (userRole === 'teamMember') {
+          fbQuery += ` AND ar.requested_by = $1`;
+          fbParams.push(userId);
+        } else if (userRole === 'deliveryLead') {
+          fbQuery += ` AND (ar.requested_by = $1 OR ar.reviewed_by = $1)`;
+          fbParams.push(userId);
+        }
+        fbQuery += ` ORDER BY ar.created_at DESC`;
+        result = await pool.query(fbQuery, fbParams);
+      } else {
+        throw colErr;
+      }
+    }
     
     const approvalRequests = result.rows.map(row => ({
       id: row.id,
@@ -7371,7 +7569,27 @@ app.get('/api/v1/projects/:projectId/available-sprints', authenticateToken, asyn
 const PORT = process.env.NODE_ENV === 'production'
   ? (parseInt(process.env.PORT, 10) || 3001)
   : 3001;
-app.listen(PORT, () => {
+
+// Create HTTP server and attach Socket.IO
+const server = http.createServer(app);
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: [
+      /^http:\/\/localhost:\d+$/,
+      /^http:\/\/127\.0\.0\.1:\d+$/
+    ],
+    credentials: true
+  }
+});
+
+io.on('connection', (socket) => {
+  console.log('🔌 Socket connected:', socket.id);
+  socket.on('disconnect', () => {
+    console.log('🔌 Socket disconnected:', socket.id);
+  });
+});
+
+server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Dashboard: http://localhost:${PORT}`);
   console.log(`🔗 API Base: http://localhost:${PORT}/api/v1`);

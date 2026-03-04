@@ -20,13 +20,13 @@ class BackgroundImage extends StatelessWidget {
     required this.child,
     this.imagePath = 'assets/Icons/khono_bg.png',
     this.fit = BoxFit.cover,
-    this.withGlassEffect = true,
-    this.overlayOpacity = 0.3,
+    this.withGlassEffect = false,
+    this.overlayOpacity = 0.06,
     this.withGradient = true,
     this.gradientBegin = Alignment.topCenter,
     this.gradientEnd = Alignment.bottomCenter,
     this.gradientColors,
-    this.blurRadius = 5.0,
+    this.blurRadius = 3.0,
     this.overlayChild,
   });
 
@@ -53,8 +53,8 @@ class BackgroundImage extends StatelessWidget {
                   begin: gradientBegin,
                   end: gradientEnd,
                   colors: gradientColors ?? [
-                    Colors.black.withValues(alpha: 0.6),
-                    Colors.black.withValues(alpha: 0.8),
+                    Colors.black.withValues(alpha: 0.2),
+                    Colors.black.withValues(alpha: 0.35),
                   ],
                 ),
               ),

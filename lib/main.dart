@@ -25,6 +25,8 @@ import 'screens/report_repository_screen.dart';
 import 'screens/approval_requests_screen.dart';
 import 'screens/repository_screen.dart';
 import 'screens/notifications_screen.dart';
+import 'screens/projects_screen.dart';
+import 'screens/project_create_screen.dart';
 import 'screens/smtp_config_screen.dart';
 import 'screens/send_reminder_screen.dart';
 import 'screens/role_dashboard_screen.dart';
