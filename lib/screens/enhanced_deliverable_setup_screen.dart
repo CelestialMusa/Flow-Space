@@ -48,6 +48,18 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   @override
   void initState() {
     super.initState();
+    try {
+      final ri = GoRouter.of(context).routeInformationProvider.value;
+      final Uri uri = ri.uri;
+      final sprintId = uri.queryParameters['sprintId'];
+      final projectId = uri.queryParameters['projectId'];
+      if (sprintId != null && sprintId.isNotEmpty && !_selectedSprints.contains(sprintId)) {
+        _selectedSprints.add(sprintId);
+      }
+      if (projectId != null && projectId.isNotEmpty) {
+        _selectedProjectId = projectId;
+      }
+    } catch (_) {}
     _initializeReadinessItems();
     _loadSprints();
     _loadUsers();
@@ -737,9 +749,9 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
               ),
               const SizedBox(height: 16),
 
-              DropdownButtonFormField<String>(
+              DropdownButtonFormField<String?>(
                 // ignore: deprecated_member_use
-                value: _ownerId,
+                value: _users.any((u) => u['id']?.toString() == _ownerId) ? _ownerId : null,
                 decoration: const InputDecoration(
                   labelText: 'Owner',
                   border: OutlineInputBorder(),
@@ -747,7 +759,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
                   helperText: 'Select the team member responsible for this deliverable',
                 ),
                 items: [
-                  DropdownMenuItem<String>(
+                  DropdownMenuItem<String?>(
                     value: null,
                     child: Text(_users.isEmpty ? 'Unassigned (Loading...)' : 'Unassigned'),
                   ),
@@ -769,7 +781,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
                       name = '$name ($role)';
                     }
                     
-                    return DropdownMenuItem<String>(
+                    return DropdownMenuItem<String?>(
                       value: user['id'].toString(),
                       child: Text(name),
                     );
@@ -783,9 +795,9 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
               ),
               const SizedBox(height: 16),
 
-              DropdownButtonFormField<String>(
+              DropdownButtonFormField<String?>(
                 // ignore: deprecated_member_use
-                value: _selectedProjectId,
+                value: _projects.any((p) => p['id']?.toString() == _selectedProjectId) ? _selectedProjectId : null,
                 decoration: const InputDecoration(
                   labelText: 'Assign Project *',
                   border: OutlineInputBorder(),
@@ -793,13 +805,13 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
                   helperText: 'Select the project this deliverable belongs to',
                 ),
                 items: [
-                  DropdownMenuItem<String>(
+                  DropdownMenuItem<String?>(
                     value: null,
                     child: Text(_projects.isEmpty ? 'No projects available' : 'Select Project'),
                   ),
                   ..._projects.map((project) {
                     final name = project['name'] ?? project['key'] ?? 'Unknown Project';
-                    return DropdownMenuItem<String>(
+                    return DropdownMenuItem<String?>(
                       value: project['id'].toString(),
                       child: Text(name),
                     );

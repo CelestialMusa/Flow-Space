@@ -727,30 +727,68 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
       return status != 'completed' && status != 'done';
     });
 
+    // Check permissions
+    final auth = AuthService();
+    final canCreateSprint = auth.hasPermission('create_sprint');
+
     return Column(
       key: _sprintsSectionKey,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final title = Text(
               'Sprints in $projectName',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: theme.textTheme.titleMedium?.copyWith(
                 color: onSurfaceColor,
                 fontWeight: FontWeight.bold,
               ),
-            ),
-            ElevatedButton.icon(
-              onPressed: hasActiveSprint ? null : _showCreateSprintDialog,
-              icon: const Icon(Icons.add),
-              label: Text(hasActiveSprint ? 'Complete Active Sprint to Add' : 'Create Sprint'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: hasActiveSprint ? Colors.grey : primaryColor,
-                foregroundColor: theme.colorScheme.onPrimary,
-              ),
-            ),
-          ],
+            );
+
+            Widget? button;
+            if (canCreateSprint) {
+              button = ElevatedButton.icon(
+                onPressed: hasActiveSprint ? null : _showCreateSprintDialog,
+                icon: const Icon(Icons.add),
+                label: Text(
+                  hasActiveSprint ? 'Complete Active Sprint to Add' : 'Create Sprint',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: hasActiveSprint ? Colors.grey : primaryColor,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                ),
+              );
+            }
+
+            final isNarrow = constraints.maxWidth < 680;
+            if (isNarrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  title,
+                  if (button != null) ...[
+                    const SizedBox(height: 12),
+                    Align(alignment: Alignment.centerLeft, child: button),
+                  ],
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(child: title),
+                if (button != null) ...[
+                  const SizedBox(width: 12),
+                  button,
+                ],
+              ],
+            );
+          },
         ),
         const SizedBox(height: 12),
         if (projectSprints.isEmpty)
@@ -1106,6 +1144,12 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
   }
 
   void _showCreateSprintDialog() async {
+    final auth = AuthService();
+    if (!auth.hasPermission('create_sprint')) {
+      _showSnackBar('You do not have permission to create sprints', isError: true);
+      return;
+    }
+
     if (_selectedProjectKey == null) {
       _showSnackBar('Select a project first', isError: true);
       return;
