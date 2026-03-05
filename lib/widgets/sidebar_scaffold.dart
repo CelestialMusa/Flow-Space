@@ -38,7 +38,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         label: 'Projects',
         icon: Icons.folder_outlined,
         iconName: 'teams',
-        route: '/project-workspace',
+        route: '/projects',
         requiredPermission: null,
       ),
       const _NavItem(
