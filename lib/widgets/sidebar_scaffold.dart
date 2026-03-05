@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/flownet_theme.dart';
-import 'notification_center_widget.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../utils/app_icons.dart';
@@ -36,6 +35,13 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         requiredPermission: null,
       ),
       const _NavItem(
+        label: 'Projects',
+        icon: Icons.folder_outlined,
+        iconName: 'teams',
+        route: '/project-workspace',
+        requiredPermission: null,
+      ),
+      const _NavItem(
         label: 'Sprints',
         icon: Icons.timer_outlined,
         iconName: 'sprints',
@@ -43,10 +49,10 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         requiredPermission: 'view_sprints',
       ),
       const _NavItem(
-        label: 'Notifications',
-        icon: Icons.notifications_outlined,
-        iconName: 'notifications',
-        route: '/notifications',
+        label: 'Deliverables',
+        icon: Icons.rocket_launch_outlined,
+        iconName: 'deliverables',
+        route: '/deliverables-overview',
         requiredPermission: null,
       ),
       const _NavItem(
@@ -83,27 +89,6 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         iconName: 'role_management',
         route: '/role-management',
         requiredPermission: 'manage_users',
-      ),
-      const _NavItem(
-        label: 'Settings',
-        icon: Icons.settings_outlined,
-        iconName: 'settings',
-        route: '/settings',
-        requiredPermission: null,
-      ),
-      const _NavItem(
-        label: 'Profile',
-        icon: Icons.person_outline,
-        iconName: 'account',
-        route: '/profile',
-        requiredPermission: null,
-      ),
-      const _NavItem(
-        label: 'Projects',
-        icon: Icons.folder_outlined,
-        iconName: 'teams',
-        route: '/project-workspace',
-        requiredPermission: null,
       ),
     ];
 
@@ -302,7 +287,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                   color: Colors.transparent,
                   child: Column(
                     children: [
-                      // Top navigation bar with user menu
+                      // Top navigation bar with role title
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
@@ -324,72 +309,40 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                                 color: FlownetColors.textSecondary,
                               ),
                             ],
-                            // User menu and notifications
-                            Row(
-                              children: [
-                                // Notifications
-                                const NotificationCenterWidget(),
-                                const SizedBox(width: 8),
-                                // User menu
-                                PopupMenuButton<String>(
-                                  icon: const Icon(Icons.person_outline,
-                                      color: FlownetColors.textSecondary),
-                                  color: Colors.transparent,
-                                  shape: const CircleBorder(),
-                                  elevation: 0,
-                                  itemBuilder: (BuildContext context) {
-                                    return [
-                                      const PopupMenuItem<String>(
-                                        value: 'profile',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.person_outline,
-                                                size: 20),
-                                            SizedBox(width: 8),
-                                            Text('Profile'),
-                                          ],
-                                        ),
-                                      ),
-                                      const PopupMenuItem<String>(
-                                        value: 'settings',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.settings_outlined,
-                                                size: 20),
-                                            SizedBox(width: 8),
-                                            Text('Settings'),
-                                          ],
-                                        ),
-                                      ),
-                                      const PopupMenuItem<String>(
-                                        value: 'notifications',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.notifications_outlined,
-                                                size: 20),
-                                            SizedBox(width: 8),
-                                            Text('Notifications'),
-                                          ],
-                                        ),
-                                      ),
-                                    ];
-                                  },
-                                  onSelected: (String value) {
-                                    switch (value) {
-                                      case 'profile':
-                                        context.go('/profile');
-                                        break;
-                                      case 'settings':
-                                        context.go('/settings');
-                                        break;
-                                      case 'notifications':
-                                        context.go('/notifications');
-                                        break;
-                                    }
-                                  },
+                            // Show role-based title on dashboard
+                            if (routeLocation == '/dashboard')
+                              Expanded(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    FutureBuilder(
+                                      future: AuthService().getCurrentUser(),
+                                      builder: (context, snapshot) {
+                                        final roleName = snapshot.hasData
+                                            ? snapshot.data!.roleDisplayName
+                                            : 'Dashboard';
+                                        return Text(
+                                          '$roleName Dashboard',
+                                          style: const TextStyle(
+                                            color: FlownetColors.pureWhite,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
+                            // Hamburger menu button
+                            IconButton(
+                              icon: const Icon(Icons.menu,
+                                  color: FlownetColors.pureWhite),
+                              onPressed: () => _showMainMenu(context),
+                              tooltip: 'Menu',
                             ),
+                            // Spacer when not on dashboard
+                            if (routeLocation != '/dashboard') const Spacer(),
                           ],
                         ),
                       ),
@@ -440,8 +393,6 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
               color: FlownetColors.pureWhite,
               iconSize: 20,
             ),
-            const NotificationCenterWidget(),
-            const SizedBox(width: 8),
             const _UserAvatarButton(),
           ],
         ),
@@ -618,6 +569,83 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
     await AuthService().signOut();
     if (!mounted) return;
     router.go('/');
+  }
+
+  void _showMainMenu(BuildContext context) {
+    // Capture all needed values before async operation
+    final router = GoRouter.of(context);
+    final ctx = context;
+    
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        MediaQuery.of(context).size.width - 200,
+        100,
+        MediaQuery.of(context).size.width,
+        100,
+      ),
+      items: <PopupMenuEntry<String>>[
+        const PopupMenuItem<String>(
+          value: 'profile',
+          child: Row(
+            children: [
+              Icon(Icons.person_outline, size: 20),
+              SizedBox(width: 8),
+              Text('Profile'),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'settings',
+          child: Row(
+            children: [
+              Icon(Icons.settings_outlined, size: 20),
+              SizedBox(width: 8),
+              Text('Settings'),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'notifications',
+          child: Row(
+            children: [
+              Icon(Icons.notifications_outlined, size: 20),
+              SizedBox(width: 8),
+              Text('Notifications'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem<String>(
+          value: 'logout',
+          child: Row(
+            children: [
+              Icon(Icons.logout, size: 20, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Logout', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (value != null && mounted) {
+        switch (value) {
+          case 'profile':
+            router.go('/profile');
+            break;
+          case 'settings':
+            router.go('/settings');
+            break;
+          case 'notifications':
+            router.go('/notifications');
+            break;
+          case 'logout':
+            // Call logout immediately, not in async gap
+            _handleLogout(ctx);
+            break;
+        }
+      }
+    });
   }
 
   Widget _buildLogoutButton() {

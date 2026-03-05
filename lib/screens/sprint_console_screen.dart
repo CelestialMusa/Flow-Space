@@ -946,6 +946,18 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
       itemBuilder: (context, index) {
         final sprint = sprints[index];
         final isSelected = _selectedSprintId == sprint['id']?.toString();
+        
+        // Calculate if sprint is out of project date range
+        DateTime? sprintStart;
+        DateTime? sprintEnd;
+        if (sprint['start_date'] != null) {
+          sprintStart = DateTime.tryParse(sprint['start_date'].toString());
+        }
+        if (sprint['end_date'] != null) {
+          sprintEnd = DateTime.tryParse(sprint['end_date'].toString());
+        }
+        final bool isOutOfRange = (projectStartDate != null && sprintStart != null && sprintStart.isBefore(projectStartDate)) ||
+                                  (projectEndDate != null && sprintEnd != null && sprintEnd.isAfter(projectEndDate));
 
         return Container(
           margin: const EdgeInsets.only(bottom: 16),

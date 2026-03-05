@@ -6,7 +6,6 @@ import 'package:khono/models/project.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/glass_card.dart';
 import 'project_workspace_screen.dart';
-import 'project_details_screen.dart';
 
 class ProjectsScreen extends StatefulWidget {
   const ProjectsScreen({super.key});
@@ -378,12 +377,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     ],
                     onSelected: (value) {
                       if (value == 'view') {
-                        debugPrint('ProjectsScreen: Navigating to project details for ID: ${project.id}');
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => ProjectDetailsScreen(projectId: project.id),
-                          ),
-                        );
+                        debugPrint('ProjectsScreen: Navigating to project workspace for ID: ${project.id}');
+                        context.push('/project-workspace/${project.id}');
                       } else if (value == 'edit') {
                         debugPrint('ProjectsScreen: Navigating to edit project for ID: ${project.id}');
                         context.push('/project-workspace/${project.id}');

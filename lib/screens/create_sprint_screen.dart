@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../services/sprint_database_service.dart';
-import '../services/project_service.dart';
 import '../models/project.dart';
+import '../services/sprint_database_service.dart';
 
 class CreateSprintScreen extends StatefulWidget {
   final String? projectId;
@@ -33,9 +32,9 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
   final TextEditingController _plannedPointsController = TextEditingController();
   
   // Project selection
-  List<Project> _projects = [];
+  final List<Project> _projects = [];
   Project? _selectedProject;
-  bool _isLoadingProjects = false;
+  final bool _isLoadingProjects = false;
   String? _selectedProjectId;
   final TextEditingController _committedPointsController = TextEditingController();
   final TextEditingController _completedPointsController = TextEditingController();
@@ -168,44 +167,6 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
       if (mounted) {
         setState(() {
         });
-      }
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedProjectId = widget.projectId;
-    if (widget.projectId == null) {
-      _loadProjects();
-    }
-  }
-
-  Future<void> _loadProjects() async {
-    setState(() => _isLoadingProjects = true);
-    try {
-      final projects = await ProjectService.getAllProjects(limit: 1000);
-      setState(() {
-        _projects = projects;
-        _isLoadingProjects = false;
-        // If projectId was passed, try to find and select it
-        if (widget.projectId != null) {
-          try {
-            _selectedProject = _projects.firstWhere(
-              (p) => p.id == widget.projectId,
-            );
-            _selectedProjectId = _selectedProject?.id;
-          } catch (_) {
-            // Project not found in list, that's okay
-          }
-        }
-      });
-    } catch (e) {
-      setState(() => _isLoadingProjects = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading projects: $e')),
-        );
       }
     }
   }

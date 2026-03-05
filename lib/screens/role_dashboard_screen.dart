@@ -15,7 +15,6 @@ import '../models/deliverable.dart';
 import '../screens/deliverables_metrics/deliverables_metrics_screen.dart';
 import '../widgets/sprint_performance_chart.dart';
 import '../widgets/background_image.dart';
-import '../widgets/notification_center_widget.dart';
 import '../widgets/app_modal.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
@@ -447,7 +446,6 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: _buildAppBar(),
       body: BackgroundImage(
         imagePath: 'assets/Icons/khono_bg.png',
         withGlassEffect: false,
@@ -455,69 +453,6 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
         child: _buildRoleSpecificContent(),
       ),
       floatingActionButton: _buildRoleSpecificFAB(),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      title: Text('${_currentUser!.roleDisplayName} Dashboard'),
-      backgroundColor: _currentUser!.roleColor,
-      foregroundColor: Colors.white,
-      actions: [
-        const NotificationCenterWidget(showLabel: false, showBackground: false),
-        IconButton(
-          icon: const Icon(Icons.settings_outlined),
-          onPressed: () => _showSettingsDialog(),
-        ),
-        PopupMenuButton<String>(
-          onSelected: (value) {
-            if (value == 'logout') {
-              _handleLogout();
-            } else if (value == 'profile') {
-              _showProfileDialog();
-            }
-          },
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              value: 'profile',
-              child: Row(
-                children: [
-                  Icon(_currentUser!.roleIcon),
-                  const SizedBox(width: 8),
-                  const Text('Profile'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'logout',
-              child: Row(
-                children: [
-                  Icon(Icons.logout),
-                  SizedBox(width: 8),
-                  Text('Logout'),
-                ],
-              ),
-            ),
-          ],
-          child: FutureBuilder<Uint8List?>(
-            future: _loadAvatarBytes(_currentUser!.id),
-            builder: (context, snapshot) {
-              final hasImage =
-                  snapshot.hasData && (snapshot.data?.isNotEmpty ?? false);
-              return CircleAvatar(
-                backgroundColor: Colors.white,
-                backgroundImage: hasImage ? MemoryImage(snapshot.data!) : null,
-                child: hasImage
-                    ? null
-                    : Icon(
-                        _currentUser!.roleIcon,
-                        color: _currentUser!.roleColor,
-                      ),
-              );
-            },
-          ),
-        ),
-      ],
     );
   }
 
@@ -2362,34 +2297,6 @@ class _RoleDashboardScreenState extends ConsumerState<RoleDashboardScreen> {
     );
     if (route == null) return row;
     return InkWell(onTap: () => context.go(route), child: row);
-  }
-
-  void _showProfileDialog() {
-    showAppDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Profile'),
-        content: Text(_currentUser?.email ?? ''),
-        actions: [
-          TextButton(onPressed: () => context.pop(), child: const Text('Close'))
-        ],
-      ),
-    );
-  }
-
-  void _showSettingsDialog() {
-    showAppDialog(
-      context: context,
-      builder: (context) => const AlertDialog(
-        title: Text('Settings'),
-        content: Text('Settings are coming soon.'),
-      ),
-    );
-  }
-
-  Future<void> _handleLogout() async {
-    await _authService.signOut();
-    if (mounted) context.go('/');
   }
 
   void _setupRealtimeListeners() {
