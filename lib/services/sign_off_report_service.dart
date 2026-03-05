@@ -2,11 +2,11 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../services/auth_service.dart';
 import '../services/api_client.dart';
-import '../config/environment.dart';
+import '../config/api_config.dart';
 
 class SignOffReportService {
   final AuthService _authService;
-  final String _baseUrl = '${Environment.apiBaseUrl}/sign-off-reports';
+  final String _baseUrl = ApiConfig.getFullUrl('/sign-off-reports');
 
   SignOffReportService(this._authService);
 
@@ -193,7 +193,7 @@ class SignOffReportService {
       }
 
       final response = await http.get(
-        Uri.parse('${Environment.apiBaseUrl}/audit/signoff/$reportId'),
+        Uri.parse(ApiConfig.getFullUrl('/audit/signoff/$reportId')),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

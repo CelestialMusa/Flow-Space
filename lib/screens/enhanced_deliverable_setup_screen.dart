@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
@@ -453,7 +453,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
     if (_formKey.currentState == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('❌ Form not initialized. Please refresh the page.'),
+          content: Text('Γ¥î Form not initialized. Please refresh the page.'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 2),
         ),
@@ -465,7 +465,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('❌ Please fill in all required fields correctly'),
+          content: Text('Γ¥î Please fill in all required fields correctly'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 2),
         ),
@@ -478,7 +478,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('❌ Title cannot be empty'),
+          content: Text('Γ¥î Title cannot be empty'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 2),
         ),
@@ -493,7 +493,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
     if (description.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('❌ Description cannot be empty'),
+          content: Text('Γ¥î Description cannot be empty'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 2),
         ),
@@ -516,7 +516,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
       final title = _titleController.text.trim();
       final description = _descriptionController.text.trim();
       
-      debugPrint('📦 Creating deliverable: $title');
+      debugPrint('≡ƒôª Creating deliverable: $title');
       
       // Final validation before API call
       if (title.isEmpty) {
@@ -556,7 +556,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('✅ Deliverable "$title" created successfully!'),
+                content: Text('Γ£à Deliverable "$title" created successfully!'),
                 backgroundColor: Colors.green,
                 duration: const Duration(seconds: 3),
               ),
@@ -571,7 +571,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('❌ Failed to create deliverable: ${response.error ?? "Unknown error"}'),
+              content: Text('Γ¥î Failed to create deliverable: ${response.error ?? "Unknown error"}'),
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 5),
             ),
@@ -579,8 +579,8 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
         }
       }
     } catch (e, stackTrace) {
-      debugPrint('❌ Error creating deliverable: $e');
-      debugPrint('📚 Stack trace: $stackTrace');
+      debugPrint('Γ¥î Error creating deliverable: $e');
+      debugPrint('≡ƒôÜ Stack trace: $stackTrace');
       
       if (mounted) {
         setState(() {
@@ -588,7 +588,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Error creating deliverable: $e'),
+            content: Text('Γ¥î Error creating deliverable: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
           ),
@@ -694,7 +694,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
                 ),
                 maxLines: 3,
                 onChanged: (value) {
-                  debugPrint('📝 Title changed to: "$value"');
+                  debugPrint('≡ƒô¥ Title changed to: "$value"');
                   // Trigger rebuild so AI widget can analyze
                   setState(() {
                     // Force rebuild with new key
@@ -869,7 +869,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
               
               Builder(
                 builder: (context) {
-                  debugPrint('📋 Creating AIReadinessGateWidget with title: "${_titleController.text}"');
+                  debugPrint('≡ƒôï Creating AIReadinessGateWidget with title: "${_titleController.text}"');
                   return AIReadinessGateWidget(
                 key: ValueKey('ai-gate-${_titleController.text}-${_definitionOfDone.length}-${_evidenceLinks.length}'),
                 deliverableId: 'temp-${DateTime.now().millisecondsSinceEpoch}',
