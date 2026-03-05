@@ -11,6 +11,7 @@ import '../services/auth_service.dart';
 import '../config/environment.dart';
 import 'package:http/http.dart' as http;
 import '../widgets/app_scaffold.dart';
+import '../widgets/app_modal.dart';
 import 'package:go_router/go_router.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -289,7 +290,7 @@ Builder(builder: (context) {
                         child: IconButton(
                           icon: const Icon(Icons.camera_alt, size: 20, color: Colors.white),
                           onPressed: () {
-                            showModalBottomSheet(
+                            showAppModalBottomSheet(
                               context: context,
                               builder: (context) => Column(
                                 mainAxisSize: MainAxisSize.min,

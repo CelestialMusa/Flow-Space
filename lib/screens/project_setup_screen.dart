@@ -6,7 +6,6 @@ import '../models/user.dart';
 import '../services/project_service.dart';
 import '../services/user_data_service.dart';
 import '../widgets/glass_card.dart';
-import 'project_workspace_screen.dart';
 
 class ProjectSetupScreen extends StatefulWidget {
   final String? projectId;
@@ -283,12 +282,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
           Navigator.of(context).pop(savedProject);
         } else {
           // Navigate to project workspace screen for new projects
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) =>
-                  ProjectWorkspaceScreen(projectId: savedProject!.id),
-            ),
-          );
+          context.push('/project-workspace/${savedProject.id}');
         }
       }
     } catch (e) {

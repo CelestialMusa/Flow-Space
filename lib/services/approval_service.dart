@@ -87,7 +87,7 @@ class ApprovalService {
       };
 
       debugPrint('🔍 Fetching approval requests with params: $queryParams');
-      final response = await _apiClient.get('/approvals', queryParams: queryParams);
+      final response = await _apiClient.get('/approval-requests', queryParams: queryParams);
 
       debugPrint('📡 Approval requests response: ${response.statusCode} - ${response.isSuccess}');
       
@@ -98,22 +98,28 @@ class ApprovalService {
           final deliverable = e['deliverable'] as Map<String, dynamic>? ?? {};
           final requester = e['requester'] as Map<String, dynamic>? ?? {};
           final approver = e['approver'] as Map<String, dynamic>? ?? {};
+          final requestedByName = e['requested_by_name']?.toString().trim();
+          final reviewedByName = e['reviewed_by_name']?.toString().trim();
           return ApprovalRequest(
             id: e['id']?.toString() ?? '',
-            title: deliverable['title']?.toString() ?? 'Approval Request',
-            description: e['comments']?.toString() ?? '',
+            title: e['title']?.toString() ?? deliverable['title']?.toString() ?? 'Approval Request',
+            description: e['description']?.toString() ?? e['comments']?.toString() ?? '',
             requestedBy: e['requested_by']?.toString() ?? requester['id']?.toString() ?? '',
-            requestedByName: [requester['first_name'], requester['last_name']].whereType<String>().where((s) => s.isNotEmpty).join(' ').trim().isNotEmpty
-                ? [requester['first_name'], requester['last_name']].whereType<String>().join(' ').trim()
-                : (requester['email']?.toString() ?? 'Unknown'),
+            requestedByName: (requestedByName != null && requestedByName.isNotEmpty)
+                ? requestedByName
+                : ([requester['first_name'], requester['last_name']].whereType<String>().where((s) => s.isNotEmpty).join(' ').trim().isNotEmpty
+                    ? [requester['first_name'], requester['last_name']].whereType<String>().join(' ').trim()
+                    : (requester['email']?.toString() ?? 'Unknown')),
             requestedAt: _parseDateTime(e['requested_at']) ?? DateTime.now(),
             status: _parseStatus(e['status']?.toString() ?? 'pending'),
-            reviewedBy: e['approved_by']?.toString() ?? e['rejected_by']?.toString() ?? approver['id']?.toString(),
-            reviewedByName: [approver['first_name'], approver['last_name']].whereType<String>().where((s) => s.isNotEmpty).join(' ').trim().isNotEmpty
-                ? [approver['first_name'], approver['last_name']].whereType<String>().join(' ').trim()
-                : (approver['email']?.toString()),
-            reviewedAt: _parseDateTime(e['approved_at'] ?? e['rejected_at']),
-            reviewReason: e['comments']?.toString(),
+            reviewedBy: e['reviewed_by']?.toString() ?? e['approved_by']?.toString() ?? e['rejected_by']?.toString() ?? approver['id']?.toString(),
+            reviewedByName: (reviewedByName != null && reviewedByName.isNotEmpty)
+                ? reviewedByName
+                : ([approver['first_name'], approver['last_name']].whereType<String>().where((s) => s.isNotEmpty).join(' ').trim().isNotEmpty
+                    ? [approver['first_name'], approver['last_name']].whereType<String>().join(' ').trim()
+                    : (approver['email']?.toString())),
+            reviewedAt: _parseDateTime(e['reviewed_at'] ?? e['approved_at'] ?? e['rejected_at']),
+            reviewReason: e['review_reason']?.toString() ?? e['comments']?.toString(),
             priority: e['priority']?.toString() ?? 'medium',
             category: e['category']?.toString() ?? '',
             deliverableId: deliverable['id']?.toString() ?? e['deliverable_id']?.toString(),
@@ -141,7 +147,7 @@ class ApprovalService {
       if (token == null) {
         return ApiResponse.error('No authentication token available');
       }
-      final uri = Uri.parse('$_baseUrl/approvals');
+      final uri = Uri.parse('$_baseUrl/approval-requests');
       final response = await http.post(
         uri,
         headers: {
@@ -149,9 +155,8 @@ class ApprovalService {
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
-          'deliverable_id': deliverableId,
-          'requested_by': requestedBy,
-          if (comments != null) 'comments': comments,
+          'title': 'Approval request for deliverable',
+          'description': comments ?? '',
           if (category != null) 'category': category,
           'priority': priority,
         }),

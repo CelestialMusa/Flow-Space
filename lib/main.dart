@@ -25,6 +25,8 @@ import 'screens/report_repository_screen.dart';
 import 'screens/approval_requests_screen.dart';
 import 'screens/repository_screen.dart';
 import 'screens/notifications_screen.dart';
+import 'screens/projects_screen.dart';
+import 'screens/project_create_screen.dart';
 import 'screens/smtp_config_screen.dart';
 import 'screens/send_reminder_screen.dart';
 import 'screens/role_dashboard_screen.dart';
@@ -33,6 +35,7 @@ import 'screens/role_management_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/sprint_board_screen.dart';
+import 'screens/timeline_screen.dart';
 import 'screens/system_metrics_screen.dart';
 import 'screens/system_health_screen.dart';
 import 'screens/projects_overview_screen.dart';
@@ -49,7 +52,6 @@ import 'screens/skill_assessment_screen.dart';
 import 'screens/deliverable_detail_screen.dart';
 import 'screens/environment_management_screen.dart';
 import 'screens/project_workspace_screen.dart';
-import 'screens/projects_screen.dart';
 import 'screens/project_setup_screen.dart';
 
 void main() async {
@@ -244,6 +246,15 @@ final GoRouter _router = GoRouter(
       },
     ),
     GoRoute(
+      path: '/timeline',
+      builder: (context, state) => const RouteGuard(
+        route: '/timeline',
+        child: SidebarScaffold(
+          child: TimelineScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
       path: '/report-builder/:deliverableId',
       builder: (context, state) {
         final deliverableId = state.pathParameters['deliverableId']!;
@@ -299,6 +310,17 @@ final GoRouter _router = GoRouter(
               initialDeliverable: initialDeliverable,
             ),
           ),
+        );
+      },
+    ),
+    // Token-based client review route (no auth required)
+    GoRoute(
+      path: '/client-review-token/:token',
+      builder: (context, state) {
+        final token = state.pathParameters['token']!;
+        return ClientReviewScreen(
+          reportId: '', // Will be fetched via token
+          reviewToken: token,
         );
       },
     ),
