@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../models/project.dart';
 import '../services/sprint_database_service.dart';
 
 class CreateSprintScreen extends StatefulWidget {
@@ -29,6 +30,12 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _plannedPointsController = TextEditingController();
+  
+  // Project selection
+  final List<Project> _projects = [];
+  Project? _selectedProject;
+  final bool _isLoadingProjects = false;
+  String? _selectedProjectId;
   final TextEditingController _committedPointsController = TextEditingController();
   final TextEditingController _completedPointsController = TextEditingController();
   final TextEditingController _carriedOverPointsController = TextEditingController();
@@ -246,66 +253,41 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
         }
       }
 
-      if (_isEditing) {
-        final sprintIdStr = widget.sprint!['id']?.toString() ?? '';
-        final sprintId = int.tryParse(sprintIdStr);
-        
-        if (sprintId == null) {
-          throw Exception('Invalid sprint ID for updating');
-        }
-
-        await _sprintService.updateSprint(
-          sprintId: sprintId,
-          name: _nameController.text,
-          startDate: _startDate,
-          endDate: _endDate,
-          projectId: widget.projectId,
-          committedPoints: int.tryParse(_committedPointsController.text),
-          completedPoints: int.tryParse(_completedPointsController.text),
-          carriedOverPoints: int.tryParse(_carriedOverPointsController.text),
-          testPassRate: double.tryParse(_testPassRateController.text),
-          codeCoverage: int.tryParse(_codeCoverageController.text),
-          escapedDefects: int.tryParse(_escapedDefectsController.text),
-          defectsOpened: int.tryParse(_defectsOpenedController.text),
-          defectsClosed: int.tryParse(_defectsClosedController.text),
-          defectSeverityMix: severityMix,
-          codeReviewCompletion: int.tryParse(_codeReviewCompletionController.text),
-          documentationStatus: _documentationStatusController.text.isNotEmpty ? _documentationStatusController.text : null,
-          uatNotes: _uatNotesController.text.isNotEmpty ? _uatNotesController.text : null,
-          uatPassRate: int.tryParse(_uatPassRateController.text),
-          risksIdentified: int.tryParse(_risksIdentifiedController.text),
-          risks: _risksController.text.isNotEmpty ? _risksController.text : null,
-          risksMitigated: int.tryParse(_risksMitigatedController.text),
-          blockers: _blockersController.text.isNotEmpty ? _blockersController.text : null,
-          decisions: _decisionsController.text.isNotEmpty ? _decisionsController.text : null,
+      // Use selected project ID if no projectId was passed
+      final projectIdToUse = _selectedProjectId ?? widget.projectId;
+      
+      if (projectIdToUse == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select a project')),
         );
-      } else {
-        await _sprintService.createSprint(
-          name: _nameController.text,
-          startDate: _startDate!,
-          endDate: _endDate!,
-          projectId: widget.projectId,
-          plannedPoints: int.tryParse(_plannedPointsController.text) ?? 0,
-          committedPoints: int.tryParse(_committedPointsController.text),
-          completedPoints: int.tryParse(_completedPointsController.text),
-          carriedOverPoints: int.tryParse(_carriedOverPointsController.text),
-          testPassRate: double.tryParse(_testPassRateController.text),
-          codeCoverage: int.tryParse(_codeCoverageController.text),
-          escapedDefects: int.tryParse(_escapedDefectsController.text),
-          defectsOpened: int.tryParse(_defectsOpenedController.text),
-          defectsClosed: int.tryParse(_defectsClosedController.text),
-          defectSeverityMix: severityMix,
-          codeReviewCompletion: int.tryParse(_codeReviewCompletionController.text),
-          documentationStatus: _documentationStatusController.text.isNotEmpty ? _documentationStatusController.text : null,
-          uatNotes: _uatNotesController.text.isNotEmpty ? _uatNotesController.text : null,
-          uatPassRate: int.tryParse(_uatPassRateController.text),
-          risksIdentified: int.tryParse(_risksIdentifiedController.text),
-          risks: _risksController.text.isNotEmpty ? _risksController.text : null,
-          risksMitigated: int.tryParse(_risksMitigatedController.text),
-          blockers: _blockersController.text.isNotEmpty ? _blockersController.text : null,
-          decisions: _decisionsController.text.isNotEmpty ? _decisionsController.text : null,
-        );
+        return;
       }
+
+      await _sprintService.createSprint(
+        name: _nameController.text,
+        startDate: _startDate!,
+        endDate: _endDate!,
+        projectId: projectIdToUse,
+        plannedPoints: int.tryParse(_plannedPointsController.text) ?? 0,
+        committedPoints: int.tryParse(_committedPointsController.text),
+        completedPoints: int.tryParse(_completedPointsController.text),
+        carriedOverPoints: int.tryParse(_carriedOverPointsController.text),
+        testPassRate: double.tryParse(_testPassRateController.text),
+        codeCoverage: int.tryParse(_codeCoverageController.text),
+        escapedDefects: int.tryParse(_escapedDefectsController.text),
+        defectsOpened: int.tryParse(_defectsOpenedController.text),
+        defectsClosed: int.tryParse(_defectsClosedController.text),
+        defectSeverityMix: severityMix,
+        codeReviewCompletion: int.tryParse(_codeReviewCompletionController.text),
+        documentationStatus: _documentationStatusController.text.isNotEmpty ? _documentationStatusController.text : null,
+        uatNotes: _uatNotesController.text.isNotEmpty ? _uatNotesController.text : null,
+        uatPassRate: int.tryParse(_uatPassRateController.text),
+        risksIdentified: int.tryParse(_risksIdentifiedController.text),
+        risks: _risksController.text.isNotEmpty ? _risksController.text : null,
+        risksMitigated: int.tryParse(_risksMitigatedController.text),
+        blockers: _blockersController.text.isNotEmpty ? _blockersController.text : null,
+        decisions: _decisionsController.text.isNotEmpty ? _decisionsController.text : null,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -316,10 +298,11 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
     } catch (e) {
       debugPrint('Error saving sprint: $e');
       if (mounted) {
+        final msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : 'Error creating sprint';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error saving sprint: ${e.toString().replaceAll('Exception:', '')}'),
-            backgroundColor: Colors.red,
+            content: Text(msg.isEmpty ? 'Error creating sprint' : (msg.length > 150 ? '${msg.substring(0, 150)}...' : msg)),
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -367,6 +350,7 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('🟢 CreateSprintScreen.build() called - projectId: ${widget.projectId}, projectName: ${widget.projectName}');
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing
@@ -384,29 +368,42 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (!_isEditing && _hasActiveSprint)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withAlpha(51),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.withAlpha(128)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.warning_amber_rounded, color: Colors.red),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'You cannot create a new sprint until all existing sprints in this project are completed.',
-                          style: TextStyle(color: Colors.red[700], fontWeight: FontWeight.bold),
+              // Project selection dropdown (only show if no project was pre-selected)
+              if (widget.projectId == null) ...[
+                _isLoadingProjects
+                    ? const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    : DropdownButtonFormField<Project>(
+                        initialValue: _selectedProject,
+                        decoration: const InputDecoration(
+                          labelText: 'Project *',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.folder),
                         ),
+                        hint: const Text('Select a project'),
+                        items: _projects.map((project) {
+                          return DropdownMenuItem<Project>(
+                            value: project,
+                            child: Text(project.name),
+                          );
+                        }).toList(),
+                        onChanged: (Project? project) {
+                          setState(() {
+                            _selectedProject = project;
+                            _selectedProjectId = project?.id;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null) {
+                            return 'Please select a project';
+                          }
+                          return null;
+                        },
                       ),
-                    ],
-                  ),
-                ),
-              if (widget.projectName != null)
+                const SizedBox(height: 16),
+              ] else if (widget.projectName != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8.0),
                   child: Text(

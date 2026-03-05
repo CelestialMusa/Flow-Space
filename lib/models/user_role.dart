@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 enum UserRole {
   teamMember,
   deliveryLead,
+  client,
   clientReviewer,
   systemAdmin,
   developer,
@@ -19,6 +20,8 @@ extension UserRoleExtension on UserRole {
         return 'Team Member';
       case UserRole.deliveryLead:
         return 'Delivery Lead';
+      case UserRole.client:
+        return 'Client';
       case UserRole.clientReviewer:
         return 'Client Reviewer';
       case UserRole.systemAdmin:
@@ -42,6 +45,8 @@ extension UserRoleExtension on UserRole {
         return 'Can create deliverables and view own work';
       case UserRole.deliveryLead:
         return 'Can manage team and submit for client review';
+      case UserRole.client:
+        return 'Can review deliverables and submit client approvals';
       case UserRole.clientReviewer:
         return 'Can review and approve deliverables';
       case UserRole.systemAdmin:
@@ -65,6 +70,8 @@ extension UserRoleExtension on UserRole {
         return Colors.blue;
       case UserRole.deliveryLead:
         return Colors.orange;
+      case UserRole.client:
+        return Colors.teal;
       case UserRole.clientReviewer:
         return Colors.green;
       case UserRole.systemAdmin:
@@ -88,6 +95,8 @@ extension UserRoleExtension on UserRole {
         return Icons.person;
       case UserRole.deliveryLead:
         return Icons.leaderboard;
+      case UserRole.client:
+        return Icons.handshake;
       case UserRole.clientReviewer:
         return Icons.verified_user;
       case UserRole.systemAdmin:
@@ -163,7 +172,7 @@ class PermissionManager {
     'view_client_review': Permission(
       name: 'View Client Review',
       description: 'Access client review interface',
-      allowedRoles: [UserRole.deliveryLead, UserRole.clientReviewer, UserRole.systemAdmin, UserRole.stakeholder],
+      allowedRoles: [UserRole.deliveryLead, UserRole.clientReviewer, UserRole.client, UserRole.systemAdmin, UserRole.stakeholder],
     ),
     'manage_users': Permission(
       name: 'Manage Users',

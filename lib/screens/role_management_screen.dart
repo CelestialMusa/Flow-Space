@@ -1,5 +1,7 @@
 // ignore_for_file: use_build_context_synchronously, no_leading_underscores_for_local_identifiers
 
+import '../widgets/app_modal.dart';
+
 import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../models/user_role.dart';
@@ -18,7 +20,7 @@ class RoleManagementScreen extends StatefulWidget {
 class _RoleManagementScreenState extends State<RoleManagementScreen> {
   final BackendApiService _apiService = BackendApiService();
   final ErrorHandler _errorHandler = ErrorHandler();
-  
+
   List<User> _users = [];
   bool _isLoading = true;
   String _searchQuery = '';
@@ -60,7 +62,7 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
         searchQuery: _searchQuery.isNotEmpty ? _searchQuery : null,
         filterRole: _filterRole,
       );
-      
+
       setState(() {
         _users = users;
         _isLoading = false;
@@ -131,7 +133,8 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
               children: [
                 _buildFilterChip('All', null),
                 const SizedBox(width: 8),
-                ...UserRole.values.map((role) => _buildFilterChip(role.displayName, role)),
+                ...UserRole.values
+                    .map((role) => _buildFilterChip(role.displayName, role)),
               ],
             ),
           ),
@@ -150,7 +153,8 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
           _filterRole = selected ? role : null;
         });
       },
-      selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+      selectedColor:
+          Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
       checkmarkColor: Theme.of(context).colorScheme.primary,
     );
   }
@@ -202,15 +206,15 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
       final matchesSearch = _searchQuery.isEmpty ||
           user.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           user.email.toLowerCase().contains(_searchQuery.toLowerCase());
-      
+
       final matchesRole = _filterRole == null || user.role == _filterRole;
-      
+
       return matchesSearch && matchesRole;
     }).toList();
 
     // Sort by name
     filtered.sort((a, b) => a.name.compareTo(b.name));
-    
+
     return filtered;
   }
 
@@ -250,7 +254,8 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: user.roleColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
@@ -277,9 +282,12 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: user.isActive ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
+                          color: user.isActive
+                              ? Colors.green.withValues(alpha: 0.1)
+                              : Colors.red.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -369,8 +377,8 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
     final _nameController = TextEditingController();
     final _passwordController = TextEditingController();
     String _selectedRole = 'user';
-    
-    showDialog(
+
+    showAppDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -388,7 +396,8 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
                       if (value == null || value.isEmpty) {
                         return 'Please enter email';
                       }
-                      if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+\$').hasMatch(value)) {
+                      if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+\$')
+                          .hasMatch(value)) {
                         return 'Please enter a valid email';
                       }
                       return null;
@@ -426,10 +435,12 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
                     value: _selectedRole,
                     decoration: const InputDecoration(labelText: 'Role'),
                     items: ['user', 'admin', 'systemAdmin']
-                        .map((role) => DropdownMenuItem(
-                              value: role,
-                              child: Text(role),
-                            ),)
+                        .map(
+                          (role) => DropdownMenuItem(
+                            value: role,
+                            child: Text(role),
+                          ),
+                        )
                         .toList(),
                     onChanged: (value) {
                       _selectedRole = value!;
@@ -464,16 +475,18 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
                       _nameController.text,
                       userRole,
                     );
-                    
+
                     if (response.isSuccess) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('User created successfully')),
+                        const SnackBar(
+                            content: Text('User created successfully')),
                       );
                       _loadUsers(); // Refresh the user list
                       Navigator.of(context).pop();
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Error: \${response.error}')),
+                        const SnackBar(
+                            content: Text('Error: \${response.error}')),
                       );
                     }
                   } catch (e) {
@@ -495,7 +508,7 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
     final emailController = TextEditingController(text: user.email);
     UserRole selectedRole = user.role;
 
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Edit ${user.name}'),
@@ -517,10 +530,14 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
                 // ignore: deprecated_member_use
                 value: selectedRole,
                 decoration: const InputDecoration(labelText: 'Role'),
-                items: UserRole.values.map((role) => DropdownMenuItem(
-                  value: role,
-                  child: Text(role.displayName),
-                ),).toList(),
+                items: UserRole.values
+                    .map(
+                      (role) => DropdownMenuItem(
+                        value: role,
+                        child: Text(role.displayName),
+                      ),
+                    )
+                    .toList(),
                 onChanged: (role) {
                   if (role != null) selectedRole = role;
                 },
@@ -537,8 +554,10 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
             onPressed: () async {
               final nameParts = nameController.text.trim().split(' ');
               final firstName = nameParts.isNotEmpty ? nameParts.first : '';
-              final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
-              _errorHandler.showLoadingDialog(context, message: 'Saving changes...');
+              final lastName =
+                  nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+              _errorHandler.showLoadingDialog(context,
+                  message: 'Saving changes...');
               try {
                 await _userDataService.updateUser(
                   userId: user.id,
@@ -549,11 +568,13 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
                 );
                 _errorHandler.hideLoadingDialog(context);
                 await _loadUsers();
-                _errorHandler.showSuccessSnackBar(context, 'User updated successfully');
+                _errorHandler.showSuccessSnackBar(
+                    context, 'User updated successfully');
                 Navigator.of(context).pop();
               } catch (e) {
                 _errorHandler.hideLoadingDialog(context);
-                _errorHandler.showErrorSnackBar(context, 'Failed to update user: $e');
+                _errorHandler.showErrorSnackBar(
+                    context, 'Failed to update user: $e');
               }
             },
             child: const Text('Save'),
@@ -564,7 +585,7 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
   }
 
   void _showChangeRoleDialog(User user) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Change Role for ${user.name}'),
@@ -599,7 +620,8 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
       _errorHandler.hideLoadingDialog(context);
       if (success) {
         await _loadUsers();
-        _errorHandler.showSuccessSnackBar(context, '${user.name}\'s role changed to ${newRole.displayName}');
+        _errorHandler.showSuccessSnackBar(
+            context, '${user.name}\'s role changed to ${newRole.displayName}');
       } else {
         _errorHandler.showErrorSnackBar(context, 'Failed to change role');
       }
@@ -611,14 +633,18 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
 
   void _toggleUserStatus(User user) {
     final newStatus = !user.isActive;
-    _errorHandler.showLoadingDialog(context, message: newStatus ? 'Activating user...' : 'Deactivating user...');
-    _userDataService.updateUser(
+    _errorHandler.showLoadingDialog(context,
+        message: newStatus ? 'Activating user...' : 'Deactivating user...');
+    _userDataService
+        .updateUser(
       userId: user.id,
       isActive: newStatus,
-    ).then((_) async {
+    )
+        .then((_) async {
       _errorHandler.hideLoadingDialog(context);
       await _loadUsers();
-      _errorHandler.showSuccessSnackBar(context, '${user.name} ${newStatus ? 'activated' : 'deactivated'}');
+      _errorHandler.showSuccessSnackBar(
+          context, '${user.name} ${newStatus ? 'activated' : 'deactivated'}');
     }).catchError((e) {
       _errorHandler.hideLoadingDialog(context);
       _errorHandler.showErrorSnackBar(context, 'Failed to update status: $e');
@@ -626,12 +652,13 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
   }
 
   void _showDeleteUserDialog(User user) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Delete User'),
-          content: Text('Are you sure you want to delete ${user.name}? This action cannot be undone.'),
+          content: Text(
+              'Are you sure you want to delete ${user.name}? This action cannot be undone.'),
           actions: <Widget>[
             TextButton(
               child: const Text('Cancel'),
@@ -642,14 +669,17 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
             TextButton(
               child: const Text('Delete', style: TextStyle(color: Colors.red)),
               onPressed: () async {
-                _errorHandler.showLoadingDialog(context, message: 'Deleting user...');
+                _errorHandler.showLoadingDialog(context,
+                    message: 'Deleting user...');
                 final result = await _userDataService.deleteUser(user.id);
                 _errorHandler.hideLoadingDialog(context);
                 if (result['success'] == true) {
-                  _errorHandler.showSuccessSnackBar(context, 'User deleted successfully');
+                  _errorHandler.showSuccessSnackBar(
+                      context, 'User deleted successfully');
                   await _loadUsers();
                 } else {
-                  _errorHandler.showErrorSnackBar(context, result['error']?.toString() ?? 'Failed to delete user');
+                  _errorHandler.showErrorSnackBar(context,
+                      result['error']?.toString() ?? 'Failed to delete user');
                 }
                 Navigator.of(context).pop();
               },
@@ -659,8 +689,6 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
       },
     );
   }
-
-
 
   UserRole _convertStringToUserRole(String roleString) {
     switch (roleString.toLowerCase()) {

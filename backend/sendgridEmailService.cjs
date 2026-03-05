@@ -3,10 +3,29 @@ const sgMail = require('@sendgrid/mail');
 
 class SendGridEmailService {
   constructor() {
+    // Validate API key format
+    if (!process.env.SENDGRID_API_KEY || !process.env.SENDGRID_API_KEY.startsWith('SG.')) {
+      console.error('❌ Invalid SendGrid API key format');
+      console.error('💡 Expected format: SG.xxxxxxxxxxxx.yyyyyyyyyyyyyyyyyyyyyyyy');
+      console.error('💡 Current key:', process.env.SENDGRID_API_KEY ? 'Set but invalid format' : 'Not set');
+      throw new Error('Invalid SENDGRID_API_KEY format');
+    }
+
     this.sendgrid = sgMail.setApiKey(process.env.SENDGRID_API_KEY);
     this.fromName = process.env.FROM_NAME || 'Flownet Workspaces';
-    this.fromEmail = process.env.FROM_EMAIL || 'noreply@flownet.works';
+    this.fromEmail = process.env.FROM_EMAIL || 'dhlamininaomi1@gmail.com';
     this.replyTo = process.env.EMAIL_REPLY_TO || this.fromEmail;
+    
+    // Enhanced validation
+    console.log('📧 SendGrid Configuration:');
+    console.log('  API Key Valid:', !!process.env.SENDGRID_API_KEY);
+    console.log('  API Key Format:', process.env.SENDGRID_API_KEY?.startsWith('SG.') ? 'Valid' : 'Invalid');
+    console.log('  FROM_EMAIL env var:', process.env.FROM_EMAIL);
+    console.log('  Final fromEmail:', this.fromEmail);
+    console.log('  fromName:', this.fromName);
+    
+    // Validate sender on initialization
+    this.validateSenderConfiguration();
   }
 
   // Test SendGrid connection
@@ -16,35 +35,39 @@ class SendGridEmailService {
         console.log('⚠️  SENDGRID_API_KEY not configured');
         return false;
       }
-      console.log('✅ SendGrid initialized successfully');
-      return true;
+      
+      // Test sender validation
+      const isValid = await this.validateSenderConfiguration();
+      return isValid;
     } catch (error) {
       console.error('❌ SendGrid initialization failed:', error.message);
       return false;
     }
   }
 
-  // Send verification email
-  async sendVerificationEmail(toEmail, userName, verificationCode) {
+  // Validate sender configuration
+  async validateSenderConfiguration() {
     try {
-      const mailOptions = {
-        to: toEmail,
+      console.log('🔍 Validating SendGrid sender configuration...');
+      
+      // Test with a minimal email to self
+      const testEmail = {
+        to: this.fromEmail,
         from: {
           name: this.fromName,
           email: this.fromEmail
         },
-        subject: 'Verify Your Email - Flownet Workspaces',
-        html: this.buildVerificationEmailHtml(userName, verificationCode),
-        replyTo: this.replyTo
+        subject: 'SendGrid Configuration Test',
+        html: '<p>This is a test to verify sender configuration.</p>',
+        category: 'configuration_test'
       };
 
-      const result = await this.sendgrid.send(mailOptions);
-      console.log('✅ Verification email sent successfully via SendGrid:', result[0].messageId);
-      return { success: true, messageId: result[0].messageId };
+      const result = await this.sendgrid.send(testEmail);
+      console.log('✅ Sender configuration validated:', result[0].messageId);
+      return true;
     } catch (error) {
-      console.error('❌ Failed to send verification email via SendGrid:', error.message);
+      console.error('❌ Sender configuration failed:', error.message);
       
-      // Better error debugging
       if (error.response) {
         console.error('📧 SendGrid API Response:', {
           status: error.response.status,
@@ -54,10 +77,70 @@ class SendGridEmailService {
         // Specific error guidance
         if (error.response.status === 401) {
           console.error('🔑 SendGrid Error: Invalid API Key');
-          console.error('💡 Fix: Check SENDGRID_API_KEY in Render environment variables');
+          console.error('💡 Fix: Check SENDGRID_API_KEY in environment variables');
         } else if (error.response.status === 403) {
-          console.error('📧 SendGrid Error: Sender not verified');
-          console.error('💡 Fix: Verify your sender email/domain in SendGrid dashboard');
+          console.error('🚫 SendGrid Error: Sender not authorized');
+          console.error('💡 Solutions:');
+          console.error('   1. Verify sender email in SendGrid dashboard');
+          console.error('   2. Complete domain authentication (SPF, DKIM, DMARC)');
+          console.error('   3. Check API key has "Mail Send" permissions');
+          console.error('   4. Ensure FROM_EMAIL matches verified sender exactly');
+          console.error('   5. Check if sender is on a dedicated IP (if required)');
+        } else if (error.response.status === 400) {
+          console.error('📧 SendGrid Error: Bad request');
+          console.error('💡 Fix: Check FROM_EMAIL format and request structure');
+        }
+      }
+      
+      return false;
+    }
+  }
+
+  // Send verification email
+  async sendVerificationEmail(toEmail, userName, verificationCode) {
+    try {
+      console.log(`📧 Sending verification email to: ${toEmail}`);
+      
+      const mailOptions = {
+        to: toEmail,
+        from: {
+          name: this.fromName,
+          email: this.fromEmail
+        },
+        subject: 'Verify Your Email - Flownet Workspaces',
+        html: this.buildVerificationEmailHtml(userName, verificationCode),
+        replyTo: this.replyTo,
+        category: 'email_verification'
+      };
+
+      const result = await this.sendgrid.send(mailOptions);
+      console.log('✅ Verification email sent successfully via SendGrid:', result[0].messageId);
+      return { success: true, messageId: result[0].messageId };
+    } catch (error) {
+      console.error('❌ Failed to send verification email via SendGrid:', error.message);
+      
+      // Enhanced error debugging
+      if (error.response) {
+        console.error('📧 SendGrid API Response:', {
+          status: error.response.status,
+          body: error.response.body
+        });
+        
+        // Don't fallback on 403 - it's a configuration issue
+        if (error.response.status === 403) {
+          console.error('� 403 Forbidden - This is a configuration issue, not a network issue');
+          console.error('💡 Fix sender configuration before retrying');
+          return { 
+            success: false, 
+            error: 'Sender not authorized. Check SendGrid configuration.',
+            requiresConfigurationFix: true 
+          };
+        }
+        
+        // Specific error guidance for other errors
+        if (error.response.status === 401) {
+          console.error('� SendGrid Error: Invalid API Key');
+          console.error('💡 Fix: Check SENDGRID_API_KEY in Render environment variables');
         } else if (error.response.status === 400) {
           console.error('📧 SendGrid Error: Bad request - check FROM_EMAIL format');
           console.error('💡 Fix: Ensure FROM_EMAIL matches verified sender');
@@ -67,7 +150,8 @@ class SendGridEmailService {
         console.error('💡 Fix: Check internet connection and firewall settings');
       }
       
-      // Fallback to SMTP if SendGrid fails
+      // Fallback to SMTP for non-403 errors
+      console.log('🔄 Attempting SMTP fallback...');
       return await this.sendViaSmtpFallback(toEmail, userName, verificationCode);
     }
   }

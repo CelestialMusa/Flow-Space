@@ -11,6 +11,7 @@ import '../widgets/flownet_logo.dart';
 import '../utils/date_utils.dart' as du;
 import 'package:go_router/go_router.dart';
 import 'client_review_workflow_screen.dart';
+import '../widgets/app_modal.dart';
 
 class ApprovalRequestsScreen extends StatefulWidget {
   const ApprovalRequestsScreen({super.key});
@@ -508,7 +509,7 @@ Future.microtask(() async {
   }
 
   void _showRequestDetails(core.ApprovalRequest request) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: FlownetColors.graphiteGray,
@@ -674,7 +675,7 @@ Future.microtask(() async {
     return Scaffold(
       backgroundColor: FlownetColors.charcoalBlack,
       appBar: AppBar(
-        title: const FlownetLogo(showText: true),
+        title: const FlownetLogo(),
         backgroundColor: FlownetColors.charcoalBlack,
         foregroundColor: FlownetColors.pureWhite,
         centerTitle: false,
@@ -977,3 +978,4 @@ if (_getSprintName(request).isNotEmpty)
     );
   }
 }
+
