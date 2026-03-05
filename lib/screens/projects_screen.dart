@@ -127,31 +127,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     );
   }
 
-  void _showErrorMessage(dynamic error) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Failed to load projects: ${error.toString()}'),
-        backgroundColor: Colors.red,
-        action: SnackBarAction(
-          label: 'Retry',
-          textColor: Colors.white,
-          onPressed: _loadProjects,
-        ),
-        duration: const Duration(seconds: 5),
-      ),
-    );
-  }
-
-  void _showEmptyStateMessage() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('No projects found. Create your first project to get started!'),
-        backgroundColor: Colors.blue,
-        duration: Duration(seconds: 3),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
