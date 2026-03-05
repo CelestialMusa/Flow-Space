@@ -1,5 +1,7 @@
 // ignore_for_file: use_build_context_synchronously, no_leading_underscores_for_local_identifiers
 
+import '../widgets/app_modal.dart';
+
 import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../models/user_role.dart';
@@ -370,7 +372,7 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
     final _passwordController = TextEditingController();
     String _selectedRole = 'user';
     
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -495,7 +497,7 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
     final emailController = TextEditingController(text: user.email);
     UserRole selectedRole = user.role;
 
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Edit ${user.name}'),
@@ -564,7 +566,7 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
   }
 
   void _showChangeRoleDialog(User user) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Change Role for ${user.name}'),
@@ -626,7 +628,7 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
   }
 
   void _showDeleteUserDialog(User user) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -685,3 +687,4 @@ class _RoleManagementScreenState extends State<RoleManagementScreen> {
     }
   }
 }
+

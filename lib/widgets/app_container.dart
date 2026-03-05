@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'version_display.dart';
 
 class AppContainer extends StatelessWidget {
   final Widget child;
@@ -30,15 +29,6 @@ class AppContainer extends StatelessWidget {
             ),
           // Content
           child,
-          // Version control in bottom left corner with proper z-index
-          const Positioned(
-            left: 16,
-            bottom: 80, // Moved higher to avoid logout button overlap
-            child: Material(
-              color: Colors.transparent,
-              child: VersionDisplay(),
-            ),
-          ),
         ],
       ),
     );

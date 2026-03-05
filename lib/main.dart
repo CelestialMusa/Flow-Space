@@ -33,6 +33,7 @@ import 'screens/role_management_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/sprint_board_screen.dart';
+import 'screens/timeline_screen.dart';
 import 'screens/system_metrics_screen.dart';
 import 'screens/system_health_screen.dart';
 import 'screens/projects_overview_screen.dart';
@@ -162,15 +163,12 @@ final GoRouter _router = GoRouter(
         ),
       ),
     ),
+    // Redirect /projects to /project-workspace
     GoRoute(
       path: '/projects',
-      builder: (context, state) => const RoleGuard(
-        requiredPermission: 'authenticated',
-        child: SidebarScaffold(
-          child: ProjectsScreen(),
-        ),
-      ),
+      redirect: (context, state) => '/project-workspace',
     ),
+    // Redirect old project routes to project-workspace
     GoRoute(
       path: '/projects/create',
       builder: (context, state) => const RoleGuard(
@@ -244,6 +242,15 @@ final GoRouter _router = GoRouter(
       },
     ),
     GoRoute(
+      path: '/timeline',
+      builder: (context, state) => const RouteGuard(
+        route: '/timeline',
+        child: SidebarScaffold(
+          child: TimelineScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
       path: '/report-builder/:deliverableId',
       builder: (context, state) {
         final deliverableId = state.pathParameters['deliverableId']!;
@@ -302,6 +309,17 @@ final GoRouter _router = GoRouter(
         );
       },
     ),
+    // Token-based client review route (no auth required)
+    GoRoute(
+      path: '/client-review-token/:token',
+      builder: (context, state) {
+        final token = state.pathParameters['token']!;
+        return ClientReviewScreen(
+          reportId: '', // Will be fetched via token
+          reviewToken: token,
+        );
+      },
+    ),
     GoRoute(
       path: '/enhanced-client-review/:reportId',
       builder: (context, state) {
@@ -348,20 +366,20 @@ final GoRouter _router = GoRouter(
     ),
     GoRoute(
       path: '/sprint-console',
-            builder: (context, state) {
-              final projectKey = state.uri.queryParameters['projectKey'];
-              final projectId = state.uri.queryParameters['projectId'];
-              final sprintId = state.uri.queryParameters['sprintId'];
-              return RouteGuard(
-                route: '/sprint-console',
-                child: SidebarScaffold(
-                  child: SprintConsoleScreen(
-                    initialProjectKey: projectKey ?? projectId,
-                    initialSprintId: sprintId,
-                  ),
-                ),
-              );
-            },
+      builder: (context, state) {
+        final projectKey = state.uri.queryParameters['projectKey'];
+        final projectId = state.uri.queryParameters['projectId'];
+        final sprintId = state.uri.queryParameters['sprintId'];
+        return RouteGuard(
+          route: '/sprint-console',
+          child: SidebarScaffold(
+            child: SprintConsoleScreen(
+              initialProjectKey: projectKey ?? projectId,
+              initialSprintId: sprintId,
+            ),
+          ),
+        );
+      },
     ),
     GoRoute(
       path: '/sprint-board/:sprintId',

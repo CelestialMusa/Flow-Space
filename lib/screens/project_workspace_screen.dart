@@ -10,6 +10,7 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/user_data_service.dart';
 import '../providers/service_providers.dart';
+import '../services/project_service.dart';
 
 class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
   final String? projectId;
@@ -26,7 +27,7 @@ class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
 class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-    final _descriptionController = TextEditingController();
+  final _descriptionController = TextEditingController();
   final _clientNameController = TextEditingController();
   final _tagsController = TextEditingController();
   
@@ -48,18 +49,70 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   bool _isEditing = false;
   Project? _currentProject;
   bool _isSendingReminder = false;
+  List<Project> _projects = [];
+  bool _showProjectsList = false;
 
   @override
   void initState() {
     super.initState();
+    // Show projects list only if projectId is null or empty (not 'new')
+    _showProjectsList = widget.projectId == null || widget.projectId == '';
     _initData();
   }
 
+  @override
+  void didUpdateWidget(ProjectWorkspaceScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // When returning from create form (projectId was 'new', now list) refetch so new project appears
+    final wasCreateForm = oldWidget.projectId == 'new';
+    final isListNow = widget.projectId == null || widget.projectId == '';
+    if (wasCreateForm && isListNow) {
+      _showProjectsList = true;
+      _loadProjects();
+    } else if (widget.projectId != oldWidget.projectId) {
+      _showProjectsList = widget.projectId == null || widget.projectId == '';
+      if (_showProjectsList) {
+        _loadProjects();
+      }
+    }
+  }
+
   Future<void> _initData() async {
-    await _loadAvailableData();
-    if (widget.projectId != null && widget.projectId != 'new') {
-      _isEditing = true;
-      await _loadProject();
+    if (_showProjectsList) {
+      await _loadProjects();
+    } else {
+      await _loadAvailableData();
+      // If projectId is 'new', show create form (not editing)
+      // If projectId is an actual ID, load the project for editing
+      if (widget.projectId != null && widget.projectId != 'new') {
+        _isEditing = true;
+        await _loadProject();
+      }
+      // If projectId is 'new', _isEditing stays false, showing create form
+    }
+  }
+
+  Future<void> _loadProjects() async {
+    setState(() => _isLoading = true);
+    try {
+      final projects = await ProjectService.getAllProjects(limit: 1000);
+      setState(() {
+        _projects = projects;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _projects = [];
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not load projects. Tap refresh to retry.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -190,36 +243,6 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
     );
   }
 
-  String _generateProjectKey(String projectName) {
-    // Remove spaces and special characters, convert to uppercase
-    final String cleanName = projectName
-        .replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), '')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    
-    // Take first 3-4 letters of each word
-    final List<String> words = cleanName.split(' ');
-    String key = '';
-    
-    for (String word in words) {
-      if (word.isNotEmpty) {
-        key += word.length >= 3 ? word.substring(0, 3).toUpperCase() : word.toUpperCase();
-      }
-    }
-    
-    // Limit to 10 characters and ensure it starts with a letter
-    if (key.length > 10) {
-      key = key.substring(0, 10);
-    }
-    
-    // If key is empty or doesn't start with a letter, use a default
-    if (key.isEmpty || !RegExp(r'^[A-Z]').hasMatch(key)) {
-      key = 'PRJ${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
-    }
-    
-    return key;
-  }
-
   Future<void> _saveProject() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -228,11 +251,23 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
     setState(() => _isLoading = true);
 
     try {
+      // Derive a sensible project key if creating a new project
+      String deriveProjectKey() {
+        if (_isEditing && _currentProject != null) {
+          return _currentProject!.key;
+        }
+        final name = _nameController.text.trim();
+        if (name.isEmpty) return 'PRJ';
+        final parts = name.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+        final key = parts.map((p) => p[0]).take(4).join().toUpperCase();
+        return key.isEmpty ? 'PRJ' : key;
+      }
+
       final project = Project(
         id: _isEditing ? _currentProject!.id : DateTime.now().millisecondsSinceEpoch.toString(),
-        name: _nameController.text.trim(),
-        key: _isEditing ? _currentProject!.key : _generateProjectKey(_nameController.text.trim()),
-        description: _descriptionController.text.trim(),
+        name: _nameController.text,
+        key: deriveProjectKey(),
+        description: _descriptionController.text,
         clientName: _clientNameController.text.trim().isEmpty ? null : _clientNameController.text.trim(),
         status: _selectedStatus,
         priority: _selectedPriority,
@@ -250,44 +285,39 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
         ownerId: _selectedOwner?.id,
       );
 
+      bool saved = false;
       if (_isEditing) {
-        await ApiService.updateProject(project);
-
-        try {
-          // Link selected deliverables to this project by updating their project_id
-          for (final deliverableId in _deliverableIds) {
-            await ApiService.linkDeliverableToProject(project.id, deliverableId);
-          }
-
-          if (_sprintIds.isNotEmpty) {
-            await ApiService.associateSprintWithProject(project.id, _sprintIds);
-          }
-        } catch (_) {}
-
-        _showSuccessSnackBar('Project updated successfully');
-      } else {
-        final createdProject = await ApiService.createProjectModel(project);
-
-        if (createdProject != null) {
+        saved = await ApiService.updateProject(project);
+        if (saved) {
           try {
             for (final deliverableId in _deliverableIds) {
-              await ApiService.linkDeliverableToProject(createdProject.id, deliverableId);
+              await ApiService.linkDeliverableToProject(project.id, deliverableId);
             }
-
+            if (_sprintIds.isNotEmpty) {
+              await ApiService.associateSprintWithProject(project.id, _sprintIds);
+            }
+          } catch (_) {}
+          _showSuccessSnackBar('Project updated successfully');
+        }
+      } else {
+        final createdProject = await ApiService.createProjectModel(project);
+        saved = createdProject != null;
+        if (saved) {
+          try {
+            for (final deliverableId in _deliverableIds) {
+              await ApiService.linkDeliverableToProject(createdProject!.id, deliverableId);
+            }
             if (_sprintIds.isNotEmpty) {
               await ApiService.associateSprintWithProject(createdProject.id, _sprintIds);
             }
           } catch (_) {}
+          _showSuccessSnackBar('Project created successfully');
         }
-
-        _showSuccessSnackBar('Project created successfully');
       }
 
-      if (mounted) {
+      if (mounted && saved) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) {
-            return;
-          }
+          if (!mounted) return;
           if (Navigator.of(context).canPop()) {
             Navigator.of(context).pop(true);
           } else {
@@ -426,7 +456,9 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(
-          _isEditing ? 'Edit Project' : 'Create New Project',
+          _showProjectsList
+              ? 'Project Workspace'
+              : (_isEditing ? 'Edit Project' : 'Create New Project'),
           style: const TextStyle(
             fontWeight: FontWeight.w600,
             color: Colors.white,
@@ -435,6 +467,30 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                colorScheme.surface.withAlpha(200),
+                colorScheme.surface.withAlpha(100),
+              ],
+            ),
+          ),
+        ),
+        actions: _showProjectsList ? [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () => context.go('/project-workspace/new'),
+            tooltip: 'Create New Project',
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadProjects,
+            tooltip: 'Refresh Projects',
+          ),
+        ] : null,
       ),
       body: _isLoading
           ? Center(
@@ -442,31 +498,268 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
                 valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
               ),
             )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildBasicInfoSection(colorScheme),
-                    const SizedBox(height: 24),
-                    _buildMetadataSection(colorScheme),
-                    const SizedBox(height: 24),
-                    _buildDatesSection(colorScheme),
-                    const SizedBox(height: 24),
-                    _buildMembersSection(colorScheme),
-                    const SizedBox(height: 24),
-                    _buildDeliverablesSection(colorScheme),
-                    const SizedBox(height: 24),
-                    _buildSprintsSection(colorScheme),
-                    const SizedBox(height: 32),
-                    _buildActionButtons(colorScheme),
-                  ],
+          : _showProjectsList
+              ? _buildProjectsList(colorScheme)
+              : Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        colorScheme.surface,
+                        colorScheme.surface.withAlpha(240),
+                        colorScheme.surface.withAlpha(220),
+                      ],
+                    ),
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildBasicInfoSection(colorScheme),
+                          const SizedBox(height: 24),
+                          _buildMetadataSection(colorScheme),
+                          const SizedBox(height: 24),
+                          _buildDatesSection(colorScheme),
+                          const SizedBox(height: 24),
+                          _buildMembersSection(colorScheme),
+                          const SizedBox(height: 24),
+                          _buildDeliverablesSection(colorScheme),
+                          const SizedBox(height: 24),
+                          _buildSprintsSection(colorScheme),
+                          const SizedBox(height: 32),
+                          _buildActionButtons(colorScheme),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
+    );
+  }
+
+  Widget _buildProjectsList(ColorScheme colorScheme) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            colorScheme.surface,
+            colorScheme.surface.withAlpha(240),
+            colorScheme.surface.withAlpha(220),
+          ],
+        ),
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            GlassCard(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withAlpha(51),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: colorScheme.primary.withAlpha(128)),
+                        ),
+                        child: Icon(
+                          Icons.folder_outlined,
+                          color: colorScheme.primary,
+                          size: 32,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Projects',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'View and manage your projects and their sprints',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: colorScheme.onSurface.withAlpha(179),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
+            const SizedBox(height: 24),
+            // Projects List
+            if (_projects.isEmpty)
+              GlassCard(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.folder_outlined,
+                      size: 64,
+                      color: colorScheme.onSurface.withAlpha(128),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No projects yet',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Create your first project to get started',
+                      style: TextStyle(
+                        color: colorScheme.onSurface.withAlpha(179),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () => context.go('/project-workspace/new'),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Create Project'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Your Projects',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _projects.length,
+                    itemBuilder: (context, index) {
+                      final project = _projects[index];
+                      return _buildProjectCard(project, colorScheme);
+                    },
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
     );
+  }
+
+  Widget _buildProjectCard(Project project, ColorScheme colorScheme) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: GlassCard(
+        padding: const EdgeInsets.all(20),
+        child: InkWell(
+          onTap: () => context.go('/project-workspace/${project.id}'),
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          project.name,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                        if (project.description.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            project.description,
+                            style: TextStyle(
+                              color: colorScheme.onSurface.withAlpha(230),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _getProjectStatusColor(project.status).withAlpha(51),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _getProjectStatusColor(project.status),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      project.status.name.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: _getProjectStatusColor(project.status),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getProjectStatusColor(ProjectStatus status) {
+    switch (status) {
+      case ProjectStatus.active:
+        return Colors.green;
+      case ProjectStatus.completed:
+        return Colors.blue;
+      case ProjectStatus.onHold:
+        return Colors.orange;
+      case ProjectStatus.cancelled:
+        return Colors.red;
+      case ProjectStatus.planning:
+        return Colors.grey;
+    }
   }
 
   Widget _buildBasicInfoSection(ColorScheme colorScheme) {

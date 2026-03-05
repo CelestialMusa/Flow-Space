@@ -9,6 +9,7 @@ import '../widgets/flownet_logo.dart';
 import '../widgets/ai_readiness_gate_widget.dart';
 import '../services/deliverable_service.dart';
 import '../services/backend_api_service.dart';
+import '../widgets/app_modal.dart';
 import '../services/api_client.dart';
 import '../config/environment.dart';
 
@@ -41,8 +42,9 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   List<Map<String, dynamic>> _users = [];
   List<Map<String, dynamic>> _projects = [];
   String? _ownerId;
-  String? _selectedProjectId;
-  
+  String? _projectId;
+  final String _priority = 'Medium';
+
   bool _isSubmitting = false;
 
   @override
@@ -51,34 +53,6 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
     _initializeReadinessItems();
     _loadSprints();
     _loadUsers();
-    _loadProjects();
-  }
-
-  Future<void> _loadProjects() async {
-    try {
-      final backendApiService = BackendApiService();
-      final response = await backendApiService.getProjects();
-      
-      if (response.isSuccess && response.data != null) {
-        List<dynamic> projectsList = [];
-        if (response.data is List) {
-          projectsList = response.data as List;
-        } else if (response.data is Map) {
-          final data = response.data as Map<String, dynamic>;
-          projectsList = data['data'] as List? ?? data['projects'] as List? ?? [];
-        }
-        
-        setState(() {
-          _projects = projectsList
-              .where((p) => p != null)
-              .map((p) => p is Map ? Map<String, dynamic>.from(p) : <String, dynamic>{})
-              .where((m) => m.isNotEmpty)
-              .toList();
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading projects: $e');
-    }
   }
 
   void _initializeReadinessItems() {
@@ -193,7 +167,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   }
 
   void _addDoDItem() {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) {
         final controller = TextEditingController();
@@ -229,7 +203,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   }
 
   void _addEvidenceLink() {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) {
         final controller = TextEditingController();
@@ -433,19 +407,18 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
     if (_attachedFiles.isEmpty) return uploadedUrls;
 
     for (var file in _attachedFiles) {
-      if (file.path == null && file.bytes == null) continue;
+      if (file.path == null) continue;
       
       try {
         // Upload to /files/upload
         final response = await _apiClient.uploadFile(
           '/files/upload', 
-          file.path ?? '', 
+          file.path!, 
           file.name, 
           'application/octet-stream', // Or determine mime type
           fields: {
             'prefix': 'deliverables',
-          },
-          fileBytes: file.bytes,
+          }
         );
         
         if (response.isSuccess && response.data != null) {
@@ -566,13 +539,12 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
         title: title,
         description: description.isEmpty ? null : description,
         definitionOfDone: _definitionOfDone.isEmpty ? null : _definitionOfDone,
-        priority: 'Medium',
+        priority: _priority,
         status: 'Draft',
         dueDate: _dueDate,
         sprintIds: _selectedSprints,
         evidenceLinks: allEvidenceLinks,
         ownerId: _ownerId,
-        projectId: _selectedProjectId,
       );
       
       if (mounted) {
@@ -626,7 +598,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
   }
 
   void _showReadinessDialog() {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: FlownetColors.graphiteGray,
@@ -660,7 +632,7 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
     return Scaffold(
       backgroundColor: FlownetColors.charcoalBlack,
       appBar: AppBar(
-        title: const FlownetLogo(showText: true),
+        title: const FlownetLogo(),
         backgroundColor: FlownetColors.charcoalBlack,
         foregroundColor: FlownetColors.pureWhite,
         centerTitle: false,
@@ -737,6 +709,23 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
               ),
               const SizedBox(height: 16),
 
+              InkWell(
+                onTap: _selectDueDate,
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Due Date',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.calendar_today),
+                  ),
+                  child: Text(
+                    _dueDate != null
+                        ? '${_dueDate!.day}/${_dueDate!.month}/${_dueDate!.year}'
+                        : 'Select due date',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
               DropdownButtonFormField<String>(
                 // ignore: deprecated_member_use
                 value: _ownerId,
@@ -779,42 +768,6 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
                   setState(() {
                     _ownerId = value;
                   });
-                },
-              ),
-              const SizedBox(height: 16),
-
-              DropdownButtonFormField<String>(
-                // ignore: deprecated_member_use
-                value: _selectedProjectId,
-                decoration: const InputDecoration(
-                  labelText: 'Assign Project *',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.folder),
-                  helperText: 'Select the project this deliverable belongs to',
-                ),
-                items: [
-                  DropdownMenuItem<String>(
-                    value: null,
-                    child: Text(_projects.isEmpty ? 'No projects available' : 'Select Project'),
-                  ),
-                  ..._projects.map((project) {
-                    final name = project['name'] ?? project['key'] ?? 'Unknown Project';
-                    return DropdownMenuItem<String>(
-                      value: project['id'].toString(),
-                      child: Text(name),
-                    );
-                  }),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _selectedProjectId = value;
-                  });
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please assign a project';
-                  }
-                  return null;
                 },
               ),
               const SizedBox(height: 16),
@@ -995,3 +948,4 @@ class _EnhancedDeliverableSetupScreenState extends ConsumerState<EnhancedDeliver
     super.dispose();
   }
 }
+

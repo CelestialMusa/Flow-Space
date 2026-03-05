@@ -1115,7 +1115,9 @@ if (response.statusCode == 200 || response.statusCode == 201) {
       final response = await backendService.getProject(projectId);
 
       if (response.isSuccess && response.data != null) {
-        return Project.fromJson(response.data!);
+        final raw = response.data!;
+        final projectJson = raw is Map && raw.containsKey('data') ? raw['data'] : raw;
+        return Project.fromJson(Map<String, dynamic>.from(projectJson as Map));
       } else {
         debugPrint('Failed to load project: ${response.statusCode} - ${response.error}');
         return null;
@@ -1148,40 +1150,28 @@ if (response.statusCode == 200 || response.statusCode == 201) {
     try {
       final backendService = BackendApiService();
       final Map<String, dynamic> body = Map<String, dynamic>.from(project.toJson());
-
-      // For project creation, let the backend generate the UUID id
       body.remove('id');
-
       final response = await backendService.createProject(body);
-
       Project? createdProject;
-
       if (response.isSuccess) {
         try {
           final raw = response.data;
           Map<String, dynamic>? created;
-
           if (raw is Map<String, dynamic>) {
             final body = raw['data'] ?? raw['project'] ?? raw;
-            if (body is Map) {
-              created = Map<String, dynamic>.from(body);
-            }
+            if (body is Map) created = Map<String, dynamic>.from(body);
           } else if (raw is Map) {
             final body = raw['data'] ?? raw['project'] ?? raw;
-            if (body is Map) {
-              created = Map<String, dynamic>.from(body);
-            }
+            if (body is Map) created = Map<String, dynamic>.from(body);
           } else if (raw is List && raw.isNotEmpty) {
             created = Map<String, dynamic>.from(raw.first as Map);
           }
-
           if (created != null) {
             try {
               createdProject = Project.fromJson(created);
             } catch (e) {
               debugPrint('Error parsing created project into model: $e');
             }
-
             try {
               final prefs = await SharedPreferences.getInstance();
               final existingStr = prefs.getString('local_created_projects');
@@ -1201,7 +1191,6 @@ if (response.statusCode == 200 || response.statusCode == 201) {
         } catch (e) {
           debugPrint('Error parsing created project response: $e');
         }
-
         debugPrint('Project created successfully');
         return createdProject;
       } else {
@@ -1220,14 +1209,12 @@ if (response.statusCode == 200 || response.statusCode == 201) {
       final Map<String, dynamic> body = Map<String, dynamic>.from(project.toJson());
       body.remove('id');
       final response = await backendService.updateProject(project.id, body);
-
       if (response.isSuccess) {
         debugPrint('Project updated successfully');
         return true;
-      } else {
-        debugPrint('Failed to update project: ${response.statusCode} - ${response.error}');
-        return false;
       }
+      debugPrint('Failed to update project: ${response.statusCode} - ${response.error}');
+      return false;
     } catch (e) {
       debugPrint('Error updating project: $e');
       return false;
