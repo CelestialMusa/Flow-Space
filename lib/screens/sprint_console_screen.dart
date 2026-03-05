@@ -810,7 +810,6 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
 
     // Check permissions
     final auth = AuthService();
-    final canCreateSprint = auth.hasPermission('create_sprint');
 
     return Column(
       key: _sprintsSectionKey,
@@ -845,15 +844,16 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
                 ),
               ],
             ),
-            ElevatedButton.icon(
-              onPressed: hasActiveSprint ? null : _showCreateSprintDialog,
-              icon: const Icon(Icons.add),
-              label: Text(hasActiveSprint ? 'Complete Active Sprint to Add' : 'Create Sprint'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: hasActiveSprint ? Colors.grey : primaryColor,
-                foregroundColor: theme.colorScheme.onPrimary,
+            if (auth.hasPermission('create_sprint'))
+              ElevatedButton.icon(
+                onPressed: hasActiveSprint ? null : _showCreateSprintDialog,
+                icon: const Icon(Icons.add),
+                label: Text(hasActiveSprint ? 'Complete Active Sprint to Add' : 'Create Sprint'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: hasActiveSprint ? Colors.grey : primaryColor,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 12),

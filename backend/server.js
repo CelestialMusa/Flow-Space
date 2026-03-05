@@ -7565,10 +7565,10 @@ app.get('/api/v1/projects/:projectId/available-sprints', authenticateToken, asyn
 });
 
 // Start the server
-// Use 3001 in development so Flutter app (default localhost:3001) can connect; respect PORT in production
+// Use 8000 in development so Flutter app (default localhost:8000) can connect; respect PORT in production
 const PORT = process.env.NODE_ENV === 'production'
-  ? (parseInt(process.env.PORT, 10) || 3001)
-  : 3001;
+  ? (parseInt(process.env.PORT, 10) || 8000)
+  : 8000;
 
 // Create HTTP server and attach Socket.IO
 const server = http.createServer(app);
