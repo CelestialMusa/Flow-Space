@@ -267,9 +267,9 @@
     },
     {
       "name": "fl_chart",
-      "rootUri": "file:///C:/Users/ThabangN/AppData/Local/Pub/Cache/hosted/pub.dev/fl_chart-1.1.1",
+      "rootUri": "file:///C:/Users/ThabangN/AppData/Local/Pub/Cache/hosted/pub.dev/fl_chart-0.65.0",
       "packageUri": "lib/",
-      "languageVersion": "3.6"
+      "languageVersion": "3.0"
     },
     {
       "name": "flutter",
@@ -860,6 +860,12 @@
       "languageVersion": "3.5"
     },
     {
+      "name": "simple_gesture_detector",
+      "rootUri": "file:///C:/Users/ThabangN/AppData/Local/Pub/Cache/hosted/pub.dev/simple_gesture_detector-0.2.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
       "name": "sky_engine",
       "rootUri": "file:///C:/src/flutter/bin/cache/pkg/sky_engine",
       "packageUri": "lib/",
@@ -924,6 +930,12 @@
       "rootUri": "file:///C:/Users/ThabangN/AppData/Local/Pub/Cache/hosted/pub.dev/string_scanner-1.4.1",
       "packageUri": "lib/",
       "languageVersion": "3.1"
+    },
+    {
+      "name": "table_calendar",
+      "rootUri": "file:///C:/Users/ThabangN/AppData/Local/Pub/Cache/hosted/pub.dev/table_calendar-3.2.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
     },
     {
       "name": "term_glyph",

@@ -28,6 +28,13 @@ class TimelineEvent {
   final Map<String, dynamic> metadata;
   final bool isCompleted;
 
+  // Legacy fields used by the original rich timeline screen.
+  // These are optional and primarily for backwards-compatibility.
+  final String? time; // Format: "HH:mm"
+  final String? priority; // 'low' | 'medium' | 'high'
+  final String? project;
+  final String? colorTag; // 'red' | 'blue' | 'green' | 'orange' | 'purple'
+
   const TimelineEvent({
     required this.id,
     required this.title,
@@ -45,6 +52,10 @@ class TimelineEvent {
     this.updatedAt,
     this.metadata = const {},
     this.isCompleted = false,
+    this.time,
+    this.priority,
+    this.project,
+    this.colorTag,
   });
 
   TimelineEvent copyWith({
@@ -64,6 +75,10 @@ class TimelineEvent {
     DateTime? updatedAt,
     Map<String, dynamic>? metadata,
     bool? isCompleted,
+    String? time,
+    String? priority,
+    String? project,
+    String? colorTag,
   }) {
     return TimelineEvent(
       id: id ?? this.id,
@@ -82,6 +97,10 @@ class TimelineEvent {
       updatedAt: updatedAt ?? this.updatedAt,
       metadata: metadata ?? this.metadata,
       isCompleted: isCompleted ?? this.isCompleted,
+      time: time ?? this.time,
+      priority: priority ?? this.priority,
+      project: project ?? this.project,
+      colorTag: colorTag ?? this.colorTag,
     );
   }
 
@@ -103,6 +122,10 @@ class TimelineEvent {
       'updatedAt': updatedAt?.toIso8601String(),
       'metadata': metadata,
       'isCompleted': isCompleted,
+      'time': time,
+      'priority': priority,
+      'project': project,
+      'colorTag': colorTag,
     };
   }
 
@@ -127,8 +150,15 @@ class TimelineEvent {
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt'].toString()) : null,
       metadata: Map<String, dynamic>.from(json['metadata'] ?? {}),
       isCompleted: json['isCompleted'] ?? false,
+      time: json['time']?.toString(),
+      priority: json['priority']?.toString(),
+      project: json['project']?.toString(),
+      colorTag: json['colorTag']?.toString(),
     );
   }
+
+  /// Backwards-compatible convenience getter matching the original model.
+  DateTime get dateTime => date ?? startTime ?? createdAt;
 
   String get typeDisplayName {
     switch (type) {

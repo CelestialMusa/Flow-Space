@@ -212,7 +212,7 @@ class BackendApiService {
   }
 
   Future<ApiResponse> updateSprintStatus(String sprintId, Map<String, dynamic> updates) async {
-    return await _apiClient.put('/sprints/$sprintId/status', body: updates);
+    return await _apiClient.put('/sprints/$sprintId', body: updates);
   }
 
   Future<ApiResponse> runDiagnostics() async {
@@ -292,27 +292,51 @@ class BackendApiService {
     return await _apiClient.post('/sign-off-reports/$reportId/submit');
   }
 
-  Future<ApiResponse> approveSignOffReport(String reportId, String? comment, String? digitalSignature) async {
+  Future<ApiResponse> approveSignOffReport(String reportId, String? comment, String? digitalSignature, {String? reviewToken, String? clientId}) async {
     debugPrint('🔵 Approving/adding feedback to report: $reportId');
-    final resp = await _apiClient.post('/sign-off-reports/$reportId/approve', body: {
+    final body = {
       'comment': comment,
       'digitalSignature': digitalSignature,
-    },);
+      if (clientId != null) 'clientId': clientId,
+    };
+    // If token provided, add it to query or header
+    final queryParams = reviewToken != null ? {'token': reviewToken} : null;
+    final resp = await _apiClient.post('/sign-off-reports/$reportId/approve', body: body, queryParams: queryParams);
     if (resp.isSuccess) {
       try { await _updateCachedReportStatus(reportId, 'approved'); } catch (_) {}
     }
     return resp;
   }
 
-  Future<ApiResponse> requestSignOffChanges(String reportId, String changeRequest) async {
+  Future<ApiResponse> requestSignOffChanges(String reportId, String changeRequest, {String? reviewToken, String? clientId}) async {
     debugPrint('🔵 Requesting changes to report: $reportId');
-    final resp = await _apiClient.post('/sign-off-reports/$reportId/request-changes', body: {
+    final body = {
       'changeRequestDetails': changeRequest,
-    },);
+      if (clientId != null) 'clientId': clientId,
+    };
+    // If token provided, add it to query
+    final queryParams = reviewToken != null ? {'token': reviewToken} : null;
+    final resp = await _apiClient.post('/sign-off-reports/$reportId/request-changes', body: body, queryParams: queryParams);
     if (resp.isSuccess) {
       try { await _updateCachedReportStatus(reportId, 'change_requested'); } catch (_) {}
     }
     return resp;
+  }
+
+  /// Create a secure client review link token
+  Future<ApiResponse> createClientReviewLink(String reportId, String clientEmail, {int? expiresInSeconds}) async {
+    debugPrint('🔵 Creating client review link for report: $reportId');
+    return await _apiClient.post('/sign-off-reports/client-review-links', body: {
+      'reportId': reportId,
+      'clientEmail': clientEmail,
+      if (expiresInSeconds != null) 'expiresInSeconds': expiresInSeconds,
+    });
+  }
+
+  /// Get sign-off report and performance metrics via secure token (no auth required)
+  Future<ApiResponse> getClientReviewByToken(String token) async {
+    debugPrint('🔵 Fetching client review by token');
+    return await _apiClient.get('/sign-off-reports/client-review/$token', requireAuth: false);
   }
 
   Future<ApiResponse> aiChat(List<Map<String, dynamic>> messages, {double? temperature, int? maxTokens}) async {
@@ -695,6 +719,9 @@ class BackendApiService {
       String userRoleForParsing;
       
       switch (backendRole.toLowerCase()) {
+        case 'client':
+          userRoleForParsing = 'client';
+          break;
         case 'clientreviewer':
         case 'client_reviewer':
           userRoleForParsing = 'clientReviewer';

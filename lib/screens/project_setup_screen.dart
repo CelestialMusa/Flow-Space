@@ -6,7 +6,6 @@ import '../models/user.dart';
 import '../services/project_service.dart';
 import '../services/user_data_service.dart';
 import '../widgets/glass_card.dart';
-import 'project_details_screen.dart';
 
 class ProjectSetupScreen extends StatefulWidget {
   final String? projectId;
@@ -281,12 +280,8 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
         if (widget.projectId != null) {
           Navigator.of(context).pop(savedProject);
         } else {
-          // Navigate to project details screen for new projects
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => ProjectDetailsScreen(projectId: savedProject!.id),
-            ),
-          );
+          // Navigate to project workspace screen for new projects
+          context.push('/project-workspace/${savedProject.id}');
         }
       }
     } catch (e) {

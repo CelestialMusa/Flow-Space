@@ -115,7 +115,7 @@ When the backend starts, you'll see:
 ==================================================
 Environment variables loaded from: .env.sit
 NODE_ENV: sit
-PORT: 3001
+PORT: 8000
 ==================================================
 ```
 
