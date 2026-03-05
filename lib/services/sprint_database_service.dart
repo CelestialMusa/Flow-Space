@@ -189,38 +189,30 @@ debugPrint('📡 Sprint creation response: ${response.statusCode}');
             created = Map<String, dynamic>.from(data['data'] as Map);
           } else {
             created = Map<String, dynamic>.from(data);
-          }
-        }
-          debugPrint('✅ Sprint "$name" created successfully');
-          // Send notification for sprint creation
-          try {
-            final token = _authService.accessToken;
-            if (token != null) {
-              _notificationService.setAuthToken(token);
-              final user = _authService.currentUser;
-              final userName = user?.name ?? 'Unknown User';
-              await _notificationService.notifySprintCreated(
-                sprintName: name,
-                projectName: projectId ?? 'Current Project',
-                createdBy: userName,
-              );
-            }
-          } catch (e) {
-            debugPrint('❌ Error sending sprint creation notification: $e');
-          }
-          final Map<String, dynamic> created;
-          if (data['data'] is Map) {
-            created = Map<String, dynamic>.from(data['data']);
-          } else {
-            created = Map<String, dynamic>.from(data);
             created.remove('success');
           }
-          // Cache: prepend to global and project-specific cache
-          try {
-            await _prependCachedSprint(created, projectId: projectId);
-          } catch (_) {}
-          return created;
-        } else {
+        }
+        debugPrint('✅ Sprint "$name" created successfully');
+        try {
+          final token = _authService.accessToken;
+          if (token != null) {
+            _notificationService.setAuthToken(token);
+            final user = _authService.currentUser;
+            final userName = user?.name ?? 'Unknown User';
+            await _notificationService.notifySprintCreated(
+              sprintName: name,
+              projectName: projectId ?? 'Current Project',
+              createdBy: userName,
+            );
+          }
+        } catch (e) {
+          debugPrint('❌ Error sending sprint creation notification: $e');
+        }
+        try {
+          await _prependCachedSprint(created, projectId: projectId);
+        } catch (_) {}
+        return created;
+      } else {
         throw Exception(response.error ?? 'Failed to create sprint');
       }
     } catch (e) {

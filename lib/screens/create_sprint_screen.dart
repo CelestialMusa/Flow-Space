@@ -67,10 +67,14 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedProjectId = widget.projectId;
     _fetchProjectDates();
     _checkActiveSprints();
     if (_isEditing) {
       _fillSprintData();
+    }
+    if (widget.projectId == null) {
+      _loadProjects();
     }
   }
 
@@ -169,15 +173,6 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
         setState(() {
         });
       }
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedProjectId = widget.projectId;
-    if (widget.projectId == null) {
-      _loadProjects();
     }
   }
 

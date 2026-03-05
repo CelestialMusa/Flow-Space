@@ -1175,37 +1175,37 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
     String? projectName;
     final key = _selectedProjectKey;
     
+    Map<String, dynamic> selectedProject = const {};
     if (key != null && key.isNotEmpty) {
       try {
-        final selectedProject = _projects.firstWhere(
+        selectedProject = _projects.firstWhere(
           (p) {
             final pid = p['id']?.toString();
             final pkey = p['key']?.toString();
             return pid == key || pkey == key;
           },
         );
-        projectId = selectedProject['id']?.toString();
-        projectName = selectedProject['name']?.toString();
-        if (projectId != null && projectId.isNotEmpty) {
-          debugPrint('🔵 Selected project: $projectName (ID: $projectId)');
-        }
       } catch (e) {
         debugPrint('⚠️ Selected project not found: $e');
       }
+    }
+    if (selectedProject.isEmpty) {
+      selectedProject = _projects.firstWhere(
+        (p) {
+          final k = p['key']?.toString();
+          final id = p['id']?.toString();
+          return k == _selectedProjectKey || id == _selectedProjectKey;
+        },
+        orElse: () => <String, dynamic>{},
+      );
+    }
+    projectId = selectedProject['id']?.toString();
+    projectName = selectedProject['name']?.toString();
+    if (projectId != null && projectId.isNotEmpty) {
+      debugPrint('🔵 Selected project: $projectName (ID: $projectId)');
     } else {
       debugPrint('🔵 No project selected - will show project dropdown');
     }
-
-    final selectedProject = _projects.firstWhere(
-      (p) {
-        final key = p['key']?.toString();
-        final id = p['id']?.toString();
-        return key == _selectedProjectKey || id == _selectedProjectKey;
-      },
-      orElse: () => <String, dynamic>{},
-    );
-    final projectId = selectedProject['id']?.toString();
-    final projectName = selectedProject['name']?.toString();
 
     // Extra safety check for active sprints
     final projectSprints = _sprints.where((s) {

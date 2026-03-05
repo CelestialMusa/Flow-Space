@@ -331,7 +331,6 @@ class AuthService {
       default:
         return true;
       }
-    }
   }
 
   /// Authenticate using a JWT token (e.g. from validate-token or magic link).

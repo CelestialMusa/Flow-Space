@@ -36,6 +36,13 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         requiredPermission: null,
       ),
       const _NavItem(
+        label: 'Projects',
+        icon: Icons.folder_outlined,
+        iconName: 'projects',
+        route: '/projects',
+        requiredPermission: null,
+      ),
+      const _NavItem(
         label: 'Sprints', 
         icon: Icons.timer_outlined, 
         iconName: 'sprints',
