@@ -36,7 +36,8 @@ class ApiConfig {
   static const String deliverables = '/deliverables';
   static const String deliverableSubmit = '/deliverables/{id}/submit';
   static const String deliverableApprove = '/deliverables/{id}/approve';
-  static const String deliverableRequestChanges = '/deliverables/{id}/request-changes';
+  static const String deliverableRequestChanges =
+      '/deliverables/{id}/request-changes';
 
   // Sprint endpoints
   static const String sprints = '/sprints';
@@ -46,7 +47,8 @@ class ApiConfig {
   static const String signOffReports = '/sign-off-reports';
   static const String signOffReportSubmit = '/sign-off-reports/{id}/submit';
   static const String signOffReportApprove = '/sign-off-reports/{id}/approve';
-  static const String signOffReportRequestChanges = '/sign-off-reports/{id}/request-changes';
+  static const String signOffReportRequestChanges =
+      '/sign-off-reports/{id}/request-changes';
 
   // Release readiness endpoints
   static const String releaseReadiness = '/deliverables/{id}/readiness-checks';
@@ -71,21 +73,24 @@ class ApiConfig {
 
   // Authentication
   static String authToken = '';
-  
+
   // Helper methods
   static String getFullUrl(String endpoint) {
     return '$baseUrl$apiVersion$endpoint';
   }
 
-  static String replacePathParameter(String endpoint, String parameter, String value) {
+  static String replacePathParameter(
+      String endpoint, String parameter, String value) {
     return endpoint.replaceAll('{$parameter}', value);
   }
 
   // Environment detection - improved logic
-  static bool get isDevelopment => const bool.fromEnvironment('dart.vm.product') == false && 
-                                   const String.fromEnvironment('FLUTTER_WEB', defaultValue: '') == '';
-  static bool get isProduction => const bool.fromEnvironment('dart.vm.product') == true ||
-                                   const String.fromEnvironment('FLUTTER_WEB', defaultValue: '') != '';
+  static bool get isDevelopment =>
+      const bool.fromEnvironment('dart.vm.product') == false &&
+      const String.fromEnvironment('FLUTTER_WEB', defaultValue: '') == '';
+  static bool get isProduction =>
+      const bool.fromEnvironment('dart.vm.product') == true ||
+      const String.fromEnvironment('FLUTTER_WEB', defaultValue: '') != '';
 
   // Get environment-specific base URL
   static String get environmentBaseUrl {
@@ -100,15 +105,15 @@ class ApiConfig {
 
   // API Headers
   static Map<String, String> get defaultHeaders => {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'User-Agent': 'Flownet-Mobile/1.0.0',
-  };
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'Flownet-Mobile/1.0.0',
+      };
 
   static Map<String, String> getAuthHeaders(String token) => {
-    ...defaultHeaders,
-    'Authorization': 'Bearer $token',
-  };
+        ...defaultHeaders,
+        'Authorization': 'Bearer $token',
+      };
 
   // Error codes
   static const int unauthorizedCode = 401;
@@ -120,7 +125,8 @@ class ApiConfig {
   // Retry configuration
   static const int maxRetryAttempts = 3;
   static const Duration retryDelay = Duration(seconds: 2);
-  static const Duration exponentialBackoffMultiplier = Duration(milliseconds: 500);
+  static const Duration exponentialBackoffMultiplier =
+      Duration(milliseconds: 500);
 
   // Cache configuration
   static const Duration cacheExpiry = Duration(minutes: 5);

@@ -30,8 +30,14 @@ const handleMulterSingle = (req, res, next) => {
  */
 router.get('/', async (req, res) => {
   try {
-    const { skip = 0, limit = 100 } = req.query;
+    const { skip = 0, limit = 100, project_id } = req.query;
+    const where = {};
+    if (project_id) {
+      where.project_id = project_id;
+    }
+
     const deliverables = await Deliverable.findAll({
+      where,
       offset: parseInt(skip),
       limit: parseInt(limit),
       order: [['created_at', 'DESC']],

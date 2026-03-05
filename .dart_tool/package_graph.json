@@ -40,6 +40,7 @@
         "share_plus",
         "shared_preferences",
         "socket_io_client",
+        "table_calendar",
         "timezone",
         "universal_html",
         "url_launcher",
@@ -482,12 +483,20 @@
       ]
     },
     {
+      "name": "table_calendar",
+      "version": "3.2.0",
+      "dependencies": [
+        "flutter",
+        "intl",
+        "simple_gesture_detector"
+      ]
+    },
+    {
       "name": "fl_chart",
-      "version": "1.1.1",
+      "version": "0.65.0",
       "dependencies": [
         "equatable",
-        "flutter",
-        "vector_math"
+        "flutter"
       ]
     },
     {
@@ -1558,6 +1567,13 @@
       "dependencies": [
         "flutter",
         "shared_preferences_platform_interface"
+      ]
+    },
+    {
+      "name": "simple_gesture_detector",
+      "version": "0.2.1",
+      "dependencies": [
+        "flutter"
       ]
     },
     {

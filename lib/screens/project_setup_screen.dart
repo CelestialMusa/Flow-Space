@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import '../models/project.dart';
+import '../models/user.dart';
 import '../services/project_service.dart';
+import '../services/user_data_service.dart';
 import '../widgets/glass_card.dart';
-import 'project_details_screen.dart';
 
 class ProjectSetupScreen extends StatefulWidget {
   final String? projectId;
@@ -88,7 +90,15 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
           _descriptionController.text = project.description;
           _clientNameController.text = project.clientName ?? '';
           _keyController.text = project.key;
-          _selectedProjectType = project.projectType;
+
+          final loadedType = project.projectType;
+          if (_projectTypes.contains(loadedType)) {
+            _selectedProjectType = loadedType;
+          } else if (loadedType.toLowerCase() == 'software') {
+            _selectedProjectType = 'Fixed Scope';
+          } else {
+            _selectedProjectType = _projectTypes.first;
+          }
           _selectedStatus = project.status;
           _selectedPriority = project.priority;
           _startDate = project.startDate;
@@ -182,16 +192,17 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
   Future<void> _loadAvailableUsers() async {
     setState(() => _isLoadingUsers = true);
     try {
-      // Mock user data for now - replace with actual API call
-      final mockUsers = [
-        {'id': '1', 'name': 'Busisiwe Dhlamini', 'email': 'busisiwe.dhlamini@khonology.com', 'role': 'deliveryLead'},
-        {'id': '2', 'name': 'John Smith', 'email': 'john.smith@khonology.com', 'role': 'developer'},
-        {'id': '3', 'name': 'Jane Doe', 'email': 'jane.doe@khonology.com', 'role': 'designer'},
-        {'id': '4', 'name': 'Mike Johnson', 'email': 'mike.johnson@khonology.com', 'role': 'tester'},
-      ];
-      
+      final List<User> users = await UserDataService().getUsers(limit: 1000);
       setState(() {
-        _availableUsers = mockUsers;
+        _availableUsers = users.map((user) {
+          final displayName = (user.name.isNotEmpty ? user.name : user.email).trim();
+          return {
+            'id': user.id,
+            'name': displayName.isNotEmpty ? displayName : user.id,
+            'email': user.email,
+            'role': user.role.name,
+          };
+        }).toList();
         _isLoadingUsers = false;
       });
     } catch (e) {
@@ -269,12 +280,8 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
         if (widget.projectId != null) {
           Navigator.of(context).pop(savedProject);
         } else {
-          // Navigate to project details screen for new projects
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => ProjectDetailsScreen(projectId: savedProject!.id),
-            ),
-          );
+          // Navigate to project workspace screen for new projects
+          context.push('/project-workspace/${savedProject.id}');
         }
       }
     } catch (e) {
@@ -303,8 +310,16 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
         _nameController.text = _originalProject!.name;
         _descriptionController.text = _originalProject!.description;
         _clientNameController.text = _originalProject!.clientName ?? '';
-        _keyController.text = _originalProject!.projectType;
-        _selectedProjectType = _originalProject!.projectType;
+        _keyController.text = _originalProject!.key;
+
+        final loadedType = _originalProject!.projectType;
+        if (_projectTypes.contains(loadedType)) {
+          _selectedProjectType = loadedType;
+        } else if (loadedType.toLowerCase() == 'software') {
+          _selectedProjectType = 'Fixed Scope';
+        } else {
+          _selectedProjectType = _projectTypes.first;
+        }
         _selectedStatus = _originalProject!.status;
         _selectedPriority = _originalProject!.priority;
         _startDate = _originalProject!.startDate;
@@ -1174,7 +1189,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: _selectedProjectType,
+              value: _projectTypes.contains(_selectedProjectType) ? _selectedProjectType : null,
               hint: const Text('Choose project type', style: TextStyle(color: Color(0xFFA0AEC0))),
               style: const TextStyle(
                 fontSize: 16,
@@ -1239,7 +1254,15 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                            if (Navigator.of(context).canPop()) {
+                              Navigator.of(context).pop();
+                            } else {
+                              context.go('/projects');
+                            }
+                          },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       side: BorderSide(color: Colors.grey[400]!),

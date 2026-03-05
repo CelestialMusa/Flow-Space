@@ -25,6 +25,8 @@ import 'screens/report_repository_screen.dart';
 import 'screens/approval_requests_screen.dart';
 import 'screens/repository_screen.dart';
 import 'screens/notifications_screen.dart';
+import 'screens/projects_screen.dart';
+import 'screens/project_create_screen.dart';
 import 'screens/smtp_config_screen.dart';
 import 'screens/send_reminder_screen.dart';
 import 'screens/role_dashboard_screen.dart';
@@ -33,16 +35,16 @@ import 'screens/role_management_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/sprint_board_screen.dart';
+import 'screens/timeline_screen.dart';
 import 'screens/system_metrics_screen.dart';
 import 'screens/system_health_screen.dart';
+import 'screens/projects_overview_screen.dart';
 import 'screens/audit_logs_screen.dart';
 // Removed imports for non-existent screens to resolve analyzer errors
 import 'widgets/sidebar_scaffold.dart';
 //
 import 'widgets/role_guard.dart';
 import 'theme/flownet_theme.dart';
-import 'screens/epic_management_screen.dart';
-import 'screens/epic_detail_screen.dart';
 import 'screens/deadlines_screen.dart';
 import 'screens/deliverables_list_screen.dart';
 import 'screens/deliverables_overview_screen.dart';
@@ -50,8 +52,6 @@ import 'screens/skill_assessment_screen.dart';
 import 'screens/deliverable_detail_screen.dart';
 import 'screens/environment_management_screen.dart';
 import 'screens/project_workspace_screen.dart';
-import 'screens/projects_screen.dart';
-import 'screens/project_create_screen.dart';
 import 'screens/project_setup_screen.dart';
 
 void main() async {
@@ -178,7 +178,7 @@ final GoRouter _router = GoRouter(
       builder: (context, state) => const RoleGuard(
         requiredPermission: 'authenticated',
         child: SidebarScaffold(
-          child: ProjectCreateScreen(),
+          child: ProjectWorkspaceScreen(),
         ),
       ),
     ),
@@ -189,7 +189,7 @@ final GoRouter _router = GoRouter(
         return RoleGuard(
           requiredPermission: 'authenticated',
           child: SidebarScaffold(
-            child: ProjectCreateScreen(projectId: projectId),
+            child: ProjectWorkspaceScreen(projectId: projectId),
           ),
         );
       },
@@ -244,6 +244,15 @@ final GoRouter _router = GoRouter(
           ),
         );
       },
+    ),
+    GoRoute(
+      path: '/timeline',
+      builder: (context, state) => const RouteGuard(
+        route: '/timeline',
+        child: SidebarScaffold(
+          child: TimelineScreen(),
+        ),
+      ),
     ),
     GoRoute(
       path: '/report-builder/:deliverableId',
@@ -304,6 +313,17 @@ final GoRouter _router = GoRouter(
         );
       },
     ),
+    // Token-based client review route (no auth required)
+    GoRoute(
+      path: '/client-review-token/:token',
+      builder: (context, state) {
+        final token = state.pathParameters['token']!;
+        return ClientReviewScreen(
+          reportId: '', // Will be fetched via token
+          reviewToken: token,
+        );
+      },
+    ),
     GoRoute(
       path: '/enhanced-client-review/:reportId',
       builder: (context, state) {
@@ -350,14 +370,20 @@ final GoRouter _router = GoRouter(
     ),
     GoRoute(
       path: '/sprint-console',
-            builder: (context, state) => RouteGuard(
-              route: '/sprint-console',
-              child: SidebarScaffold(
-                child: SprintConsoleScreen(
-                  initialProjectKey: state.uri.queryParameters['projectKey'],
+            builder: (context, state) {
+              final projectKey = state.uri.queryParameters['projectKey'];
+              final projectId = state.uri.queryParameters['projectId'];
+              final sprintId = state.uri.queryParameters['sprintId'];
+              return RouteGuard(
+                route: '/sprint-console',
+                child: SidebarScaffold(
+                  child: SprintConsoleScreen(
+                    initialProjectKey: projectKey ?? projectId,
+                    initialSprintId: sprintId,
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
     ),
     GoRoute(
       path: '/sprint-board/:sprintId',
@@ -413,24 +439,11 @@ final GoRouter _router = GoRouter(
     ),
     GoRoute(
       path: '/epics',
-      builder: (context, state) => const RouteGuard(
-        route: '/epics',
-        child: SidebarScaffold(
-          child: EpicManagementScreen(),
-        ),
-      ),
+      redirect: (context, state) => '/deliverables-overview',
     ),
     GoRoute(
       path: '/epics/:epicId',
-      builder: (context, state) {
-        final epicId = state.pathParameters['epicId']!;
-        return RouteGuard(
-          route: '/epics',
-          child: SidebarScaffold(
-            child: EpicDetailScreen(epicId: epicId),
-          ),
-        );
-      },
+      redirect: (context, state) => '/deliverables-overview',
     ),
     GoRoute(
       path: '/repository',
@@ -545,6 +558,15 @@ final GoRouter _router = GoRouter(
         route: '/project-workspace',
         child: SidebarScaffold(
           child: ProjectWorkspaceScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/projects',
+      builder: (context, state) => const RouteGuard(
+        route: '/projects',
+        child: SidebarScaffold(
+          child: ProjectsOverviewScreen(),
         ),
       ),
     ),

@@ -5,8 +5,7 @@ import '../services/project_sprint_service.dart';
 import 'package:khono/models/project.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/glass_card.dart';
-import 'project_details_screen.dart';
-import 'project_setup_screen.dart';
+import 'project_workspace_screen.dart';
 
 class ProjectsScreen extends StatefulWidget {
   const ProjectsScreen({super.key});
@@ -86,16 +85,46 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     });
   }
 
-  void _navigateToSprintConsole(String? projectId) {
-    if (projectId != null) {
-      context.go('/sprint-console?projectId=$projectId');
-    } else {
-      context.go('/sprint-console');
-    }
+  void _navigateToSprintConsole(String? projectId, {String? sprintId}) {
+    final queryParams = <String, String>{};
+    if (projectId != null) queryParams['projectId'] = projectId;
+    if (sprintId != null) queryParams['sprintId'] = sprintId;
+    
+    final uri = Uri(path: '/sprint-console', queryParameters: queryParams.isEmpty ? null : queryParams);
+    context.go(uri.toString());
   }
 
   void _navigateToProjectSetup() {
-    context.go('/project-setup');
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const ProjectWorkspaceScreen(),
+      ),
+    );
+  }
+
+  void _showErrorMessage(dynamic error) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Failed to load projects: ${error.toString()}'),
+        backgroundColor: Colors.red,
+        action: SnackBarAction(
+          label: 'Retry',
+          textColor: Colors.white,
+          onPressed: _loadProjects,
+        ),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
+  void _showEmptyStateMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('No projects found. Create your first project to get started!'),
+        backgroundColor: Colors.blue,
+        duration: Duration(seconds: 3),
+      ),
+    );
   }
 
   void _showErrorMessage(dynamic error) {
@@ -130,7 +159,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     final primaryColor = theme.colorScheme.primary;
 
     return AppScaffold(
-      useBackgroundImage: false,
+      useBackgroundImage: true,
       centered: false,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -259,7 +288,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => context.go('/projects/create'),
+              onPressed: _navigateToProjectSetup,
               icon: const Icon(Icons.add),
               label: const Text('Create Project'),
               style: ElevatedButton.styleFrom(
@@ -373,19 +402,11 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     ],
                     onSelected: (value) {
                       if (value == 'view') {
-                        debugPrint('ProjectsScreen: Navigating to project details for ID: ${project.id}');
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => ProjectDetailsScreen(projectId: project.id),
-                          ),
-                        );
+                        debugPrint('ProjectsScreen: Navigating to project workspace for ID: ${project.id}');
+                        context.push('/project-workspace/${project.id}');
                       } else if (value == 'edit') {
                         debugPrint('ProjectsScreen: Navigating to edit project for ID: ${project.id}');
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => ProjectSetupScreen(projectId: project.id),
-                          ),
-                        );
+                        context.push('/project-workspace/${project.id}');
                       }
                     },
                   ),
@@ -639,13 +660,14 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
   Widget _buildSprintCard(Map<String, dynamic> sprint) {
     final theme = Theme.of(context);
+    final sprintId = (sprint['id'] ?? '').toString();
     
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: GlassCard(
         padding: const EdgeInsets.all(16),
         child: InkWell(
-          onTap: () => _navigateToSprintConsole(_selectedProjectId),
+          onTap: () => _navigateToSprintConsole(_selectedProjectId, sprintId: sprintId),
           borderRadius: BorderRadius.circular(12),
           child: Row(
             children: [

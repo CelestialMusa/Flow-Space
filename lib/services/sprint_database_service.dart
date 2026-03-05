@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'api_client.dart';
 import 'backend_api_service.dart';
 import 'auth_service.dart';
+import 'api_service.dart';
 
 class SprintDatabaseService {
   static final String _baseUrl = Environment.apiBaseUrl;
@@ -185,7 +186,14 @@ debugPrint('📡 Sprint creation response: ${response.statusCode}');
             debugPrint('❌ Error sending sprint creation notification: $e');
           }
           
-          final created = Map<String, dynamic>.from(data['data']);
+          final Map<String, dynamic> created;
+          if (data['data'] is Map) {
+            created = Map<String, dynamic>.from(data['data']);
+          } else {
+            created = Map<String, dynamic>.from(data);
+            // Remove success field if it's there
+            created.remove('success');
+          }
           // Cache: prepend to global and project-specific cache
           try {
             await _prependCachedSprint(created, projectId: projectId);
@@ -464,28 +472,53 @@ if (response.isSuccess) {
     }
   }
 
-  /// Get all projects
+  /// Get all projects (merge server projects with locally created ones)
   Future<List<Map<String, dynamic>>> getProjects() async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/projects').replace(queryParameters: {'limit': '1000'}),
-        headers: _headers,
-      );
-      if (response.statusCode == 200) {
-        final dynamic data = jsonDecode(response.body);
-        if (data is List) {
-          return List<Map<String, dynamic>>.from(data);
-        }
-        final List<dynamic> items = (data is Map)
-            ? (data['data'] ?? data['projects'] ?? data['items'] ?? [])
-            : [];
-        return items.cast<Map<String, dynamic>>();
+      final projects = await ApiService.getProjects();
+      final local = await _getLocallyCreatedProjects();
+
+      if (local.isEmpty) {
+        return projects;
       }
-      return [];
+
+      final merged = List<Map<String, dynamic>>.from(projects);
+      for (final lp in local) {
+        try {
+          final id = lp['id']?.toString();
+          if (id == null || id.isEmpty) {
+            continue;
+          }
+          final existingIndex = merged.indexWhere((p) => p['id']?.toString() == id);
+          if (existingIndex >= 0) {
+            merged[existingIndex] = lp;
+          } else {
+            merged.insert(0, lp);
+          }
+        } catch (_) {}
+      }
+
+      return merged;
     } catch (e) {
-      debugPrint('❌ Error fetching projects: $e');
+      debugPrint('❌ Error fetching projects via ApiService: $e');
       return [];
     }
+  }
+
+  static Future<List<Map<String, dynamic>>> _getLocallyCreatedProjects() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString('local_created_projects');
+      if (jsonStr != null && jsonStr.isNotEmpty) {
+        final decoded = jsonDecode(jsonStr);
+        if (decoded is List) {
+          return List<Map<String, dynamic>>.from(decoded);
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error reading locally created projects: $e');
+    }
+    return <Map<String, dynamic>>[];
   }
 
   /// Get all tickets for a sprint
@@ -869,8 +902,11 @@ if (response.isSuccess) {
       final prefs = await SharedPreferences.getInstance();
       final key = _sprintsKey(projectId: projectId, projectKey: projectKey);
       await prefs.setString(key, jsonEncode(sprints));
-      // Also maintain a global cache snapshot
-      await prefs.setString('cached_sprints_all', jsonEncode(sprints));
+      
+      // Only maintain a global cache snapshot if we fetched ALL sprints
+      if ((projectId == null || projectId.isEmpty) && (projectKey == null || projectKey.isEmpty)) {
+        await prefs.setString('cached_sprints_all', jsonEncode(sprints));
+      }
     } catch (e) {
       debugPrint('❌ Error caching sprints: $e');
     }

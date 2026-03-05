@@ -134,6 +134,7 @@ router.post('/register', async (req, res) => {
     console.error('Registration error:', error);
     console.error('Error details:', error.message);
     console.error('Error stack:', error.stack);
+    console.error('Request body was:', JSON.stringify(req.body, null, 2));
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to register user',
@@ -214,6 +215,8 @@ router.post('/login', async (req, res) => {
 
   } catch (error) {
     console.error('Login error:', error);
+    console.error('Error details:', error.message);
+    console.error('Request body was:', JSON.stringify(req.body, null, 2));
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to login'
@@ -362,16 +365,18 @@ router.post('/resend-verification', async (req, res) => {
 
 router.post('/verify-email', async (req, res) => {
   try {
-    const { email, verificationCode, verification_code } = req.body || {};
-    const code = verificationCode || verification_code;
-    if (!email || !code) {
+    const { email, verificationCode, verification_code, code } = req.body || {};
+    const verificationCodeFinal = verificationCode || verification_code || code;
+    console.log('Verify email request:', { email, verificationCodeFinal });
+    
+    if (!email || !verificationCodeFinal) {
       return res.status(400).json({ success: false, error: 'Email and verification code are required' });
     }
     const user = await User.findOne({ where: { email } });
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
-    if (user.verification_token !== code) {
+    if (user.verification_token !== verificationCodeFinal) {
       return res.status(400).json({ success: false, error: 'Invalid verification code' });
     }
     await user.update({ is_verified: true, verification_token: null });

@@ -1,7 +1,8 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'api_client.dart';
+import '../widgets/app_modal.dart';
 
 class ErrorHandler {
   static final ErrorHandler _instance = ErrorHandler._internal();
@@ -54,7 +55,7 @@ class ErrorHandler {
 
   // Show error dialog
   void showErrorDialog(BuildContext context, String message, {String? title}) {
-    showDialog(
+    showAppDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2A2A2A),
@@ -84,24 +85,21 @@ class ErrorHandler {
 
   // Show error snackbar
   void showErrorSnackBar(BuildContext context, String message) {
-    // Clear any existing snackbars first
-    ScaffoldMessenger.of(context).clearSnackBars();
-    
-    final snackBar = SnackBar(
-      content: Text(message),
-      backgroundColor: Colors.red,
-      duration: const Duration(seconds: 10), // Give user more time
-      action: SnackBarAction(
-        label: 'Dismiss',
-        textColor: Colors.white,
-        onPressed: () {
-          // Use clearSnackBars for more reliable dismissal
-          ScaffoldMessenger.of(context).clearSnackBars();
-        },
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: 'Dismiss',
+          textColor: Colors.white,
+          onPressed: () {
+            // More robust than hideCurrentSnackBar: clears the active and any queued snackbars
+            ScaffoldMessenger.of(context).clearSnackBars();
+          },
+        ),
       ),
     );
-    
-    ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
 
   // Show success snackbar
@@ -117,7 +115,7 @@ class ErrorHandler {
 
   // Show loading dialog
   void showLoadingDialog(BuildContext context, {String? message}) {
-    showDialog(
+    showAppDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
@@ -234,3 +232,4 @@ class ErrorHandler {
     return null;
   }
 }
+

@@ -9,6 +9,7 @@ import '../widgets/glass_card.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/user_data_service.dart';
+import '../providers/service_providers.dart';
 
 class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
   final String? projectId;
@@ -46,6 +47,7 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   bool _isLoading = false;
   bool _isEditing = false;
   Project? _currentProject;
+  bool _isSendingReminder = false;
 
   @override
   void initState() {
@@ -77,6 +79,7 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
     try {
       final project = await ApiService.getProject(widget.projectId!);
       if (project != null) {
+        // First populate base fields
         setState(() {
           _currentProject = project;
           _nameController.text = project.name;
@@ -84,26 +87,57 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
           _clientNameController.text = project.clientName ?? '';
           _selectedStatus = project.status;
           _selectedPriority = project.priority;
-          _selectedProjectType = project.projectType;
+          const validProjectTypes = ['software', 'hardware', 'research', 'consulting', 'other'];
+          _selectedProjectType = validProjectTypes.contains(project.projectType) ? project.projectType : 'other';
           _startDate = project.startDate;
           _endDate = project.endDate;
           _tagsController.text = project.tags.join(', ');
           _members = project.members;
+
+          // Prefer IDs from project payload when present
           _deliverableIds = project.deliverableIds;
           _sprintIds = project.sprintIds;
-          
+
           // Set selected owner
           try {
-             // Prefer ownerId from project if available (frontend model update pending in other files)
-             // or fallback to finding member with owner role
-             if (project.ownerId != null) {
-               _selectedOwner = _availableUsers.firstWhere((u) => u.id == project.ownerId);
-             } else {
-               final ownerMember = _members.firstWhere((m) => m.role == ProjectRole.owner);
-               _selectedOwner = _availableUsers.firstWhere((u) => u.id == ownerMember.userId);
-             }
+            if (project.ownerId != null) {
+              _selectedOwner = _availableUsers.firstWhere((u) => u.id == project.ownerId);
+            } else {
+              final ownerMember = _members.firstWhere((m) => m.role == ProjectRole.owner);
+              _selectedOwner = _availableUsers.firstWhere((u) => u.id == ownerMember.userId);
+            }
           } catch (_) {}
         });
+
+        // If backend did not send deliverableIds, derive from deliverables that reference this project
+        if (_deliverableIds.isEmpty && _availableDeliverables.isNotEmpty) {
+          final derivedDeliverables = _availableDeliverables
+              .where((d) => d.projectId == project.id)
+              .map((d) => d.id)
+              .toList();
+          if (derivedDeliverables.isNotEmpty) {
+            setState(() {
+              _deliverableIds = derivedDeliverables;
+            });
+          }
+        }
+
+        // If backend did not send sprintIds, fetch sprints linked to this project
+        if (_sprintIds.isEmpty) {
+          try {
+            final sprintMaps = await ApiService.getSprints(projectId: project.id);
+            final ids = sprintMaps
+                .map((s) => s['id']?.toString())
+                .where((id) => id != null && id.isNotEmpty)
+                .cast<String>()
+                .toList();
+            if (ids.isNotEmpty) {
+              setState(() {
+                _sprintIds = ids;
+              });
+            }
+          } catch (_) {}
+        }
       }
     } catch (e) {
       _showErrorSnackBar('Failed to load project: $e');
@@ -218,19 +252,59 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
 
       if (_isEditing) {
         await ApiService.updateProject(project);
+
+        try {
+          // Link selected deliverables to this project by updating their project_id
+          for (final deliverableId in _deliverableIds) {
+            await ApiService.linkDeliverableToProject(project.id, deliverableId);
+          }
+
+          if (_sprintIds.isNotEmpty) {
+            await ApiService.associateSprintWithProject(project.id, _sprintIds);
+          }
+        } catch (_) {}
+
         _showSuccessSnackBar('Project updated successfully');
       } else {
-        await ApiService.createProjectModel(project);
+        final createdProject = await ApiService.createProjectModel(project);
+
+        if (createdProject != null) {
+          try {
+            for (final deliverableId in _deliverableIds) {
+              await ApiService.linkDeliverableToProject(createdProject.id, deliverableId);
+            }
+
+            if (_sprintIds.isNotEmpty) {
+              await ApiService.associateSprintWithProject(createdProject.id, _sprintIds);
+            }
+          } catch (_) {}
+        }
+
         _showSuccessSnackBar('Project created successfully');
       }
 
       if (mounted) {
-        Navigator.of(context).pop();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop(true);
+          } else {
+            if (_isEditing) {
+              context.go('/project-workspace/${project.id}');
+            } else {
+              context.go('/projects');
+            }
+          }
+        });
       }
     } catch (e) {
       _showErrorSnackBar('Failed to save project: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -300,36 +374,67 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
     );
   }
 
+  Future<void> _sendDueDateReminder() async {
+    if (!_isEditing || _currentProject == null) {
+      return;
+    }
+    if (_selectedOwner == null) {
+      _showErrorSnackBar('Assign a project owner before sending a reminder.');
+      return;
+    }
+    if (_endDate == null) {
+      _showErrorSnackBar('Set an end date before sending a reminder.');
+      return;
+    }
+    final now = DateTime.now();
+    if (_endDate!.isAfter(now)) {
+      _showErrorSnackBar('Reminder is only available when the project has reached or passed its end date.');
+      return;
+    }
+    if (_selectedStatus == ProjectStatus.completed || _selectedStatus == ProjectStatus.cancelled) {
+      _showErrorSnackBar('Project is already completed or cancelled.');
+      return;
+    }
+    setState(() {
+      _isSendingReminder = true;
+    });
+    try {
+      final backend = ref.read(backendApiServiceProvider);
+      final response = await backend.remindProjectOwner(_currentProject!.id);
+      if (response.isSuccess) {
+        _showSuccessSnackBar('Reminder sent to project owner.');
+      } else {
+        _showErrorSnackBar(response.error ?? 'Failed to send reminder.');
+      }
+    } catch (e) {
+      _showErrorSnackBar('Failed to send reminder: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSendingReminder = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(
           _isEditing ? 'Edit Project' : 'Create New Project',
-          style: TextStyle(
+          style: const TextStyle(
             fontWeight: FontWeight.w600,
-            color: colorScheme.onSurface,
+            color: Colors.white,
           ),
         ),
         backgroundColor: Colors.transparent,
-        foregroundColor: colorScheme.onSurface,
+        foregroundColor: Colors.white,
         elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                colorScheme.surface.withAlpha(200),
-                colorScheme.surface.withAlpha(100),
-              ],
-            ),
-          ),
-        ),
       ),
       body: _isLoading
           ? Center(
@@ -337,40 +442,27 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
                 valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
               ),
             )
-          : Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    colorScheme.surface,
-                    colorScheme.surface.withAlpha(240),
-                    colorScheme.surface.withAlpha(220),
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildBasicInfoSection(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildMetadataSection(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildDatesSection(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildMembersSection(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildDeliverablesSection(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildSprintsSection(colorScheme),
+                    const SizedBox(height: 32),
+                    _buildActionButtons(colorScheme),
                   ],
-                ),
-              ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildBasicInfoSection(colorScheme),
-                      const SizedBox(height: 24),
-                      _buildMetadataSection(colorScheme),
-                      const SizedBox(height: 24),
-                      _buildDatesSection(colorScheme),
-                      const SizedBox(height: 24),
-                      _buildMembersSection(colorScheme),
-                      const SizedBox(height: 24),
-                      _buildDeliverablesSection(colorScheme),
-                      const SizedBox(height: 24),
-                      _buildSprintsSection(colorScheme),
-                      const SizedBox(height: 32),
-                      _buildActionButtons(colorScheme),
-                    ],
-                  ),
                 ),
               ),
             ),
@@ -667,7 +759,10 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            initialValue: _selectedProjectType,
+            // ignore: deprecated_member_use
+            value: const ['software', 'hardware', 'research', 'consulting', 'other'].contains(_selectedProjectType)
+                ? _selectedProjectType
+                : null,
             decoration: InputDecoration(
               labelText: 'Project Type',
               prefixIcon: Icon(Icons.category_outlined, color: colorScheme.secondary),
@@ -851,6 +946,34 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
               },
             ),
           ),
+          const SizedBox(height: 8),
+          if (_isEditing && _currentProject != null && _selectedOwner != null && _endDate != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: _isSendingReminder ? null : _sendDueDateReminder,
+                icon: _isSendingReminder
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+                        ),
+                      )
+                    : Icon(
+                        Icons.notifications_active_outlined,
+                        color: colorScheme.primary,
+                        size: 18,
+                      ),
+                label: Text(
+                  'Remind Project Owner',
+                  style: TextStyle(
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -960,6 +1083,9 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
                 ),
               );
               return ListTile(
+                onTap: () {
+                  GoRouter.of(context).push('/deliverable-detail', extra: deliverable);
+                },
                 title: Text(deliverable.title),
                 subtitle: Text(deliverable.statusDisplayName),
                 trailing: IconButton(
@@ -1019,6 +1145,23 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
                 ),
               );
               return ListTile(
+                onTap: () {
+                  final projectId = widget.projectId;
+                  final sprintId = sprint.id;
+                  
+                  if (sprintId.isNotEmpty) {
+                    final queryParams = <String, String>{
+                      'sprintId': sprintId,
+                    };
+                    if (projectId != null && projectId.isNotEmpty && projectId != 'new') {
+                      queryParams['projectId'] = projectId;
+                    }
+                    final uri = Uri(path: '/sprint-console', queryParameters: queryParams);
+                    context.go(uri.toString());
+                  } else {
+                    context.go('/sprint-console');
+                  }
+                },
                 title: Text(sprint.name),
                 subtitle: Text(sprint.statusText),
                 trailing: IconButton(
