@@ -203,6 +203,11 @@ class BackendApiService {
     return await _apiClient.post('/sprints', body: sprintData);
   }
 
+  /// Create a sprint for a specific project (project-scoped endpoint).
+  Future<ApiResponse> createSprintForProject(String projectId, Map<String, dynamic> projectBody) async {
+    return await _apiClient.post('/projects/$projectId/sprints/new', body: projectBody);
+  }
+
   Future<ApiResponse> updateSprint(String sprintId, Map<String, dynamic> updates) async {
     return await _apiClient.put('/sprints/$sprintId', body: updates);
   }

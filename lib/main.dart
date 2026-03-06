@@ -200,20 +200,7 @@ final GoRouter _router = GoRouter(
         return RoleGuard(
           requiredPermission: 'authenticated',
           child: SidebarScaffold(
-            child: FutureBuilder<Project>(
-              future: _getProjectDetails(projectId),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                } else if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                } else if (snapshot.hasData) {
-                  return ProjectDetailsScreen(project: snapshot.data!);
-                } else {
-                  return const Center(child: Text('Project not found'));
-                }
-              },
-            ),
+            child: ProjectDetailsScreen(projectId: projectId),
           ),
         );
       },
