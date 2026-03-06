@@ -53,7 +53,6 @@ import 'screens/skill_assessment_screen.dart';
 import 'screens/deliverable_detail_screen.dart';
 import 'screens/environment_management_screen.dart';
 import 'screens/project_workspace_screen.dart';
-import 'screens/projects_screen.dart';
 import 'screens/project_setup_screen.dart';
 
 void main() async {
@@ -200,7 +199,20 @@ final GoRouter _router = GoRouter(
         return RoleGuard(
           requiredPermission: 'authenticated',
           child: SidebarScaffold(
-            child: ProjectDetailsScreen(projectId: projectId),
+            child: FutureBuilder<Project>(
+              future: _getProjectDetails(projectId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                } else if (snapshot.hasData) {
+                  return ProjectDetailsScreen(project: snapshot.data!);
+                } else {
+                  return const Center(child: Text('Project not found'));
+                }
+              },
+            ),
           ),
         );
       },
@@ -393,20 +405,20 @@ final GoRouter _router = GoRouter(
     ),
     GoRoute(
       path: '/sprint-console',
-      builder: (context, state) {
-        final projectKey = state.uri.queryParameters['projectKey'];
-        final projectId = state.uri.queryParameters['projectId'];
-        final sprintId = state.uri.queryParameters['sprintId'];
-        return RouteGuard(
-          route: '/sprint-console',
-          child: SidebarScaffold(
-            child: SprintConsoleScreen(
-              initialProjectKey: projectKey ?? projectId,
-              initialSprintId: sprintId,
-            ),
-          ),
-        );
-      },
+            builder: (context, state) {
+              final projectKey = state.uri.queryParameters['projectKey'];
+              final projectId = state.uri.queryParameters['projectId'];
+              final sprintId = state.uri.queryParameters['sprintId'];
+              return RouteGuard(
+                route: '/sprint-console',
+                child: SidebarScaffold(
+                  child: SprintConsoleScreen(
+                    initialProjectKey: projectKey ?? projectId,
+                    initialSprintId: sprintId,
+                  ),
+                ),
+              );
+            },
     ),
     GoRoute(
       path: '/sprint-board/:sprintId',

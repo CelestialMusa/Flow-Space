@@ -330,32 +330,6 @@ class AuthService {
         return _isAuthenticated;
       default:
         return true;
-      }
-  }
-
-  /// Authenticate using a JWT token (e.g. from validate-token or magic link).
-  Future<bool> authenticateWithJwtToken(String token, dynamic tokenData) async {
-    try {
-      String accessToken = token;
-      String refreshToken = '';
-      int expiresIn = 86400;
-      if (tokenData is Map) {
-        accessToken = (tokenData['access_token'] ?? tokenData['token'] ?? token).toString();
-        refreshToken = (tokenData['refresh_token'] ?? '').toString();
-        expiresIn = (tokenData['expires_in'] is int)
-            ? tokenData['expires_in'] as int
-            : int.tryParse(tokenData['expires_in']?.toString() ?? '86400') ?? 86400;
-      }
-      final expiry = DateTime.now().add(Duration(seconds: expiresIn));
-      await _apiService.saveTokens(accessToken, refreshToken, expiry);
-      await _loadCurrentUser();
-      final ok = _isAuthenticated && _currentUser != null;
-      if (ok) debugPrint('Authenticated with JWT: ${_currentUser!.name}');
-      return ok;
-    } catch (e) {
-      debugPrint('authenticateWithJwtToken error: $e');
-      _lastAuthError = 'Token authentication failed';
-      return false;
     }
   }
 }

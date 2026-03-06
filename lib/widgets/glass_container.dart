@@ -133,7 +133,7 @@ class GlassContainer extends StatelessWidget {
       offset: const Offset(0, 4),
     );
 
-    final container = Container(
+    final Widget container = Container(
       width: width,
       height: height,
       margin: margin,

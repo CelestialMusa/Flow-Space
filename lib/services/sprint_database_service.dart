@@ -159,46 +159,28 @@ String? description,
       };
 
       debugPrint('🚀 Creating sprint with data: $body');
-      ApiResponse response;
+      final response = await _backendApiService.createSprint(body);
 
-      // When we have a projectId, use project-scoped endpoint first (most reliable)
-      if (projectId != null && projectId.isNotEmpty) {
-        final projectBody = {
-          'name': name,
-          'start_date': startDate.toIso8601String(),
-          'end_date': endDate.toIso8601String(),
-          if (description != null && description.isNotEmpty) 'description': description,
-        };
-        response = await _backendApiService.createSprintForProject(projectId, projectBody);
-        debugPrint('📡 Project-scoped create response: ${response.statusCode}');
-        if (!response.isSuccess) {
-          response = await _backendApiService.createSprint(body);
-          debugPrint('📡 Main create (fallback) response: ${response.statusCode}');
-        }
-      } else {
-        response = await _backendApiService.createSprint(body);
 debugPrint('📡 Sprint creation response: ${response.statusCode}');
-      }
 
       if (response.isSuccess) {
-        final data = response.data;
-        // ApiClient returns unwrapped data (the sprint row) when backend sends { success: true, data: sprint }
-        Map<String, dynamic> created = const {};
-        if (data is Map) {
-          if (data.containsKey('data') && data['data'] is Map) {
-            created = Map<String, dynamic>.from(data['data'] as Map);
-          } else {
-            created = Map<String, dynamic>.from(data);
-            created.remove('success');
-          }
+        // Handle various response formats from the backend
+        final dynamic rawData = response.data;
+        
+        debugPrint('✅ Sprint creation response data: $rawData');
+        
+        if (rawData == null) {
+          throw Exception('Server returned success but no data');
         }
-        debugPrint('✅ Sprint "$name" created successfully');
+
+        // Send notification for sprint creation
         try {
           final token = _authService.accessToken;
           if (token != null) {
             _notificationService.setAuthToken(token);
             final user = _authService.currentUser;
             final userName = user?.name ?? 'Unknown User';
+            
             await _notificationService.notifySprintCreated(
               sprintName: name,
               projectName: projectId ?? 'Current Project',
@@ -208,11 +190,37 @@ debugPrint('📡 Sprint creation response: ${response.statusCode}');
         } catch (e) {
           debugPrint('❌ Error sending sprint creation notification: $e');
         }
+        
+        final Map<String, dynamic> created;
+        
+        // Check if data is already the sprint object (common with ApiClient unwrapping)
+        if (rawData is Map) {
+          final mapData = Map<String, dynamic>.from(rawData);
+          
+          if (mapData.containsKey('data') && mapData['data'] is Map) {
+             // Case: { success: true, data: { ...sprint... } }
+             created = Map<String, dynamic>.from(mapData['data']);
+          } else if (mapData.containsKey('sprint') && mapData['sprint'] is Map) {
+             // Case: { success: true, sprint: { ...sprint... } }
+             created = Map<String, dynamic>.from(mapData['sprint']);
+          } else {
+             // Case: { ...sprint... } (direct object)
+             created = mapData;
+             created.remove('success'); // Clean up if mixed
+          }
+        } else {
+          // Fallback or error
+          debugPrint('❌ Unexpected response data format: $rawData');
+          throw Exception('Unexpected response format from server');
+        }
+
+        // Cache: prepend to global and project-specific cache
         try {
           await _prependCachedSprint(created, projectId: projectId);
         } catch (_) {}
         return created;
       } else {
+        debugPrint('❌ Failed to create sprint: ${response.error ?? 'Unknown error'}');
         throw Exception(response.error ?? 'Failed to create sprint');
       }
     } catch (e) {

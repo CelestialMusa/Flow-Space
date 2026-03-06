@@ -10,24 +10,6 @@ import '../models/timeline_event.dart';
 import '../services/auth_service.dart';
 import 'add_event_modal.dart';
 
-/// Single event layout: position and size for rendering in the time grid.
-class _EventLayoutSlot {
-  final double top;
-  final double left;
-  final double width;
-  final double height;
-  final TimelineEvent event;
-  final Color color;
-  _EventLayoutSlot({
-    required this.top,
-    required this.left,
-    required this.width,
-    required this.height,
-    required this.event,
-    required this.color,
-  });
-}
-
 /// Timeline/Calendar Screen
 /// Accessible by all users
 /// Displays events, deadlines, and schedule in a calendar/timeline view
@@ -41,26 +23,23 @@ class TimelineScreen extends StatefulWidget {
 class _TimelineScreenState extends State<TimelineScreen> {
   // View state
   String _activeView = 'Month'; // 'Month' | 'Week' | 'Day' | 'Timeline'
-  
+
   // Calendar state
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.month;
-  
+
   // Events
   final List<TimelineEvent> _events = [];
-  
+
   // Calendar view constants
-  static const int _startHour = 6; // 6 AM (Day view)
-  static const int _endHour = 22; // 10 PM (Day view)
-  // Week view: full 24-hour work day like Teams calendar
-  static const int _weekViewStartHour = 0;
-  static const int _weekViewEndHour = 24;
-  static const double _weekHeaderHeight = 56.0; // Day header height so events sit below it
+  static const int _startHour = 6; // 6 AM
+  static const int _endHour = 22; // 10 PM
   static const double _hourHeight = 80.0; // Height of each hour slot in pixels
   static const double _minuteHeight = _hourHeight / 60.0; // Height per minute
-  static const Duration _defaultEventDuration = Duration(hours: 1); // Default 1 hour for events
-  
+  static const Duration _defaultEventDuration =
+      Duration(hours: 1); // Default 1 hour for events
+
   @override
   void initState() {
     super.initState();
@@ -174,144 +153,24 @@ class _TimelineScreenState extends State<TimelineScreen> {
     });
   }
 
-  /// Start of event. Uses event.time (HH:mm) when present so events sit under the correct hour.
   DateTime _getEventStartDateTime(TimelineEvent event) {
-    final d = event.date;
-    if (d != null && event.time != null && event.time!.isNotEmpty) {
-      final parts = event.time!.split(':');
-      final hour = parts.isNotEmpty ? (int.tryParse(parts[0].trim()) ?? 0) : 0;
-      final minute = parts.length > 1 ? (int.tryParse(parts[1].trim()) ?? 0) : 0;
-      return DateTime(d.year, d.month, d.day, hour, minute);
-    }
-    if (event.startTime != null) return event.startTime!;
     return event.dateTime;
   }
 
   DateTime _getEventEndDateTime(TimelineEvent event) {
-    if (event.endTime != null) return event.endTime!;
-    return _getEventStartDateTime(event).add(_defaultEventDuration);
+    // Default to 1 hour duration for events without duration
+    return event.dateTime.add(_defaultEventDuration);
   }
 
-  /// Vertical position: top = (eventStartMinutes - startHourInMinutes) / 60 * hourHeight
-  double _getEventTopPosition(DateTime eventTime, {int? startHour, double? hourHeight}) {
-    final start = startHour ?? _startHour;
-    final h = hourHeight ?? _hourHeight;
-    final eventMinutes = eventTime.hour * 60 + eventTime.minute + eventTime.second / 60.0;
-    final startHourMinutes = start * 60;
-    return (eventMinutes - startHourMinutes) / 60.0 * h;
+  double _getEventTopPosition(DateTime eventTime) {
+    final hours = eventTime.hour + (eventTime.minute / 60.0);
+    final startHours = _startHour.toDouble();
+    return (hours - startHours) * _hourHeight;
   }
 
-  /// Height = (durationInMinutes / 60) * hourHeight
-  double _getEventHeight(DateTime startTime, DateTime endTime, {double? hourHeight}) {
-    final h = hourHeight ?? _hourHeight;
+  double _getEventHeight(DateTime startTime, DateTime endTime) {
     final duration = endTime.difference(startTime);
-    return duration.inMinutes / 60.0 * h;
-  }
-
-  // --- Event layout: overlap detection and column assignment ---
-
-  /// Two events overlap if startA < endB && endA > startB (intersecting intervals).
-  bool _eventsOverlap(DateTime startA, DateTime endA, DateTime startB, DateTime endB) {
-    return startA.isBefore(endB) && endA.isAfter(startB);
-  }
-
-  /// Group events into overlapping clusters. Each group shares horizontal space.
-  List<List<TimelineEvent>> _groupOverlappingEvents(
-    List<TimelineEvent> events,
-    DateTime Function(TimelineEvent) getStart,
-    DateTime Function(TimelineEvent) getEnd,
-  ) {
-    if (events.isEmpty) return [];
-    final sorted = List<TimelineEvent>.from(events)
-      ..sort((a, b) => getStart(a).compareTo(getStart(b)));
-    final groups = <List<TimelineEvent>>[];
-    for (final e in sorted) {
-      final eStart = getStart(e);
-      final eEnd = getEnd(e);
-      final overlappingIndices = <int>{};
-      for (var i = 0; i < groups.length; i++) {
-        final hasOverlap = groups[i].any((g) => _eventsOverlap(
-              eStart, eEnd, getStart(g), getEnd(g),
-            ));
-        if (hasOverlap) overlappingIndices.add(i);
-      }
-      if (overlappingIndices.isEmpty) {
-        groups.add([e]);
-      } else {
-        final toMerge = overlappingIndices.toList()..sort((a, b) => b.compareTo(a));
-        final merged = <TimelineEvent>[e];
-        for (final i in toMerge) {
-          merged.addAll(groups[i]);
-          groups.removeAt(i);
-        }
-        merged.sort((a, b) => getStart(a).compareTo(getStart(b)));
-        groups.add(merged);
-      }
-    }
-    return groups;
-  }
-
-  /// Assign column index to each event in a group. Reuse a column when the event there has ended.
-  List<int> _assignColumns(
-    List<TimelineEvent> group,
-    DateTime Function(TimelineEvent) getStart,
-    DateTime Function(TimelineEvent) getEnd,
-  ) {
-    if (group.isEmpty) return [];
-    final indices = List<int>.filled(group.length, -1);
-    final columnEnds = <int, DateTime>{};
-    for (var i = 0; i < group.length; i++) {
-      final start = getStart(group[i]);
-      final end = getEnd(group[i]);
-      var col = 0;
-      while (columnEnds[col] != null && columnEnds[col]!.isAfter(start)) {
-        col++;
-      }
-      indices[i] = col;
-      columnEnds[col] = end;
-    }
-    return indices;
-  }
-
-  /// Compute layout for a list of events: correct vertical position + side-by-side for overlaps.
-  List<_EventLayoutSlot> _computeEventLayouts({
-    required List<TimelineEvent> events,
-    required int startHour,
-    required double hourHeight,
-    required double availableWidth,
-    double horizontalPadding = 8,
-  }) {
-    if (events.isEmpty) return [];
-    final getStart = _getEventStartDateTime;
-    final getEnd = _getEventEndDateTime;
-    final startHourMinutes = startHour * 60;
-    final slots = <_EventLayoutSlot>[];
-    final groups = _groupOverlappingEvents(events, getStart, getEnd);
-    for (final group in groups) {
-      final columns = _assignColumns(group, getStart, getEnd);
-      final totalColumns = (columns.isEmpty ? 1 : columns.reduce((a, b) => a > b ? a : b) + 1);
-      final width = (availableWidth - 2 * horizontalPadding) / totalColumns;
-      for (var i = 0; i < group.length; i++) {
-        final event = group[i];
-        final start = getStart(event);
-        final end = getEnd(event);
-        final startMinutes = start.hour * 60 + start.minute + start.second / 60.0;
-        final durationMinutes = end.difference(start).inMinutes.toDouble();
-        final top = (startMinutes - startHourMinutes) / 60.0 * hourHeight;
-        final height = durationMinutes / 60.0 * hourHeight;
-        final col = i < columns.length ? columns[i] : 0;
-        final left = horizontalPadding + col * width;
-        slots.add(_EventLayoutSlot(
-          top: top,
-          left: left,
-          width: width,
-          height: height.clamp(24.0, double.infinity),
-          event: event,
-          color: _getColorForTag(event.colorTag),
-        ));
-      }
-    }
-    return slots;
+    return duration.inMinutes * _minuteHeight;
   }
 
   @override
@@ -347,19 +206,19 @@ class _TimelineScreenState extends State<TimelineScreen> {
                     // Welcome Banner
                     _buildWelcomeBanner(userName),
                     const SizedBox(height: 24),
-                    
+
                     // Quick Actions
                     _buildQuickActions(),
                     const SizedBox(height: 24),
-                    
+
                     // View Switcher
                     _buildViewSwitcher(),
                     const SizedBox(height: 24),
-                    
+
                     // Calendar/Timeline Content
                     _buildCalendarContent(),
                     const SizedBox(height: 24),
-                    
+
                     // My Deliverables
                     _buildMyDeliverables(),
                   ],
@@ -542,7 +401,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
             view,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                  color: isActive ? FlownetColors.crimsonRed : FlownetColors.coolGray,
+                  color: isActive
+                      ? FlownetColors.crimsonRed
+                      : FlownetColors.coolGray,
                 ),
           ),
         ],
@@ -566,11 +427,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
   Widget _buildWeekView() {
     final weekStart = _getWeekStart(_focusedDay);
-    // Work week: Mon–Fri only (no Saturday/Sunday)
-    final weekDays = List.generate(5, (index) => weekStart.add(Duration(days: index)));
+    final weekDays =
+        List.generate(7, (index) => weekStart.add(Duration(days: index)));
     final weekEvents = _getEventsForWeek(weekStart);
-    const weekStartHour = _weekViewStartHour;
-    const weekEndHour = _weekViewEndHour;
 
     return GlassCard(
       padding: EdgeInsets.zero,
@@ -581,17 +440,20 @@ class _TimelineScreenState extends State<TimelineScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: FlownetColors.slate.withValues(alpha: 0.3)),
+                bottom: BorderSide(
+                    color: FlownetColors.slate.withValues(alpha: 0.3)),
               ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.chevron_left, color: FlownetColors.pureWhite),
+                  icon: const Icon(Icons.chevron_left,
+                      color: FlownetColors.pureWhite),
                   onPressed: () {
                     setState(() {
-                      _focusedDay = _focusedDay.subtract(const Duration(days: 7));
+                      _focusedDay =
+                          _focusedDay.subtract(const Duration(days: 7));
                     });
                   },
                 ),
@@ -603,7 +465,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                       ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.chevron_right, color: FlownetColors.pureWhite),
+                  icon: const Icon(Icons.chevron_right,
+                      color: FlownetColors.pureWhite),
                   onPressed: () {
                     setState(() {
                       _focusedDay = _focusedDay.add(const Duration(days: 7));
@@ -613,29 +476,52 @@ class _TimelineScreenState extends State<TimelineScreen> {
               ],
             ),
           ),
-          // Day headers row (like Teams week view)
-          Container(
-            height: 56,
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
-              ),
-            ),
+          // Week Grid
+          SizedBox(
+            height: (_endHour - _startHour) * _hourHeight,
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Empty top-left cell above time column
+                // Time Column
                 Container(
                   width: 80,
                   decoration: BoxDecoration(
                     border: Border(
-                      right: BorderSide(color: FlownetColors.slate.withValues(alpha: 0.3)),
+                      right: BorderSide(
+                          color: FlownetColors.slate.withValues(alpha: 0.3)),
+                    ),
+                  ),
+                  child: Column(
+                    children: List.generate(
+                      _endHour - _startHour,
+                      (index) => Container(
+                        height: _hourHeight,
+                        padding: const EdgeInsets.only(right: 8, top: 4),
+                        alignment: Alignment.topRight,
+                        child: Text(
+                          '${_startHour + index}:00',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: FlownetColors.coolGray,
+                                    fontSize: 12,
+                                  ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-                // Day headers (Mon–Fri)
+                // Days Columns
                 Expanded(
                   child: Row(
                     children: weekDays.map((day) {
+                      final dayEvents = weekEvents.where((event) {
+                        final date = event.date;
+                        if (date == null) return false;
+                        return date.year == day.year &&
+                            date.month == day.month &&
+                            date.day == day.day;
+                      }).toList();
+
                       final isToday = day.year == DateTime.now().year &&
                           day.month == DateTime.now().month &&
                           day.day == DateTime.now().day;
@@ -644,30 +530,103 @@ class _TimelineScreenState extends State<TimelineScreen> {
                         child: Container(
                           decoration: BoxDecoration(
                             border: Border(
-                              right: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
+                              right: BorderSide(
+                                  color: FlownetColors.slate
+                                      .withValues(alpha: 0.3)),
+                              bottom: BorderSide(
+                                  color: FlownetColors.slate
+                                      .withValues(alpha: 0.3)),
                             ),
                             color: isToday
-                                ? FlownetColors.crimsonRed.withOpacity(0.1)
-                                : Colors.transparent,
+                                ? FlownetColors.crimsonRed
+                                    .withValues(alpha: 0.1)
+                                : null,
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
+                          child: Stack(
                             children: [
-                              Text(
-                                DateFormat('EEE').format(day),
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: FlownetColors.coolGray,
-                                      fontSize: 12,
+                              // Hour Lines
+                              Column(
+                                children: List.generate(
+                                  _endHour - _startHour,
+                                  (index) => Container(
+                                    height: _hourHeight,
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        bottom: BorderSide(
+                                          color: FlownetColors.slate
+                                              .withValues(alpha: 0.2),
+                                        ),
+                                      ),
                                     ),
+                                  ),
+                                ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${day.day}',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-                                      color: FlownetColors.pureWhite,
+                              // Day Header
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 8, horizontal: 4),
+                                decoration: BoxDecoration(
+                                  color: FlownetColors.graphiteGray
+                                      .withValues(alpha: 0.3),
+                                  border: Border(
+                                    bottom: BorderSide(
+                                        color: FlownetColors.slate
+                                            .withValues(alpha: 0.3)),
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      DateFormat('EEE').format(day),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: FlownetColors.coolGray,
+                                            fontSize: 12,
+                                          ),
                                     ),
+                                    Text(
+                                      '${day.day}',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            fontWeight: isToday
+                                                ? FontWeight.bold
+                                                : FontWeight.normal,
+                                            color: isToday
+                                                ? FlownetColors.crimsonRed
+                                                : FlownetColors.pureWhite,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Events
+                              Positioned.fill(
+                                top: 56,
+                                child: Stack(
+                                  children: dayEvents.map((event) {
+                                    final startTime =
+                                        _getEventStartDateTime(event);
+                                    final endTime = _getEventEndDateTime(event);
+                                    final top = _getEventTopPosition(startTime);
+                                    final height =
+                                        _getEventHeight(startTime, endTime);
+                                    final color =
+                                        _getColorForTag(event.colorTag);
+
+                                    return Positioned(
+                                      top: top,
+                                      left: 4,
+                                      right: 4,
+                                      height:
+                                          height.clamp(36.0, double.infinity),
+                                      child: _buildWeekEventCard(event, color),
+                                    );
+                                  }).toList(),
+                                ),
                               ),
                             ],
                           ),
@@ -677,117 +636,6 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   ),
                 ),
               ],
-            ),
-          ),
-          // Scrollable time grid with events (like Teams timeline)
-          ClipRect(
-            child: Transform.translate(
-              offset: const Offset(0, 0.5),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.vertical,
-                child: SizedBox(
-                  height: (weekEndHour - weekStartHour) * _hourHeight,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Time Column (24 hours)
-                      Container(
-                        width: 80,
-                        decoration: BoxDecoration(
-                          border: Border(
-                            right: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
-                          ),
-                        ),
-                        child: Column(
-                          children: List.generate(
-                            weekEndHour - weekStartHour,
-                            (index) => Container(
-                              height: _hourHeight,
-                              padding: const EdgeInsets.only(right: 8, top: 4),
-                              alignment: Alignment.topRight,
-                              child: Text(
-                                '${weekStartHour + index}:00',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: FlownetColors.coolGray,
-                                      fontSize: 12,
-                                    ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Days Columns (Mon–Fri)
-                      Expanded(
-                        child: Row(
-                          children: weekDays.map((day) {
-                            final dayEvents = weekEvents.where((event) {
-                              final date = event.date;
-                              if (date == null) return false;
-                              return date.year == day.year &&
-                                  date.month == day.month &&
-                                  date.day == day.day;
-                            }).toList();
-
-                            return Expanded(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  border: Border(
-                                    right: BorderSide(color: FlownetColors.slate.withOpacity(0.3)),
-                                  ),
-                                ),
-                                child: Stack(
-                                  children: [
-                                    // Hour Lines (24 hours)
-                                    Column(
-                                      children: List.generate(
-                                        weekEndHour - weekStartHour,
-                                        (index) => Container(
-                                          height: _hourHeight,
-                                          decoration: BoxDecoration(
-                                            border: Border(
-                                              bottom: BorderSide(
-                                                color: FlownetColors.slate.withOpacity(0.12),
-                                                width: 0.5,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    // Events: correct vertical position + side-by-side when overlapping
-                                    Positioned.fill(
-                                      child: LayoutBuilder(
-                                        builder: (context, constraints) {
-                                          final slots = _computeEventLayouts(
-                                            events: dayEvents,
-                                            startHour: weekStartHour,
-                                            hourHeight: _hourHeight,
-                                            availableWidth: constraints.maxWidth,
-                                            horizontalPadding: 4,
-                                          );
-                                          return Stack(
-                                            children: slots.map((s) => Positioned(
-                                              top: s.top,
-                                              left: s.left,
-                                              width: s.width,
-                                              height: s.height,
-                                              child: _buildWeekEventCard(s.event, s.color),
-                                            )).toList(),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ),
           ),
         ],
@@ -804,12 +652,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
         child: Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.18),
+            color: color.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: color.withOpacity(0.35),
-              width: 0.8,
-            ),
+            border: Border.all(color: color.withValues(alpha: 0.5), width: 1),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -842,7 +687,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
   Widget _buildDayView() {
     final dayEvents = _getEventsForDay(_selectedDay);
-    
+
     return GlassCard(
       padding: EdgeInsets.zero,
       child: Column(
@@ -852,17 +697,20 @@ class _TimelineScreenState extends State<TimelineScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: FlownetColors.slate.withValues(alpha: 0.3)),
+                bottom: BorderSide(
+                    color: FlownetColors.slate.withValues(alpha: 0.3)),
               ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.chevron_left, color: FlownetColors.pureWhite),
+                  icon: const Icon(Icons.chevron_left,
+                      color: FlownetColors.pureWhite),
                   onPressed: () {
                     setState(() {
-                      _selectedDay = _selectedDay.subtract(const Duration(days: 1));
+                      _selectedDay =
+                          _selectedDay.subtract(const Duration(days: 1));
                       _focusedDay = _selectedDay;
                     });
                   },
@@ -886,7 +734,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   ],
                 ),
                 IconButton(
-                  icon: const Icon(Icons.chevron_right, color: FlownetColors.pureWhite),
+                  icon: const Icon(Icons.chevron_right,
+                      color: FlownetColors.pureWhite),
                   onPressed: () {
                     setState(() {
                       _selectedDay = _selectedDay.add(const Duration(days: 1));
@@ -908,7 +757,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   width: 80,
                   decoration: BoxDecoration(
                     border: Border(
-                      right: BorderSide(color: FlownetColors.slate.withValues(alpha: 0.3)),
+                      right: BorderSide(
+                          color: FlownetColors.slate.withValues(alpha: 0.3)),
                     ),
                   ),
                   child: Column(
@@ -920,10 +770,11 @@ class _TimelineScreenState extends State<TimelineScreen> {
                         alignment: Alignment.topRight,
                         child: Text(
                           '${_startHour + index}:00',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: FlownetColors.coolGray,
-                                fontSize: 12,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: FlownetColors.coolGray,
+                                    fontSize: 12,
+                                  ),
                         ),
                       ),
                     ),
@@ -942,33 +793,31 @@ class _TimelineScreenState extends State<TimelineScreen> {
                             decoration: BoxDecoration(
                               border: Border(
                                 bottom: BorderSide(
-                                  color: FlownetColors.slate.withValues(alpha: 0.2),
+                                  color: FlownetColors.slate
+                                      .withValues(alpha: 0.2),
                                 ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                      // Events: correct vertical position + side-by-side when overlapping
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final slots = _computeEventLayouts(
-                            events: dayEvents,
-                            startHour: _startHour,
-                            hourHeight: _hourHeight,
-                            availableWidth: constraints.maxWidth,
-                            horizontalPadding: 8,
+                      // Events
+                      Stack(
+                        children: dayEvents.map((event) {
+                          final startTime = _getEventStartDateTime(event);
+                          final endTime = _getEventEndDateTime(event);
+                          final top = _getEventTopPosition(startTime);
+                          final height = _getEventHeight(startTime, endTime);
+                          final color = _getColorForTag(event.colorTag);
+
+                          return Positioned(
+                            top: top,
+                            left: 8,
+                            right: 8,
+                            height: height.clamp(48.0, double.infinity),
+                            child: _buildDayEventCard(event, color),
                           );
-                          return Stack(
-                            children: slots.map((s) => Positioned(
-                              top: s.top,
-                              left: s.left,
-                              width: s.width,
-                              height: s.height,
-                              child: _buildDayEventCard(s.event, s.color),
-                            )).toList(),
-                          );
-                        },
+                        }).toList(),
                       ),
                     ],
                   ),
@@ -1033,13 +882,16 @@ class _TimelineScreenState extends State<TimelineScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               IconButton(
-                icon: const Icon(Icons.chevron_left, color: FlownetColors.pureWhite),
+                icon: const Icon(Icons.chevron_left,
+                    color: FlownetColors.pureWhite),
                 onPressed: () {
                   setState(() {
                     if (_calendarFormat == CalendarFormat.month) {
-                      _focusedDay = DateTime(_focusedDay.year, _focusedDay.month - 1);
+                      _focusedDay =
+                          DateTime(_focusedDay.year, _focusedDay.month - 1);
                     } else {
-                      _focusedDay = _focusedDay.subtract(const Duration(days: 7));
+                      _focusedDay =
+                          _focusedDay.subtract(const Duration(days: 7));
                     }
                   });
                 },
@@ -1052,11 +904,13 @@ class _TimelineScreenState extends State<TimelineScreen> {
                     ),
               ),
               IconButton(
-                icon: const Icon(Icons.chevron_right, color: FlownetColors.pureWhite),
+                icon: const Icon(Icons.chevron_right,
+                    color: FlownetColors.pureWhite),
                 onPressed: () {
                   setState(() {
                     if (_calendarFormat == CalendarFormat.month) {
-                      _focusedDay = DateTime(_focusedDay.year, _focusedDay.month + 1);
+                      _focusedDay =
+                          DateTime(_focusedDay.year, _focusedDay.month + 1);
                     } else {
                       _focusedDay = _focusedDay.add(const Duration(days: 7));
                     }
@@ -1163,7 +1017,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   ),
             ),
             const SizedBox(height: 12),
-            ..._getEventsForDay(_selectedDay).map((event) => _buildEventChip(event)),
+            ..._getEventsForDay(_selectedDay)
+                .map((event) => _buildEventChip(event)),
           ],
         ],
       ),
@@ -1252,14 +1107,17 @@ class _TimelineScreenState extends State<TimelineScreen> {
                     Row(
                       children: [
                         Text(
-                          DateFormat('MMM d, yyyy').format(event.date ?? DateTime.now()),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: FlownetColors.coolGray,
-                              ),
+                          DateFormat('MMM d, yyyy')
+                              .format(event.date ?? DateTime.now()),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: FlownetColors.coolGray,
+                                  ),
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: color.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
@@ -1410,7 +1268,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close', style: TextStyle(color: FlownetColors.crimsonRed)),
+            child: const Text('Close',
+                style: TextStyle(color: FlownetColors.crimsonRed)),
           ),
         ],
       ),
@@ -1487,7 +1346,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
               Row(
                 children: [
                   if (isApproved)
-                    const Icon(Icons.check_circle, color: FlownetColors.emeraldGreen, size: 20)
+                    const Icon(Icons.check_circle,
+                        color: FlownetColors.emeraldGreen, size: 20)
                   else
                     const SizedBox(width: 20),
                   const SizedBox(width: 8),
@@ -1501,7 +1361,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: FlownetColors.amberOrange.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
@@ -1509,7 +1370,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.local_fire_department, size: 14, color: FlownetColors.amberOrange),
+                        const Icon(Icons.local_fire_department,
+                            size: 14, color: FlownetColors.amberOrange),
                         const SizedBox(width: 4),
                         Text(
                           priority,
@@ -1527,7 +1389,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(Icons.calendar_today, size: 14, color: FlownetColors.coolGray),
+                  const Icon(Icons.calendar_today,
+                      size: 14, color: FlownetColors.coolGray),
                   const SizedBox(width: 4),
                   Text(
                     'In $daysRemaining days',

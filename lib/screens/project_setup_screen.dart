@@ -22,13 +22,13 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
   final _descriptionController = TextEditingController();
   final _clientNameController = TextEditingController();
   final _keyController = TextEditingController();
-
+  
   DateTime? _startDate;
   DateTime? _endDate;
   String _selectedProjectType = 'Fixed Scope';
   ProjectStatus _selectedStatus = ProjectStatus.planning;
   ProjectPriority _selectedPriority = ProjectPriority.medium;
-
+  
   bool _isLoading = false;
   bool _isEditing = false;
   Project? _originalProject;
@@ -79,7 +79,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
 
   Future<void> _loadProject() async {
     if (widget.projectId == null) return;
-
+    
     setState(() => _isLoading = true);
     try {
       final project = await ProjectService.getProjectById(widget.projectId!);
@@ -111,6 +111,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
       setState(() => _isLoading = false);
     }
   }
+
 
   String? _validateField(String fieldName, String? value) {
     switch (fieldName) {
@@ -194,8 +195,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
       final List<User> users = await UserDataService().getUsers(limit: 1000);
       setState(() {
         _availableUsers = users.map((user) {
-          final displayName =
-              (user.name.isNotEmpty ? user.name : user.email).trim();
+          final displayName = (user.name.isNotEmpty ? user.name : user.email).trim();
           return {
             'id': user.id,
             'name': displayName.isNotEmpty ? displayName : user.id,
@@ -267,10 +267,9 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
       };
 
       Project? savedProject;
-
+      
       if (widget.projectId != null) {
-        savedProject =
-            await ProjectService.updateProject(widget.projectId!, projectData);
+        savedProject = await ProjectService.updateProject(widget.projectId!, projectData);
         _showSuccessSnackBar('Project updated successfully');
       } else {
         savedProject = await ProjectService.createProject(projectData);
@@ -294,18 +293,15 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
 
   bool _hasFormChanged() {
     if (_originalProject == null) return true;
-
+    
     return _nameController.text.trim() != _originalProject!.name ||
-        _descriptionController.text.trim() != _originalProject!.description ||
-        _clientNameController.text.trim() !=
-            (_originalProject!.clientName ?? '') ||
-        _selectedProjectType != _originalProject!.projectType ||
-        _selectedStatus != _originalProject!.status ||
-        _selectedPriority != _originalProject!.priority ||
-        _startDate?.toIso8601String() !=
-            _originalProject!.startDate.toIso8601String() ||
-        _endDate?.toIso8601String() !=
-            _originalProject!.endDate?.toIso8601String();
+           _descriptionController.text.trim() != _originalProject!.description ||
+           _clientNameController.text.trim() != (_originalProject!.clientName ?? '') ||
+           _selectedProjectType != _originalProject!.projectType ||
+           _selectedStatus != _originalProject!.status ||
+           _selectedPriority != _originalProject!.priority ||
+           _startDate?.toIso8601String() != _originalProject!.startDate.toIso8601String() ||
+           _endDate?.toIso8601String() != _originalProject!.endDate?.toIso8601String();
   }
 
   void _resetForm() {
@@ -328,7 +324,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
         _selectedPriority = _originalProject!.priority;
         _startDate = _originalProject!.startDate;
         _endDate = _originalProject!.endDate;
-
+        
         // Clear validation errors
         _validationErrors.forEach((key, value) {
           _validationErrors[key] = null;
@@ -353,21 +349,17 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: errors
-                .map(
-                  (error) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2.0),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.error, color: Colors.red, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(error)),
-                      ],
-                    ),
-                  ),
-                )
-                .toList(),
+            children: errors.map((error) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.error, color: Colors.red, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(error)),
+                ],
+              ),
+            ),).toList(),
           ),
           actions: [
             TextButton(
@@ -400,17 +392,14 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
     );
   }
 
-  Future<void> _selectDate(BuildContext context,
-      {required bool isStartDate}) async {
+  Future<void> _selectDate(BuildContext context, {required bool isStartDate}) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: isStartDate
-          ? _startDate ?? DateTime.now()
-          : _endDate ?? DateTime.now(),
+      initialDate: isStartDate ? _startDate ?? DateTime.now() : _endDate ?? DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
     );
-
+    
     if (picked != null) {
       setState(() {
         if (isStartDate) {
@@ -475,9 +464,9 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _isEditing
-                      ? 'Update project details and manage team members'
-                      : 'Define project details and assign team members',
+                  _isEditing 
+                    ? 'Update project details and manage team members'
+                    : 'Define project details and assign team members',
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey[600],
@@ -623,18 +612,18 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
             ],
           ),
           const SizedBox(height: 16),
-
+          
           // Current team members
           if (_teamMembers.isNotEmpty) ...[
             ..._teamMembers.map((member) => _buildTeamMemberTile(member)),
             const SizedBox(height: 16),
           ],
-
+          
           // Add team member button
           _buildAddTeamMemberButton(),
-
+          
           const SizedBox(height: 16),
-
+          
           // Available users section
           if (_availableUsers.isNotEmpty) ...[
             const Text(
@@ -646,9 +635,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            ..._availableUsers
-                .take(3)
-                .map((user) => _buildAvailableUserTile(user)),
+            ..._availableUsers.take(3).map((user) => _buildAvailableUserTile(user)),
             if (_availableUsers.length > 3)
               Text(
                 '... and ${_availableUsers.length - 3} more',
@@ -802,20 +789,20 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
 
   Widget _buildAddTeamMemberButton() {
     return OutlinedButton.icon(
-      onPressed: _showAddTeamMemberDialog,
-      icon: Icon(Icons.person_add, color: Colors.blue[600]),
-      label: Text(
-        'Add Team Member',
-        style: TextStyle(color: Colors.blue[600]),
-      ),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        side: BorderSide(color: Colors.blue[300]!),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+        onPressed: _showAddTeamMemberDialog,
+        icon: Icon(Icons.person_add, color: Colors.blue[600]),
+        label: Text(
+          'Add Team Member',
+          style: TextStyle(color: Colors.blue[600]),
         ),
-      ),
-    );
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          side: BorderSide(color: Colors.blue[300]!),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      );
   }
 
   void _showAddTeamMemberDialog() {
@@ -898,8 +885,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFF3182CE)),
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
           maxLength: 100,
           onChanged: (value) => _validateFieldOnChange('name', value),
@@ -928,8 +914,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
               onPressed: () {
                 final name = _nameController.text.trim();
                 if (name.isNotEmpty) {
-                  final key = name
-                      .toUpperCase()
+                  final key = name.toUpperCase()
                       .replaceAll(RegExp(r'[^A-Z0-9_]'), '_')
                       .replaceAll(RegExp(r'_+'), '_');
                   _keyController.text = key;
@@ -974,8 +959,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFF3182CE)),
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
           maxLength: 20,
           onChanged: (value) => _validateFieldOnChange('key', value),
@@ -1027,8 +1011,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFF3182CE)),
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
           maxLength: 1000,
           onChanged: (value) => _validateFieldOnChange('description', value),
@@ -1057,8 +1040,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
               InkWell(
                 onTap: () => _selectDate(context, isStartDate: true),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     border: Border.all(color: Colors.grey[300]!),
@@ -1066,8 +1048,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today,
-                          size: 18, color: Colors.grey[600]),
+                      Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -1075,9 +1056,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
                               ? '${_startDate!.day}/${_startDate!.month}/${_startDate!.year}'
                               : 'Select start date',
                           style: TextStyle(
-                            color: _startDate != null
-                                ? Colors.black87
-                                : Colors.grey[500],
+                            color: _startDate != null ? Colors.black87 : Colors.grey[500],
                             fontSize: 14,
                           ),
                         ),
@@ -1106,8 +1085,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
               InkWell(
                 onTap: () => _selectDate(context, isStartDate: false),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     border: Border.all(color: Colors.grey[300]!),
@@ -1115,8 +1093,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today,
-                          size: 18, color: Colors.grey[600]),
+                      Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -1124,9 +1101,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
                               ? '${_endDate!.day}/${_endDate!.month}/${_endDate!.year}'
                               : 'Select end date',
                           style: TextStyle(
-                            color: _endDate != null
-                                ? Colors.black87
-                                : Colors.grey[500],
+                            color: _endDate != null ? Colors.black87 : Colors.grey[500],
                             fontSize: 14,
                           ),
                         ),
@@ -1182,10 +1157,8 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFF3182CE)),
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            suffixIcon:
-                const Icon(Icons.arrow_drop_down, color: Color(0xFF718096)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            suffixIcon: const Icon(Icons.arrow_drop_down, color: Color(0xFF718096)),
           ),
           onChanged: (value) => _validateFieldOnChange('clientName', value),
           validator: (value) => _validateField('clientName', value),
@@ -1216,11 +1189,8 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: _projectTypes.contains(_selectedProjectType)
-                  ? _selectedProjectType
-                  : null,
-              hint: const Text('Choose project type',
-                  style: TextStyle(color: Color(0xFFA0AEC0))),
+              value: _projectTypes.contains(_selectedProjectType) ? _selectedProjectType : null,
+              hint: const Text('Choose project type', style: TextStyle(color: Color(0xFFA0AEC0))),
               style: const TextStyle(
                 fontSize: 16,
                 color: Color(0xFF1A202C),
@@ -1332,8 +1302,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
                                 height: 16,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                 ),
                               ),
                               SizedBox(width: 8),
@@ -1356,6 +1325,7 @@ class ProjectSetupScreenState extends State<ProjectSetupScreen> {
       ),
     );
   }
+
 }
 
 class UpperCaseTextFormatter extends TextInputFormatter {
