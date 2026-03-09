@@ -5,6 +5,8 @@ import '../theme/flownet_theme.dart';
 import 'notification_center_widget.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../models/user.dart';
+import '../models/user_role.dart';
 import '../utils/app_icons.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
@@ -311,53 +313,61 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                                 color: FlownetColors.slate, width: 1,),
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            // Only show back/forward buttons on non-dashboard pages
-                            if (routeLocation != '/dashboard') ...[
-                              IconButton(
-                                icon: const Icon(Icons.arrow_back),
-                                onPressed: () {
-                                  if (GoRouter.of(context).canPop()) {
-                                    GoRouter.of(context).pop();
-                                  } else {
-                                    GoRouter.of(context).go('/dashboard');
-                                  }
-                                },
-                                tooltip: 'Back',
-                                color: FlownetColors.pureWhite,
-                              ),
-                              const SizedBox(width: 8),
-                              IconButton(
-                                icon: const Icon(Icons.arrow_forward),
-                                onPressed: () {
-                                  // Forward navigation logic (can be enhanced)
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                          'Forward navigation coming soon',),
-                                      backgroundColor:
-                                          FlownetColors.amberOrange,
+                        child: Builder(
+                          builder: (context) {
+                            final user = AuthService().currentUser;
+                            return Row(
+                              children: [
+                                // Only show back/forward buttons on non-dashboard pages
+                                if (routeLocation != '/dashboard') ...[
+                                  IconButton(
+                                    icon: const Icon(Icons.arrow_back),
+                                    onPressed: () {
+                                      if (GoRouter.of(context).canPop()) {
+                                        GoRouter.of(context).pop();
+                                      } else {
+                                        GoRouter.of(context).go('/dashboard');
+                                      }
+                                    },
+                                    tooltip: 'Back',
+                                    color: FlownetColors.pureWhite,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(Icons.arrow_forward),
+                                    onPressed: () {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Forward navigation coming soon',),
+                                          backgroundColor:
+                                              FlownetColors.amberOrange,
+                                        ),
+                                      );
+                                    },
+                                    tooltip: 'Forward',
+                                    color: FlownetColors.pureWhite,
+                                  ),
+                                ],
+                                const Spacer(),
+                                // Centered page title (role-based on dashboard)
+                                Expanded(
+                                  child: Center(
+                                    child: Text(
+                                      _getPageTitle(routeLocation, user),
+                                      style: const TextStyle(
+                                        color: FlownetColors.textSecondary,
+                                        fontSize: 14,
+                                      ),
                                     ),
-                                  );
-                                },
-                                tooltip: 'Forward',
-                                color: FlownetColors.pureWhite,
-                              ),
-                            ],
-                            const Spacer(),
-                            // User menu icons (always visible)
-                            _buildTopNavIcons(),
-                            const SizedBox(width: 16),
-                            // Current page indicator
-                            Text(
-                              _getPageTitle(routeLocation),
-                              style: const TextStyle(
-                                color: FlownetColors.textSecondary,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
+                                  ),
+                                ),
+                                const Spacer(),
+                                // Hamburger menu (far right)
+                                _buildTopNavIcons(),
+                              ],
+                            );
+                          },
                         ),
                       ),
                       Expanded(child: widget.child),
@@ -546,7 +556,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                       const Spacer(),
                       // Current page indicator
                       Text(
-                        _getPageTitle(routeLocation),
+                        _getPageTitle(routeLocation, AuthService().currentUser),
                         style: const TextStyle(
                           color: FlownetColors.textSecondary,
                           fontSize: 14,
@@ -609,9 +619,9 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Burger Menu with Dropdown
+        // Hamburger menu with dropdown (Profile, Settings, Notifications)
         PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, color: FlownetColors.pureWhite),
+          icon: const Icon(Icons.menu, color: FlownetColors.pureWhite),
           tooltip: 'Menu',
           onSelected: (String value) {
             switch (value) {
@@ -663,7 +673,13 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
     );
   }
 
-  String _getPageTitle(String route) {
+  String _getPageTitle(String route, [User? user]) {
+    if (route == '/dashboard') {
+      if (user != null) {
+        return '${user.role.displayName} Dashboard';
+      }
+      return 'Dashboard';
+    }
     switch (route) {
       case '/deliverables-overview':
         return 'Deliverables';
