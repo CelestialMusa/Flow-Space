@@ -878,7 +878,7 @@ app.post('/api/v1/auth/login', async (req, res) => {
     let result;
     try {
       result = await pool.query(
-        'SELECT id, email, hashed_password, first_name, last_name, role, created_at, is_active FROM users WHERE email = $1',
+        'SELECT id, email, password_hash, first_name, last_name, role, created_at, is_active FROM users WHERE email = $1',
         [email]
       );
     } catch (colErr) {
@@ -913,7 +913,7 @@ app.post('/api/v1/auth/login', async (req, res) => {
       });
     }
 
-    const passwordHash = user.hashed_password;
+    const passwordHash = user.password_hash;
     if (!passwordHash) {
       console.log(`❌ No password hash for user: ${email}`);
       return res.status(401).json({
