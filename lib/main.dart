@@ -86,7 +86,7 @@ class KhonoApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Flownet Workspaces - Project Management Hub',
+      title: 'Flow Space - Project Management Hub',
       theme: FlownetTheme.darkTheme, // Dark mode as default
       routerConfig: _router,
       debugShowCheckedModeBanner: false,

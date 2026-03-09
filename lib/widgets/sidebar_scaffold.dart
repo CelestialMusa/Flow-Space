@@ -311,19 +311,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Only show back/forward buttons on non-dashboard pages
-                            if (routeLocation != '/dashboard') ...[
-                              IconButton(
-                                icon: const Icon(Icons.arrow_back),
-                                onPressed: () => context.pop(),
-                                color: FlownetColors.textSecondary,
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.arrow_forward),
-                                onPressed: () => context.go('/dashboard'),
-                                color: FlownetColors.textSecondary,
-                              ),
-                            ],
+                            const Spacer(),
                             // User menu and notifications
                             Row(
                               children: [
@@ -418,12 +406,6 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
           ),
           centerTitle: false,
           actions: [
-            if (routeLocation != '/dashboard')
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.of(context).pop(),
-                tooltip: 'Back',
-              ),
             // Profile Icon
             IconButton(
               onPressed: () => context.go('/profile'),
@@ -554,57 +536,6 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         body: BackgroundImage(
           child: Column(
             children: [
-              // Top navigation bar with back/forward buttons
-              if (routeLocation != '/dashboard')
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: const BoxDecoration(
-                    color: FlownetColors.graphiteGray,
-                    border: Border(
-                      bottom: BorderSide(
-                        color: FlownetColors.slate,
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back),
-                        onPressed: () => Navigator.of(context).pop(),
-                        tooltip: 'Back',
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.arrow_forward),
-                        onPressed: () {
-                          // Forward navigation logic (can be enhanced)
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Forward navigation coming soon',
-                              ),
-                              backgroundColor: FlownetColors.amberOrange,
-                            ),
-                          );
-                        },
-                        tooltip: 'Forward',
-                      ),
-                      const Spacer(),
-                      // Current page indicator
-                      Text(
-                        _getPageTitle(routeLocation),
-                        style: const TextStyle(
-                          color: FlownetColors.textSecondary,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               Expanded(child: widget.child),
             ],
           ),
@@ -667,27 +598,6 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
               ),
             ),
     );
-  }
-
-  String _getPageTitle(String route) {
-    switch (route) {
-      case '/deliverables-overview':
-        return 'Deliverables';
-      case '/approval-requests':
-        return 'Approval Requests';
-      case '/notifications':
-        return 'Notifications';
-      case '/repository':
-        return 'Repository';
-      case '/sprint-console':
-        return 'Sprint Console';
-      case '/settings':
-        return 'Settings';
-      case '/profile':
-        return 'Profile';
-      default:
-        return 'Flownet Workspaces';
-    }
   }
 }
 

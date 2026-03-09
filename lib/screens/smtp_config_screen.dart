@@ -19,7 +19,7 @@ class _SmtpConfigScreenState extends State<SmtpConfigScreen> {
   final _smtpUsernameController = TextEditingController();
   final _smtpPasswordController = TextEditingController();
   final _fromEmailController = TextEditingController();
-  final _fromNameController = TextEditingController(text: 'Flownet Workspaces');
+  final _fromNameController = TextEditingController(text: 'Flow Space');
   
   bool _useTLS = true;
   bool _useSSL = false;

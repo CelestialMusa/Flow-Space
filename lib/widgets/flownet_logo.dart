@@ -5,6 +5,11 @@ class FlownetLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox.shrink();
+    return Image.asset(
+      'assets/Icons/Red_Khono_Discs.png',
+      width: 32,
+      height: 32,
+      fit: BoxFit.contain,
+    );
   }
 }
