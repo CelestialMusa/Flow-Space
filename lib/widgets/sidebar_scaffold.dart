@@ -38,7 +38,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         label: 'Projects',
         icon: Icons.folder_outlined,
         iconName: 'teams',
-        route: '/project-workspace',
+        route: '/projects',
         requiredPermission: null,
       ),
       const _NavItem(
@@ -48,6 +48,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         route: '/sprint-console',
         requiredPermission: 'view_sprints',
       ),
+      // Sprints accessed via Projects
       const _NavItem(
         label: 'Deliverables',
         icon: Icons.rocket_launch_outlined,
@@ -487,7 +488,8 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                     ),
                     onTap: () {
                       Navigator.pop(context);
-                      _handleLogout(context);
+                      final router = GoRouter.of(context);
+                      _handleLogout(router);
                     },
                   ),
                 ),
@@ -564,8 +566,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
     }
   }
 
-  Future<void> _handleLogout(BuildContext ctx) async {
-    final router = GoRouter.of(ctx);
+  Future<void> _handleLogout(GoRouter router) async {
     await AuthService().signOut();
     if (!mounted) return;
     router.go('/');
@@ -574,7 +575,6 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
   void _showMainMenu(BuildContext context) {
     // Capture all needed values before async operation
     final router = GoRouter.of(context);
-    final ctx = context;
     
     showMenu<String>(
       context: context,
@@ -631,17 +631,16 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
       if (value != null && mounted) {
         switch (value) {
           case 'profile':
-            router.go('/profile');
+            if (mounted) router.go('/profile');
             break;
           case 'settings':
-            router.go('/settings');
+            if (mounted) router.go('/settings');
             break;
           case 'notifications':
-            router.go('/notifications');
+            if (mounted) router.go('/notifications');
             break;
           case 'logout':
-            // Call logout immediately, not in async gap
-            _handleLogout(ctx);
+            if (mounted) _handleLogout(router);
             break;
         }
       }
@@ -662,7 +661,10 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
       ),
       child: _collapsed
           ? IconButton(
-              onPressed: () => _handleLogout(context),
+              onPressed: () {
+                final router = GoRouter.of(context);
+                _handleLogout(router);
+              },
               icon: AppIcons.getIconWidget(
                 'logout',
                 fallbackIcon: Icons.logout,
@@ -674,7 +676,10 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
               padding: const EdgeInsets.all(12),
             )
           : TextButton.icon(
-              onPressed: () => _handleLogout(context),
+              onPressed: () {
+                final router = GoRouter.of(context);
+                _handleLogout(router);
+              },
               icon: AppIcons.getIconWidget(
                 'logout',
                 fallbackIcon: Icons.logout,
