@@ -554,16 +554,111 @@ async function initializeDatabase() {
 
 initializeDatabase();
 
+// Email validation function
+function validateEmail(email) {
+  console.log(`🔍 Validating email: ${email}`);
+  
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    console.log(`❌ Invalid email format: ${email}`);
+    return { valid: false, error: 'Invalid email format' };
+  }
+  
+  const [username, domain] = email.toLowerCase().split('@');
+  console.log(`🔍 Checking username: ${username}, domain: ${domain}`);
+  
+  // Check for common disposable email domains
+  const disposableDomains = [
+    '10minutemail.com', 'tempmail.org', 'guerrillamail.com', 'mailinator.com',
+    'yopmail.com', 'temp-mail.org', 'throwaway.email', 'maildrop.cc',
+    'fakeemail.com', 'tempemail.org', 'sharklasers.com', 'getairmail.com'
+  ];
+  
+  if (disposableDomains.some(disposable => domain.includes(disposable))) {
+    console.log(`❌ Disposable email domain blocked: ${domain}`);
+    return { valid: false, error: 'Disposable email addresses are not allowed' };
+  }
+  
+  // Check for valid domain structure (at least one dot, no consecutive dots)
+  if (domain.includes('..') || !domain.includes('.')) {
+    console.log(`❌ Invalid domain structure: ${domain}`);
+    return { valid: false, error: 'Invalid email domain' };
+  }
+  
+  // Basic MX record validation would require external library, so we'll do basic checks
+  const validDomainRegex = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!validDomainRegex.test(domain)) {
+    console.log(`❌ Invalid domain format: ${domain}`);
+    return { valid: false, error: 'Invalid email domain format' };
+  }
+  
+  // Additional checks for obviously fake domains
+  const suspiciousPatterns = [
+    /^[a-z]+\d+/,  // domains like test123, abc456
+    /\d{2,}$/,    // domains ending with numbers
+    /^(test|fake|dummy|example|invalid|nonexistent)/i  // obvious fake domains
+  ];
+  
+  if (suspiciousPatterns.some(pattern => pattern.test(domain))) {
+    console.log(`❌ Suspicious domain pattern: ${domain}`);
+    return { valid: false, error: 'This email domain appears to be invalid or non-existent' };
+  }
+  
+  // Enhanced username validation - detect fake patterns even on legitimate domains
+  const suspiciousUsernamePatterns = [
+    /^(test|fake|dummy|sample|example|demo|user|admin|support|info|contact)/i,  // generic usernames
+    /^[a-z]+\d{3,}$/,  // usernames ending with 3+ numbers (like thembus123)
+    /^[a-z]{1,2}\d{2,}$/,  // short usernames with numbers (like ab123)
+    /^(no|not|fake|invalid|nonexistent|random|temp|temporal)/i,  // suspicious words
+    /^.{1,3}\d{2,}$/,  // very short usernames with numbers
+    /^[a-z]{20,}$/,  // unusually long usernames
+    /^(test|demo|sample)\d*@/i,  // test/demo accounts with numbers
+  ];
+  
+  if (suspiciousUsernamePatterns.some(pattern => pattern.test(username))) {
+    console.log(`❌ Suspicious username pattern: ${username}@${domain}`);
+    return { valid: false, error: 'This email address appears to be invalid or non-existent' };
+  }
+  
+  // Check for obviously fake combinations
+  const fakeCombinations = [
+    /^(test|fake|dummy|sample|example|demo)@(gmail|yahoo|outlook|hotmail)\.com$/i,
+    /^(user|admin|support|info|contact)@(gmail|yahoo|outlook|hotmail)\.com$/i,
+    /^[a-z]{1,3}\d{2,}@(gmail|yahoo|outlook|hotmail)\.com$/i,
+  ];
+  
+  if (fakeCombinations.some(pattern => pattern.test(email))) {
+    console.log(`❌ Fake combination detected: ${email}`);
+    return { valid: false, error: 'This email address appears to be invalid or non-existent' };
+  }
+  
+  console.log(`✅ Email validation passed: ${email}`);
+  return { valid: true };
+}
+
 // Auth routes
 // Register endpoint (matching frontend expectations)
 app.post('/api/v1/auth/register', async (req, res) => {
+  console.log('📝 REGISTER endpoint called');
   try {
     const { email, password, firstName, lastName, company, role } = req.body;
+    
+    console.log(`📧 Register request for email: ${email}`);
     
     if (!email || !password || !firstName || !lastName) {
       return res.status(400).json({ 
         success: false,
         error: 'Email, password, first name, and last name are required' 
+      });
+    }
+    
+    // Validate email format and domain
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) {
+      console.log(`❌ Email validation failed: ${emailValidation.error}`);
+      return res.status(400).json({
+        success: false,
+        error: emailValidation.error
       });
     }
     
@@ -780,13 +875,26 @@ app.post('/api/v1/auth/verify-email', async (req, res) => {
 });
 
 app.post('/api/v1/auth/signup', async (req, res) => {
+  console.log('📝 SIGNUP endpoint called');
   try {
     const { email, password, firstName, lastName, company, role } = req.body;
+    
+    console.log(`📧 Signup request for email: ${email}`);
     
     if (!email || !password || !firstName || !lastName) {
       return res.status(400).json({ 
         success: false,
         error: 'Email, password, first name, and last name are required' 
+      });
+    }
+    
+    // Validate email format and domain
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) {
+      console.log(`❌ Email validation failed: ${emailValidation.error}`);
+      return res.status(400).json({
+        success: false,
+        error: emailValidation.error
       });
     }
     
@@ -808,12 +916,12 @@ app.post('/api/v1/auth/signup', async (req, res) => {
     const userId = uuidv4();
     const fullName = `${firstName} ${lastName}`;
     
-    // Insert user into users table
+    // Insert user into users table with email verification fields
     const result = await pool.query(
-      `INSERT INTO users (id, email, password_hash, name, role, is_active, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, email, name, role, created_at`,
-      [userId, email, hashedPassword, fullName, role || 'user', true, new Date().toISOString(), new Date().toISOString()]
+      `INSERT INTO users (id, email, password_hash, name, role, is_active, email_verified, email_verified_at, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id, email, name, role, created_at, is_active, email_verified`,
+      [userId, email, hashedPassword, fullName, role || 'user', true, true, new Date().toISOString(), new Date().toISOString(), new Date().toISOString()]
     );
     
     const user = result.rows[0];
@@ -833,7 +941,7 @@ app.post('/api/v1/auth/signup', async (req, res) => {
     
     res.status(201).json({
       success: true,
-      message: 'Registration successful',
+      message: 'Registration successful - you can now login',
       data: {
         user: {
           id: user.id,
@@ -841,7 +949,8 @@ app.post('/api/v1/auth/signup', async (req, res) => {
           name: user.name,
           role: user.role,
           createdAt: user.created_at,
-          isActive: user.is_active
+          isActive: user.is_active,
+          emailVerified: user.email_verified
         },
         token: token,
         token_type: 'Bearer'
