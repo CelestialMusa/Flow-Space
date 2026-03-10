@@ -11,6 +11,7 @@ import '../utils/app_icons.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 import 'background_image.dart';
+import 'sidebar_version_display.dart';
 
 class _NavItem {
   final String label;
@@ -287,6 +288,9 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                                 );
                               },
                             ),
+                          ),
+                          SidebarVersionDisplay(
+                            isSidebarCollapsed: _collapsed,
                           ),
                           Padding(
                             padding: const EdgeInsets.fromLTRB(12, 0, 12, 32),
