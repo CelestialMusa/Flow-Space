@@ -39,6 +39,10 @@ class BackendApiService {
     // Use different endpoints based on environment
     final endpoint = Environment.isRenderDeployed ? '/auth/signup' : '/auth/register';
     
+    debugPrint('🔍 Environment.isRenderDeployed: ${Environment.isRenderDeployed}');
+    debugPrint('🔍 Using endpoint: $endpoint');
+    debugPrint('🔍 Signing up with email: $email');
+    
     final response = await _apiClient.post(endpoint, body: {
       'email': email,
       'password': password,
@@ -47,6 +51,7 @@ class BackendApiService {
       'role': role.name,
     });
 
+    debugPrint('🔍 Signup response: ${response.statusCode} - ${response.error ?? "Success"}');
     return response;
   }
 
