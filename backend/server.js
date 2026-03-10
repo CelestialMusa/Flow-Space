@@ -554,6 +554,39 @@ async function initializeDatabase() {
 
 initializeDatabase();
 
+// Email validation function
+function validateEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return { valid: false, error: 'Invalid email format' };
+  }
+  
+  // Check for common disposable email domains
+  const disposableDomains = [
+    '10minutemail.com', 'tempmail.org', 'guerrillamail.com', 'mailinator.com',
+    'yopmail.com', 'temp-mail.org', 'throwaway.email', 'maildrop.cc',
+    'fakeemail.com', 'tempemail.org', 'sharklasers.com', 'getairmail.com'
+  ];
+  
+  const domain = email.split('@')[1].toLowerCase();
+  if (disposableDomains.some(disposable => domain.includes(disposable))) {
+    return { valid: false, error: 'Disposable email addresses are not allowed' };
+  }
+  
+  // Check for valid domain structure (at least one dot, no consecutive dots)
+  if (domain.includes('..') || !domain.includes('.')) {
+    return { valid: false, error: 'Invalid email domain' };
+  }
+  
+  // Basic MX record validation would require external library, so we'll do basic checks
+  const validDomainRegex = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!validDomainRegex.test(domain)) {
+    return { valid: false, error: 'Invalid email domain format' };
+  }
+  
+  return { valid: true };
+}
+
 // Auth routes
 // Register endpoint (matching frontend expectations)
 app.post('/api/v1/auth/register', async (req, res) => {
@@ -564,6 +597,15 @@ app.post('/api/v1/auth/register', async (req, res) => {
       return res.status(400).json({ 
         success: false,
         error: 'Email, password, first name, and last name are required' 
+      });
+    }
+    
+    // Validate email format and domain
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) {
+      return res.status(400).json({
+        success: false,
+        error: emailValidation.error
       });
     }
     
@@ -787,6 +829,15 @@ app.post('/api/v1/auth/signup', async (req, res) => {
       return res.status(400).json({ 
         success: false,
         error: 'Email, password, first name, and last name are required' 
+      });
+    }
+    
+    // Validate email format and domain
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) {
+      return res.status(400).json({
+        success: false,
+        error: emailValidation.error
       });
     }
     

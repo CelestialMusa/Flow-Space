@@ -289,10 +289,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 if (value == null || value.isEmpty) {
                                   return 'Please enter your email';
                                 }
+                                
+                                // Basic email format validation
                                 if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
                                     .hasMatch(value)) {
                                   return 'Please enter a valid email';
                                 }
+                                
+                                // Check for disposable email domains
+                                final disposableDomains = [
+                                  '10minutemail.com', 'tempmail.org', 'guerrillamail.com', 'mailinator.com',
+                                  'yopmail.com', 'temp-mail.org', 'throwaway.email', 'maildrop.cc',
+                                  'fakeemail.com', 'tempemail.org', 'sharklasers.com', 'getairmail.com'
+                                ];
+                                
+                                final domain = value.split('@')[1].toLowerCase();
+                                if (disposableDomains.any((disposable) => domain.contains(disposable))) {
+                                  return 'Disposable email addresses are not allowed';
+                                }
+                                
+                                // Check for valid domain structure
+                                if (domain.contains('..') || !domain.contains('.')) {
+                                  return 'Invalid email domain';
+                                }
+                                
                                 return null;
                               },
                             ),
