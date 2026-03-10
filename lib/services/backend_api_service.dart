@@ -7,6 +7,7 @@ import 'package:khono/models/user_role.dart';
 import 'package:khono/models/deliverable.dart';
 import 'package:khono/models/sprint_metrics.dart';
 import 'package:khono/models/sign_off_report.dart';
+import 'package:khono/config/environment.dart';
 
 class BackendApiService {
   static final BackendApiService _instance = BackendApiService._internal();
@@ -30,7 +31,23 @@ class BackendApiService {
   }
 
   Future<ApiResponse> signUp(String email, String password, String name, UserRole role) async {
-    return await _apiClient.register(email, password, name, role.name);
+    // Parse the full name into firstName and lastName for the backend
+    final nameParts = name.trim().split(' ');
+    final firstName = nameParts.isNotEmpty ? nameParts[0] : '';
+    final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+
+    // Use different endpoints based on environment
+    final endpoint = Environment.isRenderDeployed ? '/auth/signup' : '/auth/register';
+    
+    final response = await _apiClient.post(endpoint, body: {
+      'email': email,
+      'password': password,
+      'firstName': firstName,
+      'lastName': lastName,
+      'role': role.name,
+    });
+
+    return response;
   }
 
   Future<ApiResponse> signOut() async {

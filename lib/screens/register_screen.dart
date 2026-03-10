@@ -692,14 +692,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       debugPrint('📊 Registration result: $result');
 
       if (result['success'] == true && mounted) {
-        _errorHandler.showSuccessSnackBar(context, 'Registration successful!');
+        _errorHandler.showSuccessSnackBar(context, 'Registration successful! You can now login.');
         if (mounted) {
-          context.go(
-            '/email-verification',
-            extra: {
-              'email': _emailController.text.trim(),
-            },
-          );
+          context.go('/login');
         }
       } else if (mounted) {
         final errorMessage =

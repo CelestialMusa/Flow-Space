@@ -808,12 +808,12 @@ app.post('/api/v1/auth/signup', async (req, res) => {
     const userId = uuidv4();
     const fullName = `${firstName} ${lastName}`;
     
-    // Insert user into users table
+    // Insert user into users table with email verification fields
     const result = await pool.query(
-      `INSERT INTO users (id, email, password_hash, name, role, is_active, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, email, name, role, created_at`,
-      [userId, email, hashedPassword, fullName, role || 'user', true, new Date().toISOString(), new Date().toISOString()]
+      `INSERT INTO users (id, email, password_hash, name, role, is_active, email_verified, email_verified_at, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id, email, name, role, created_at, is_active, email_verified`,
+      [userId, email, hashedPassword, fullName, role || 'user', true, true, new Date().toISOString(), new Date().toISOString(), new Date().toISOString()]
     );
     
     const user = result.rows[0];
@@ -833,7 +833,7 @@ app.post('/api/v1/auth/signup', async (req, res) => {
     
     res.status(201).json({
       success: true,
-      message: 'Registration successful',
+      message: 'Registration successful - you can now login',
       data: {
         user: {
           id: user.id,
@@ -841,7 +841,8 @@ app.post('/api/v1/auth/signup', async (req, res) => {
           name: user.name,
           role: user.role,
           createdAt: user.created_at,
-          isActive: user.is_active
+          isActive: user.is_active,
+          emailVerified: user.email_verified
         },
         token: token,
         token_type: 'Bearer'
