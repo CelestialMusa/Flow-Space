@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/settings_service.dart';
 import '../theme/flownet_theme.dart';
-import '../widgets/flownet_logo.dart';
-import '../widgets/app_scaffold.dart';
+import '../widgets/glass_card.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -48,94 +47,112 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const AppScaffold(
-        body: Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-          ),
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
         ),
       );
     }
 
-    return AppScaffold(
-      appBar: AppBar(
-        title: const FlownetLogo(),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle: const TextStyle(
-          color: Colors.white,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Settings',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: FlownetColors.pureWhite,
-                    fontWeight: FontWeight.bold,
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 900),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Settings',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: FlownetColors.pureWhite,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Personalize your experience and control how the app behaves.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: FlownetColors.coolGray,
+                    ),
+              ),
+              const SizedBox(height: 24),
+              _buildSection(
+                title: 'Appearance',
+                icon: Icons.palette_outlined,
+                children: [
+                  SwitchListTile(
+                    title: const Text('Dark Mode'),
+                    secondary: const Icon(Icons.dark_mode_outlined),
+                    value: _darkMode,
+                    onChanged: (value) async {
+                      await SettingsService.saveDarkMode(value);
+                      setState(() => _darkMode = value);
+                    },
                   ),
-            ),
-            const SizedBox(height: 24),
-            _buildSection(
-              title: 'Appearance',
-              children: [
-                SwitchListTile(
-                  title: const Text('Dark Mode'),
-                  value: _darkMode,
-                  onChanged: (value) async {
-                    await SettingsService.saveDarkMode(value);
-                    setState(() => _darkMode = value);
-                  },
-                ),
-                ListTile(
-                  title: const Text('Language'),
-                  subtitle: Text(_language),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showLanguageDialog(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildSection(
-              title: 'Notifications',
-              children: [
-                SwitchListTile(
-                  title: const Text('Enable Notifications'),
-                  value: _notifications,
-                  onChanged: (value) async {
-                    await SettingsService.saveNotifications(value);
-                    setState(() => _notifications = value);
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildSection(
-              title: 'Data & Sync',
-              children: [
-                SwitchListTile(
-                  title: const Text('Auto Sync'),
-                  value: _autoSync,
-                  onChanged: (value) async {
-                    await SettingsService.saveAutoSync(value);
-                    setState(() => _autoSync = value);
-                  },
-                ),
-                ListTile(
-                  title: const Text('Sync Frequency'),
-                  subtitle: Text(_syncFrequency),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showSyncFrequencyDialog(),
-                ),
-              ],
-            ),
-          ],
+                  ListTile(
+                    title: const Text('Language'),
+                    subtitle: Text(_language),
+                    trailing: Text(
+                      'Edit',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: FlownetColors.coolGray,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    leading: const Icon(Icons.language_outlined),
+                    onTap: () => _showLanguageDialog(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildSection(
+                title: 'Notifications',
+                icon: Icons.notifications_none_outlined,
+                children: [
+                  SwitchListTile(
+                    title: const Text('Enable Notifications'),
+                    secondary: const Icon(Icons.notifications_active_outlined),
+                    value: _notifications,
+                    onChanged: (value) async {
+                      await SettingsService.saveNotifications(value);
+                      setState(() => _notifications = value);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildSection(
+                title: 'Data & Sync',
+                icon: Icons.sync_outlined,
+                children: [
+                  SwitchListTile(
+                    title: const Text('Auto Sync'),
+                    secondary: const Icon(Icons.cloud_sync_outlined),
+                    value: _autoSync,
+                    onChanged: (value) async {
+                      await SettingsService.saveAutoSync(value);
+                      setState(() => _autoSync = value);
+                    },
+                  ),
+                  ListTile(
+                    title: const Text('Sync Frequency'),
+                    subtitle: Text(_syncFrequency),
+                    trailing: Text(
+                      'Edit',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: FlownetColors.coolGray,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    leading: const Icon(Icons.schedule_outlined),
+                    onTap: () => _showSyncFrequencyDialog(),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -209,22 +226,53 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  Widget _buildSection({required String title, required List<Widget> children}) {
+  Widget _buildSection({required String title, required IconData icon, required List<Widget> children}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: FlownetColors.coolGray,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
+        Row(
+          children: [
+            Icon(icon, size: 18, color: FlownetColors.coolGray),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                color: FlownetColors.coolGray,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
-        Card(
-          color: FlownetColors.graphiteGray,
-          child: Column(children: children),
+        GlassCard(
+          borderRadius: 16,
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          color: Colors.white.withAlpha(18),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              listTileTheme: const ListTileThemeData(
+                iconColor: FlownetColors.pureWhite,
+                textColor: FlownetColors.pureWhite,
+              ),
+              dividerColor: Colors.white12,
+            ),
+            child: Column(
+              children: [
+                for (int i = 0; i < children.length; i++) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: children[i],
+                  ),
+                  if (i != children.length - 1)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Divider(height: 1),
+                    ),
+                ],
+              ],
+            ),
+          ),
         ),
       ],
     );
