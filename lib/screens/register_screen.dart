@@ -290,11 +290,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   return 'Please enter your email';
                                 }
                                 
+                                final email = value.toLowerCase().trim();
+                                
                                 // Basic email format validation
                                 if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                                    .hasMatch(value)) {
+                                    .hasMatch(email)) {
                                   return 'Please enter a valid email';
                                 }
+                                
+                                final [username, domain] = email.split('@');
                                 
                                 // Check for disposable email domains
                                 final disposableDomains = [
@@ -303,7 +307,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   'fakeemail.com', 'tempemail.org', 'sharklasers.com', 'getairmail.com'
                                 ];
                                 
-                                final domain = value.split('@')[1].toLowerCase();
                                 if (disposableDomains.any((disposable) => domain.contains(disposable))) {
                                   return 'Disposable email addresses are not allowed';
                                 }
@@ -311,6 +314,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 // Check for valid domain structure
                                 if (domain.contains('..') || !domain.contains('.')) {
                                   return 'Invalid email domain';
+                                }
+                                
+                                // Enhanced username validation
+                                final suspiciousUsernamePatterns = [
+                                  RegExp(r'^(test|fake|dummy|sample|example|demo|user|admin|support|info|contact)', caseSensitive: false),
+                                  RegExp(r'^[a-z]+\d{3,}$'),  // usernames ending with 3+ numbers
+                                  RegExp(r'^[a-z]{1,2}\d{2,}$'),  // short usernames with numbers
+                                  RegExp(r'^(no|not|fake|invalid|nonexistent|random|temp|temporal)', caseSensitive: false),
+                                  RegExp(r'^.{1,3}\d{2,}$'),  // very short usernames with numbers
+                                  RegExp(r'^[a-z]{20,}$'),  // unusually long usernames
+                                  RegExp(r'^(test|demo|sample)\d*@', caseSensitive: false),
+                                ];
+                                
+                                if (suspiciousUsernamePatterns.any((pattern) => pattern.hasMatch(username))) {
+                                  return 'This email address appears to be invalid or non-existent';
+                                }
+                                
+                                // Check for obviously fake combinations
+                                final fakeCombinations = [
+                                  RegExp(r'^(test|fake|dummy|sample|example|demo)@(gmail|yahoo|outlook|hotmail)\.com$', caseSensitive: false),
+                                  RegExp(r'^(user|admin|support|info|contact)@(gmail|yahoo|outlook|hotmail)\.com$', caseSensitive: false),
+                                  RegExp(r'^[a-z]{1,3}\d{2,}@(gmail|yahoo|outlook|hotmail)\.com$', caseSensitive: false),
+                                ];
+                                
+                                if (fakeCombinations.any((pattern) => pattern.hasMatch(email))) {
+                                  return 'This email address appears to be invalid or non-existent';
                                 }
                                 
                                 return null;

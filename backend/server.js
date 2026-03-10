@@ -564,15 +564,15 @@ function validateEmail(email) {
     return { valid: false, error: 'Invalid email format' };
   }
   
+  const [username, domain] = email.toLowerCase().split('@');
+  console.log(`🔍 Checking username: ${username}, domain: ${domain}`);
+  
   // Check for common disposable email domains
   const disposableDomains = [
     '10minutemail.com', 'tempmail.org', 'guerrillamail.com', 'mailinator.com',
     'yopmail.com', 'temp-mail.org', 'throwaway.email', 'maildrop.cc',
     'fakeemail.com', 'tempemail.org', 'sharklasers.com', 'getairmail.com'
   ];
-  
-  const domain = email.split('@')[1].toLowerCase();
-  console.log(`🔍 Checking domain: ${domain}`);
   
   if (disposableDomains.some(disposable => domain.includes(disposable))) {
     console.log(`❌ Disposable email domain blocked: ${domain}`);
@@ -602,6 +602,34 @@ function validateEmail(email) {
   if (suspiciousPatterns.some(pattern => pattern.test(domain))) {
     console.log(`❌ Suspicious domain pattern: ${domain}`);
     return { valid: false, error: 'This email domain appears to be invalid or non-existent' };
+  }
+  
+  // Enhanced username validation - detect fake patterns even on legitimate domains
+  const suspiciousUsernamePatterns = [
+    /^(test|fake|dummy|sample|example|demo|user|admin|support|info|contact)/i,  // generic usernames
+    /^[a-z]+\d{3,}$/,  // usernames ending with 3+ numbers (like thembus123)
+    /^[a-z]{1,2}\d{2,}$/,  // short usernames with numbers (like ab123)
+    /^(no|not|fake|invalid|nonexistent|random|temp|temporal)/i,  // suspicious words
+    /^.{1,3}\d{2,}$/,  // very short usernames with numbers
+    /^[a-z]{20,}$/,  // unusually long usernames
+    /^(test|demo|sample)\d*@/i,  // test/demo accounts with numbers
+  ];
+  
+  if (suspiciousUsernamePatterns.some(pattern => pattern.test(username))) {
+    console.log(`❌ Suspicious username pattern: ${username}@${domain}`);
+    return { valid: false, error: 'This email address appears to be invalid or non-existent' };
+  }
+  
+  // Check for obviously fake combinations
+  const fakeCombinations = [
+    /^(test|fake|dummy|sample|example|demo)@(gmail|yahoo|outlook|hotmail)\.com$/i,
+    /^(user|admin|support|info|contact)@(gmail|yahoo|outlook|hotmail)\.com$/i,
+    /^[a-z]{1,3}\d{2,}@(gmail|yahoo|outlook|hotmail)\.com$/i,
+  ];
+  
+  if (fakeCombinations.some(pattern => pattern.test(email))) {
+    console.log(`❌ Fake combination detected: ${email}`);
+    return { valid: false, error: 'This email address appears to be invalid or non-existent' };
   }
   
   console.log(`✅ Email validation passed: ${email}`);
