@@ -4,7 +4,6 @@ import '../services/project_service.dart';
 import 'package:khono/models/project.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/glass_card.dart';
-import 'project_setup_screen.dart';
 
 class ProjectsScreen extends StatefulWidget {
   const ProjectsScreen({super.key});
@@ -342,7 +341,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           ),
           const SizedBox(height: 24),
           Text(
-            'Project creation form will be displayed here. For now, please use the Project Setup screen.',
+            'Use the full Project Workspace form to create a project.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.onSurface.withAlpha(179),
             ),
@@ -350,18 +349,16 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const ProjectSetupScreen(),
-                ),
-              ).then((_) {
+              context.push<bool>('/project-workspace/new').then((created) {
                 setState(() {
                   _showCreateForm = false;
                 });
-                _loadProjects();
+                if (created == true) {
+                  _loadProjects();
+                }
               });
             },
-            child: const Text('Go to Project Setup'),
+            child: const Text('Open Project Workspace'),
           ),
         ],
       ),

@@ -234,7 +234,7 @@ final GoRouter _router = GoRouter(
       builder: (context, state) => const RoleGuard(
         requiredPermission: 'authenticated',
         child: SidebarScaffold(
-          child: ProjectSetupScreen(),
+          child: ProjectWorkspaceScreen(projectId: 'new'),
         ),
       ),
     ),
