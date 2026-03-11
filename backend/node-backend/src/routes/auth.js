@@ -108,8 +108,17 @@ router.post('/register', async (req, res) => {
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         await user.update({ verification_token: code });
         const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
-        const result = await emailService.sendVerificationEmail(user.email, name, code);
-        emailVerificationSent = !!(result && result.success);
+        Promise.resolve()
+          .then(() => emailService.sendVerificationEmail(user.email, name, code))
+          .then((result) => {
+            if (!(result && result.success)) {
+              console.error('Verification email send failed:', result && result.error ? result.error : 'unknown error');
+            }
+          })
+          .catch((e) => {
+            console.error('Verification email send failed:', e?.message || e);
+          });
+        emailVerificationSent = true;
       } catch (e) {
         console.error('Verification email send failed:', e?.message || e);
       }
