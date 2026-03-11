@@ -9,6 +9,8 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -552,16 +554,111 @@ async function initializeDatabase() {
 
 initializeDatabase();
 
+// Email validation function
+function validateEmail(email) {
+  console.log(`🔍 Validating email: ${email}`);
+  
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    console.log(`❌ Invalid email format: ${email}`);
+    return { valid: false, error: 'Invalid email format' };
+  }
+  
+  const [username, domain] = email.toLowerCase().split('@');
+  console.log(`🔍 Checking username: ${username}, domain: ${domain}`);
+  
+  // Check for common disposable email domains
+  const disposableDomains = [
+    '10minutemail.com', 'tempmail.org', 'guerrillamail.com', 'mailinator.com',
+    'yopmail.com', 'temp-mail.org', 'throwaway.email', 'maildrop.cc',
+    'fakeemail.com', 'tempemail.org', 'sharklasers.com', 'getairmail.com'
+  ];
+  
+  if (disposableDomains.some(disposable => domain.includes(disposable))) {
+    console.log(`❌ Disposable email domain blocked: ${domain}`);
+    return { valid: false, error: 'Disposable email addresses are not allowed' };
+  }
+  
+  // Check for valid domain structure (at least one dot, no consecutive dots)
+  if (domain.includes('..') || !domain.includes('.')) {
+    console.log(`❌ Invalid domain structure: ${domain}`);
+    return { valid: false, error: 'Invalid email domain' };
+  }
+  
+  // Basic MX record validation would require external library, so we'll do basic checks
+  const validDomainRegex = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!validDomainRegex.test(domain)) {
+    console.log(`❌ Invalid domain format: ${domain}`);
+    return { valid: false, error: 'Invalid email domain format' };
+  }
+  
+  // Additional checks for obviously fake domains
+  const suspiciousPatterns = [
+    /^[a-z]+\d+/,  // domains like test123, abc456
+    /\d{2,}$/,    // domains ending with numbers
+    /^(test|fake|dummy|example|invalid|nonexistent)/i  // obvious fake domains
+  ];
+  
+  if (suspiciousPatterns.some(pattern => pattern.test(domain))) {
+    console.log(`❌ Suspicious domain pattern: ${domain}`);
+    return { valid: false, error: 'This email domain appears to be invalid or non-existent' };
+  }
+  
+  // Enhanced username validation - detect fake patterns even on legitimate domains
+  const suspiciousUsernamePatterns = [
+    /^(test|fake|dummy|sample|example|demo|user|admin|support|info|contact)/i,  // generic usernames
+    /^[a-z]+\d{3,}$/,  // usernames ending with 3+ numbers (like thembus123)
+    /^[a-z]{1,2}\d{2,}$/,  // short usernames with numbers (like ab123)
+    /^(no|not|fake|invalid|nonexistent|random|temp|temporal)/i,  // suspicious words
+    /^.{1,3}\d{2,}$/,  // very short usernames with numbers
+    /^[a-z]{20,}$/,  // unusually long usernames
+    /^(test|demo|sample)\d*@/i,  // test/demo accounts with numbers
+  ];
+  
+  if (suspiciousUsernamePatterns.some(pattern => pattern.test(username))) {
+    console.log(`❌ Suspicious username pattern: ${username}@${domain}`);
+    return { valid: false, error: 'This email address appears to be invalid or non-existent' };
+  }
+  
+  // Check for obviously fake combinations
+  const fakeCombinations = [
+    /^(test|fake|dummy|sample|example|demo)@(gmail|yahoo|outlook|hotmail)\.com$/i,
+    /^(user|admin|support|info|contact)@(gmail|yahoo|outlook|hotmail)\.com$/i,
+    /^[a-z]{1,3}\d{2,}@(gmail|yahoo|outlook|hotmail)\.com$/i,
+  ];
+  
+  if (fakeCombinations.some(pattern => pattern.test(email))) {
+    console.log(`❌ Fake combination detected: ${email}`);
+    return { valid: false, error: 'This email address appears to be invalid or non-existent' };
+  }
+  
+  console.log(`✅ Email validation passed: ${email}`);
+  return { valid: true };
+}
+
 // Auth routes
 // Register endpoint (matching frontend expectations)
 app.post('/api/v1/auth/register', async (req, res) => {
+  console.log('📝 REGISTER endpoint called');
   try {
     const { email, password, firstName, lastName, company, role } = req.body;
+    
+    console.log(`📧 Register request for email: ${email}`);
     
     if (!email || !password || !firstName || !lastName) {
       return res.status(400).json({ 
         success: false,
         error: 'Email, password, first name, and last name are required' 
+      });
+    }
+    
+    // Validate email format and domain
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) {
+      console.log(`❌ Email validation failed: ${emailValidation.error}`);
+      return res.status(400).json({
+        success: false,
+        error: emailValidation.error
       });
     }
     
@@ -606,17 +703,16 @@ app.post('/api/v1/auth/register', async (req, res) => {
     
     // Generate and display verification code
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const verificationExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     await pool.query(
       `UPDATE users
        SET email_verified = false,
            email_verified_at = NULL,
            email_verification_code = $1,
-           email_verification_expires_at = $2,
+           email_verification_expires_at = NOW() + INTERVAL '15 minutes',
            updated_at = NOW()
-       WHERE id = $3`,
-      [verificationCode, verificationExpiresAt.toISOString(), user.id]
+       WHERE id = $2`,
+      [verificationCode, user.id]
     );
     
     console.log('\n🎉 ===========================================');
@@ -634,6 +730,31 @@ app.post('/api/v1/auth/register', async (req, res) => {
 
       if (!emailResult || !emailResult.success) {
         console.log('⚠️  Verification email not sent via SendGrid:', emailResult?.error);
+        
+        // Handle configuration-specific errors
+        if (emailResult?.requiresConfigurationFix) {
+          console.log('🚫 Configuration issue detected - requires manual fix');
+          console.log('💡 User can still use the verification code shown in logs for development.');
+          
+          return res.status(201).json({
+            success: true,
+            message: 'Registration successful, but email verification requires configuration fix. Please use the verification code shown in server logs.',
+            data: {
+              user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                role: user.role,
+                createdAt: user.created_at,
+                isActive: user.is_active
+              },
+              token: token,
+              token_type: 'Bearer',
+              emailConfigIssue: true
+            }
+          });
+        }
+        
         console.log('💡 User can still use the verification code shown in logs for development.');
       }
     } catch (emailError) {
@@ -709,8 +830,13 @@ app.post('/api/v1/auth/verify-email', async (req, res) => {
       });
     }
 
-    const expiresAt = new Date(user.email_verification_expires_at);
-    if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() < Date.now()) {
+    // Use database time to avoid timezone parsing issues
+    const expCheck = await pool.query(
+      'SELECT (email_verification_expires_at > NOW()) AS not_expired FROM users WHERE id = $1',
+      [user.id]
+    );
+    const notExpired = expCheck.rows[0]?.not_expired === true;
+    if (!notExpired) {
       return res.status(400).json({
         success: false,
         error: 'Verification code expired. Please request a new code.'
@@ -749,13 +875,26 @@ app.post('/api/v1/auth/verify-email', async (req, res) => {
 });
 
 app.post('/api/v1/auth/signup', async (req, res) => {
+  console.log('📝 SIGNUP endpoint called');
   try {
     const { email, password, firstName, lastName, company, role } = req.body;
+    
+    console.log(`📧 Signup request for email: ${email}`);
     
     if (!email || !password || !firstName || !lastName) {
       return res.status(400).json({ 
         success: false,
         error: 'Email, password, first name, and last name are required' 
+      });
+    }
+    
+    // Validate email format and domain
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) {
+      console.log(`❌ Email validation failed: ${emailValidation.error}`);
+      return res.status(400).json({
+        success: false,
+        error: emailValidation.error
       });
     }
     
@@ -777,12 +916,12 @@ app.post('/api/v1/auth/signup', async (req, res) => {
     const userId = uuidv4();
     const fullName = `${firstName} ${lastName}`;
     
-    // Insert user into users table
+    // Insert user into users table with email verification fields
     const result = await pool.query(
-      `INSERT INTO users (id, email, password_hash, name, role, is_active, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, email, name, role, created_at`,
-      [userId, email, hashedPassword, fullName, role || 'user', true, new Date().toISOString(), new Date().toISOString()]
+      `INSERT INTO users (id, email, password_hash, name, role, is_active, email_verified, email_verified_at, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id, email, name, role, created_at, is_active, email_verified`,
+      [userId, email, hashedPassword, fullName, role || 'user', true, true, new Date().toISOString(), new Date().toISOString(), new Date().toISOString()]
     );
     
     const user = result.rows[0];
@@ -802,7 +941,7 @@ app.post('/api/v1/auth/signup', async (req, res) => {
     
     res.status(201).json({
       success: true,
-      message: 'Registration successful',
+      message: 'Registration successful - you can now login',
       data: {
         user: {
           id: user.id,
@@ -810,7 +949,8 @@ app.post('/api/v1/auth/signup', async (req, res) => {
           name: user.name,
           role: user.role,
           createdAt: user.created_at,
-          isActive: user.is_active
+          isActive: user.is_active,
+          emailVerified: user.email_verified
         },
         token: token,
         token_type: 'Bearer'
@@ -977,26 +1117,79 @@ app.get('/api/v1/users', authenticateToken, async (req, res) => {
     const search = req.query.search || '';
     const offset = (page - 1) * limit;
 
-    let query = `
+    // Primary query uses first_name/last_name; fallback uses name
+    const params = [];
+    let paramCount = 0;
+    let primaryQuery = `
       SELECT id, email, first_name, last_name, role, created_at, is_active 
       FROM users 
       WHERE 1=1
     `;
-    const params = [];
-    let paramCount = 0;
-
     if (search) {
       paramCount++;
-      query += ` AND (email ILIKE $${paramCount} OR first_name ILIKE $${paramCount} OR last_name ILIKE $${paramCount})`;
+      primaryQuery += ` AND (email ILIKE $${paramCount} OR first_name ILIKE $${paramCount} OR last_name ILIKE $${paramCount})`;
       params.push(`%${search}%`);
     }
-
-    query += ` ORDER BY created_at DESC LIMIT $${++paramCount} OFFSET $${++paramCount}`;
+    primaryQuery += ` ORDER BY created_at DESC LIMIT $${++paramCount} OFFSET $${++paramCount}`;
     params.push(limit, offset);
 
-    const result = await pool.query(query, params);
+    let result;
+    try {
+      result = await pool.query(primaryQuery, params);
+    } catch (colErr) {
+      if (colErr?.code === '42703' || (colErr?.message && /column.*does not exist/i.test(colErr.message))) {
+        // Fallback to single name column
+        const fParams = [];
+        let fCount = 0;
+        let fallbackQuery = `
+          SELECT id, email, name, role, created_at, is_active 
+          FROM users 
+          WHERE 1=1
+        `;
+        if (search) {
+          fCount++;
+          fallbackQuery += ` AND (email ILIKE $${fCount} OR name ILIKE $${fCount})`;
+          fParams.push(`%${search}%`);
+        }
+        fallbackQuery += ` ORDER BY created_at DESC LIMIT $${++fCount} OFFSET $${++fCount}`;
+        fParams.push(limit, offset);
+        result = await pool.query(fallbackQuery, fParams);
 
-    // Get total count for pagination
+        // Also compute total with fallback
+        let fCountQuery = 'SELECT COUNT(*) FROM users WHERE 1=1';
+        const fCountParams = [];
+        if (search) {
+          fCountQuery += ` AND (email ILIKE $1 OR name ILIKE $1)`;
+          fCountParams.push(`%${search}%`);
+        }
+        const fTotal = await pool.query(fCountQuery, fCountParams);
+        const total = parseInt(fTotal.rows[0].count, 10);
+        const users = result.rows.map(row => ({
+          id: row.id,
+          email: row.email,
+          name: row.name || row.email,
+          firstName: null,
+          lastName: null,
+          role: row.role,
+          createdAt: row.created_at,
+          isActive: row.is_active,
+        }));
+        return res.json({
+          success: true,
+          data: users,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+          },
+        });
+      } else {
+        throw colErr;
+      }
+    }
+
+    // Compute total for primary path
     let countQuery = 'SELECT COUNT(*) FROM users WHERE 1=1';
     const countParams = [];
     if (search) {
@@ -1076,9 +1269,14 @@ app.post('/api/v1/auth/resend-verification', async (req, res) => {
     // Generate new verification code
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     
-    // Update user with new verification code
+    // Update user with new verification code and fresh expiry
     await pool.query(
-      'UPDATE users SET email_verification_code = $1, email_verified = false WHERE id = $2',
+      `UPDATE users 
+       SET email_verification_code = $1,
+           email_verification_expires_at = NOW() + INTERVAL '15 minutes',
+           email_verified = false,
+           updated_at = NOW()
+       WHERE id = $2`,
       [verificationCode, user.id]
     );
 
@@ -1191,10 +1389,22 @@ app.get('/api/v1/auth/me', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     
-    const result = await pool.query(
-      'SELECT id, email, first_name, last_name, role, created_at, is_active FROM users WHERE id = $1',
-      [userId]
-    );
+    let result;
+    try {
+      result = await pool.query(
+        'SELECT id, email, first_name, last_name, role, created_at, is_active FROM users WHERE id = $1',
+        [userId]
+      );
+    } catch (colErr) {
+      if (colErr?.message && /column.*does not exist/i.test(colErr.message)) {
+        result = await pool.query(
+          'SELECT id, email, name, role, created_at, is_active FROM users WHERE id = $1',
+          [userId]
+        );
+      } else {
+        throw colErr;
+      }
+    }
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -1204,9 +1414,9 @@ app.get('/api/v1/auth/me', authenticateToken, async (req, res) => {
     }
     
     const user = result.rows[0];
-    const userName = user.first_name && user.last_name 
-      ? `${user.first_name} ${user.last_name}` 
-      : (user.first_name || user.last_name || user.email);
+    const userName = (user.first_name && user.last_name)
+      ? `${user.first_name} ${user.last_name}`
+      : (user.first_name || user.last_name || user.name || user.email);
     
     res.json({
       success: true,
@@ -1452,7 +1662,34 @@ app.get('/api/v1/count', authenticateToken, async (req, res) => {
         });
     }
 
-    const result = await pool.query(query, params);
+    let result;
+    try {
+      result = await pool.query(query, params);
+    } catch (colErr) {
+      if (colErr?.code === '42703' || (colErr?.message && /column.*does not exist/i.test(colErr.message))) {
+        // Fallback to schema with single name column
+        let fbQuery = `
+          SELECT p.*, COALESCE(u.name, '') as owner_name
+          FROM projects p
+          LEFT JOIN users u ON p.owner_id = u.id
+          WHERE p.id = $1
+        `;
+        const fbParams = [projectId];
+        if (userRole === 'teamMember') {
+          fbQuery = `
+            SELECT p.*, COALESCE(u.name, '') as owner_name
+            FROM projects p
+            LEFT JOIN users u ON p.owner_id = u.id
+            LEFT JOIN project_members pm ON pm.project_id = p.id
+            WHERE p.id = $1 AND (p.owner_id = $2 OR pm.user_id = $2)
+          `;
+          fbParams.push(userId);
+        }
+        result = await pool.query(fbQuery, fbParams);
+      } else {
+        throw colErr;
+      }
+    }
     count = parseInt(result.rows[0].count) || 0;
 
     res.json({
@@ -1503,31 +1740,45 @@ app.get('/api/v1/projects', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const userRole = req.user.role;
-
-    let query = `
+    
+    // Build primary query (first_name/last_name) and fallback query (name)
+    const basePrimary = `
       SELECT 
         p.*,
         TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) as owner_name
       FROM projects p
       LEFT JOIN users u ON p.owner_id = u.id
     `;
+    const baseFallback = `
+      SELECT 
+        p.*,
+        COALESCE(u.name, '') as owner_name
+      FROM projects p
+      LEFT JOIN users u ON p.owner_id = u.id
+    `;
     const params = [];
-
+    let suffix = ' ORDER BY p.created_at DESC';
     if (userRole === 'teamMember') {
-      query += `
+      suffix = `
         LEFT JOIN project_members pm ON pm.project_id = p.id
         WHERE p.owner_id = $1 OR pm.user_id = $1
+        ORDER BY p.created_at DESC
       `;
       params.push(userId);
     }
 
-    query += ' ORDER BY p.created_at DESC';
-    const result = await pool.query(query, params);
+    let result;
+    try {
+      result = await pool.query(basePrimary + suffix, params);
+    } catch (colErr) {
+      if (colErr?.message && /column.*does not exist/i.test(colErr.message)) {
+        result = await pool.query(baseFallback + suffix, params);
+      } else {
+        throw colErr;
+      }
+    }
 
-    res.json({
-      success: true,
-      data: result.rows
-    });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching projects:', error);
     if (error && error.code === '42P01') {
@@ -1734,7 +1985,34 @@ app.get('/api/v1/projects/:projectId', authenticateToken, async (req, res) => {
       params.push(userId);
     }
 
-    const result = await pool.query(query, params);
+    let result;
+    try {
+      result = await pool.query(query, params);
+    } catch (colErr) {
+      if (colErr?.code === '42703' || (colErr?.message && /column.*does not exist/i.test(colErr.message))) {
+        // Fallback to schema with single name column
+        let fbQuery = `
+          SELECT p.*, COALESCE(u.name, '') as owner_name
+          FROM projects p
+          LEFT JOIN users u ON p.owner_id = u.id
+          WHERE p.id = $1
+        `;
+        const fbParams = [projectId];
+        if (userRole === 'teamMember') {
+          fbQuery = `
+            SELECT p.*, COALESCE(u.name, '') as owner_name
+            FROM projects p
+            LEFT JOIN users u ON p.owner_id = u.id
+            LEFT JOIN project_members pm ON pm.project_id = p.id
+            WHERE p.id = $1 AND (p.owner_id = $2 OR pm.user_id = $2)
+          `;
+          fbParams.push(userId);
+        }
+        result = await pool.query(fbQuery, fbParams);
+      } else {
+        throw colErr;
+      }
+    }
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Project not found' });
     }
@@ -2340,26 +2618,44 @@ app.get('/api/v1/sprints/:sprintId/tickets', authenticateToken, async (req, res)
 app.get('/api/v1/notifications/me', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    
-    const result = await pool.query(`
-      SELECT 
-        n.id,
-        n.title,
-        n.message,
-        n.type,
-        n.is_read,
-        n.created_at,
-        TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) as user_name
-      FROM notifications n
-      LEFT JOIN users u ON n.user_id = u.id
-      WHERE n.user_id = $1
-      ORDER BY n.created_at DESC
-    `, [userId]);
+    let result;
+    try {
+      result = await pool.query(`
+        SELECT 
+          n.id,
+          n.title,
+          n.message,
+          n.type,
+          n.is_read,
+          n.created_at,
+          TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) as user_name
+        FROM notifications n
+        LEFT JOIN users u ON n.user_id = u.id
+        WHERE n.user_id = $1
+        ORDER BY n.created_at DESC
+      `, [userId]);
+    } catch (colErr) {
+      if (colErr?.code === '42703' || (colErr?.message && /column.*does not exist/i.test(colErr.message))) {
+        result = await pool.query(`
+          SELECT 
+            n.id,
+            n.title,
+            n.message,
+            n.type,
+            n.is_read,
+            n.created_at,
+            COALESCE(u.name, '') as user_name
+          FROM notifications n
+          LEFT JOIN users u ON n.user_id = u.id
+          WHERE n.user_id = $1
+          ORDER BY n.created_at DESC
+        `, [userId]);
+      } else {
+        throw colErr;
+      }
+    }
 
-    res.json({
-      success: true,
-      data: result.rows
-    });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching notifications:', error);
     if (error && error.code === '42P01') {
@@ -2372,26 +2668,44 @@ app.get('/api/v1/notifications/me', authenticateToken, async (req, res) => {
 app.get('/api/v1/notifications', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    
-    const result = await pool.query(`
-      SELECT 
-        n.id,
-        n.title,
-        n.message,
-        n.type,
-        n.is_read,
-        n.created_at,
-        TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) as user_name
-      FROM notifications n
-      LEFT JOIN users u ON n.user_id = u.id
-      WHERE n.user_id = $1
-      ORDER BY n.created_at DESC
-    `, [userId]);
+    let result;
+    try {
+      result = await pool.query(`
+        SELECT 
+          n.id,
+          n.title,
+          n.message,
+          n.type,
+          n.is_read,
+          n.created_at,
+          TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) as user_name
+        FROM notifications n
+        LEFT JOIN users u ON n.user_id = u.id
+        WHERE n.user_id = $1
+        ORDER BY n.created_at DESC
+      `, [userId]);
+    } catch (colErr) {
+      if (colErr?.code === '42703' || (colErr?.message && /column.*does not exist/i.test(colErr.message))) {
+        result = await pool.query(`
+          SELECT 
+            n.id,
+            n.title,
+            n.message,
+            n.type,
+            n.is_read,
+            n.created_at,
+            COALESCE(u.name, '') as user_name
+          FROM notifications n
+          LEFT JOIN users u ON n.user_id = u.id
+          WHERE n.user_id = $1
+          ORDER BY n.created_at DESC
+        `, [userId]);
+      } else {
+        throw colErr;
+      }
+    }
 
-    res.json({
-      success: true,
-      data: result.rows
-    });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching notifications:', error);
     if (error && error.code === '42P01') {
@@ -2728,14 +3042,13 @@ app.get('/api/v1/deliverables', authenticateToken, async (req, res) => {
     try {
       result = await pool.query(query, params);
     } catch (queryError) {
-      // Older schemas may not have sprint_id, so retry without the sprints join
-      if (queryError && queryError.code === '42703' && (queryError.message || '').includes('d.sprint_id')) {
-        console.log('⚠️  deliverables.sprint_id column not found, fetching deliverables without sprint join');
-
+      // Handle older schemas missing columns (e.g., sprint_id or first/last names)
+      if (queryError && queryError.code === '42703') {
+        console.log('⚠️  Missing column in deliverables query; retrying with simplified fallback');
         let fallbackQuery = `
           SELECT d.*,
-                 TRIM(COALESCE(u1.first_name, '') || ' ' || COALESCE(u1.last_name, '')) as created_by_name,
-                 TRIM(COALESCE(u2.first_name, '') || ' ' || COALESCE(u2.last_name, '')) as assigned_to_name
+                 COALESCE(u1.name, '') as created_by_name,
+                 COALESCE(u2.name, '') as assigned_to_name
           FROM deliverables d
           LEFT JOIN users u1 ON d.created_by = u1.id
           LEFT JOIN users u2 ON d.assigned_to = u2.id
@@ -3686,7 +3999,35 @@ app.get('/api/v1/approval-requests', authenticateToken, async (req, res) => {
     
     query += ` ORDER BY ar.created_at DESC`;
     
-    const result = await pool.query(query, params);
+    let result;
+    try {
+      result = await pool.query(query, params);
+    } catch (colErr) {
+      if (colErr && (colErr.code === '42703' || /column\s+.*does not exist/i.test(colErr.message || ''))) {
+        // Fallback for schemas using a single users.name column
+        let fbQuery = `
+          SELECT ar.*,
+            COALESCE(u1.name, u1.email, '') as requested_by_name,
+            COALESCE(u2.name, u2.email, '') as reviewed_by_name
+          FROM approval_requests ar
+          LEFT JOIN users u1 ON ar.requested_by = u1.id
+          LEFT JOIN users u2 ON ar.reviewed_by = u2.id
+          WHERE 1=1
+        `;
+        const fbParams = [];
+        if (userRole === 'teamMember') {
+          fbQuery += ` AND ar.requested_by = $1`;
+          fbParams.push(userId);
+        } else if (userRole === 'deliveryLead') {
+          fbQuery += ` AND (ar.requested_by = $1 OR ar.reviewed_by = $1)`;
+          fbParams.push(userId);
+        }
+        fbQuery += ` ORDER BY ar.created_at DESC`;
+        result = await pool.query(fbQuery, fbParams);
+      } else {
+        throw colErr;
+      }
+    }
     
     const approvalRequests = result.rows.map(row => ({
       id: row.id,
@@ -7337,7 +7678,27 @@ app.get('/api/v1/projects/:projectId/available-sprints', authenticateToken, asyn
 const PORT = process.env.NODE_ENV === 'production'
   ? (parseInt(process.env.PORT, 10) || 3001)
   : 3001;
-app.listen(PORT, () => {
+
+// Create HTTP server and attach Socket.IO
+const server = http.createServer(app);
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: [
+      /^http:\/\/localhost:\d+$/,
+      /^http:\/\/127\.0\.0\.1:\d+$/
+    ],
+    credentials: true
+  }
+});
+
+io.on('connection', (socket) => {
+  console.log('🔌 Socket connected:', socket.id);
+  socket.on('disconnect', () => {
+    console.log('🔌 Socket disconnected:', socket.id);
+  });
+});
+
+server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Dashboard: http://localhost:${PORT}`);
   console.log(`🔗 API Base: http://localhost:${PORT}/api/v1`);

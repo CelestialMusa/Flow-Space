@@ -10,14 +10,19 @@ class DeliverableService {
   final AuthService _authService = AuthService();
 
   // Get all deliverables
-  Future<ApiResponse> getDeliverables() async {
+  Future<ApiResponse> getDeliverables({String? projectId}) async {
     try {
       final token = _authService.accessToken;
       if (token == null) {
         return ApiResponse.error('No access token available');
       }
 
-      final response = await _apiClient.get('/deliverables');
+      final queryParams = <String, String>{};
+      if (projectId != null && projectId.isNotEmpty) {
+        queryParams['project_id'] = projectId;
+      }
+
+      final response = await _apiClient.get('/deliverables', queryParams: queryParams);
       
       if (response.isSuccess && response.data != null) {
         try {
@@ -369,9 +374,16 @@ class DeliverableService {
         return ApiResponse.error('No access token available');
       }
 
+      // Map enum name to backend expected format
+      String normalizedStatus = status;
+      if (status == 'inProgress') normalizedStatus = 'in_progress';
+      if (status == 'inReview') normalizedStatus = 'in_review';
+      if (status == 'signedOff') normalizedStatus = 'signed_off';
+      if (status == 'changeRequested') normalizedStatus = 'change_requested';
+
       final response = await _apiClient.put(
         '/deliverables/$id/updateStatus',
-        body: {'status': status},
+        body: {'status': normalizedStatus},
       );
 
       if (response.isSuccess && response.data != null) {

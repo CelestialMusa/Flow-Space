@@ -7,6 +7,7 @@ import 'screens/welcome_screen.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'services/backend_api_service.dart';
+import 'services/project_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/email_verification_screen.dart';
@@ -20,11 +21,14 @@ import 'screens/report_view_screen.dart';
 import 'screens/client_review_screen.dart';
 import 'models/sign_off_report.dart';
 import 'models/deliverable.dart';
+import 'models/project.dart';
 import 'screens/report_repository_screen.dart';
 // Approvals unified: use ApprovalRequestsScreen
 import 'screens/approval_requests_screen.dart';
 import 'screens/repository_screen.dart';
 import 'screens/notifications_screen.dart';
+import 'screens/projects_screen.dart';
+import 'screens/project_details_screen.dart';
 import 'screens/smtp_config_screen.dart';
 import 'screens/send_reminder_screen.dart';
 import 'screens/role_dashboard_screen.dart';
@@ -42,8 +46,6 @@ import 'widgets/sidebar_scaffold.dart';
 //
 import 'widgets/role_guard.dart';
 import 'theme/flownet_theme.dart';
-import 'screens/epic_management_screen.dart';
-import 'screens/epic_detail_screen.dart';
 import 'screens/deadlines_screen.dart';
 import 'screens/deliverables_list_screen.dart';
 import 'screens/deliverables_overview_screen.dart';
@@ -97,6 +99,15 @@ class KhonoApp extends StatelessWidget {
       },
     );
   }
+}
+
+Future<Project> _getProjectDetails(String projectId) async {
+  final projects = await ProjectService.getAllProjects();
+  final project = projects.firstWhere(
+    (p) => p.id == projectId,
+    orElse: () => throw Exception('Project not found'),
+  );
+  return project;
 }
 
 final GoRouter _router = GoRouter(
@@ -163,21 +174,59 @@ final GoRouter _router = GoRouter(
         ),
       ),
     ),
-    // Redirect /projects to /project-workspace
     GoRoute(
       path: '/projects',
-      redirect: (context, state) => '/project-workspace',
+      builder: (context, state) => const RoleGuard(
+        requiredPermission: 'authenticated',
+        child: SidebarScaffold(
+          child: ProjectsScreen(),
+        ),
+      ),
     ),
-    // Redirect old project routes to project-workspace
     GoRoute(
       path: '/projects/create',
-      redirect: (context, state) => '/project-workspace/new',
+      builder: (context, state) => const RoleGuard(
+        requiredPermission: 'authenticated',
+        child: SidebarScaffold(
+          child: ProjectWorkspaceScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/projects/:projectId/details',
+      builder: (context, state) {
+        final projectId = state.pathParameters['projectId']!;
+        return RoleGuard(
+          requiredPermission: 'authenticated',
+          child: SidebarScaffold(
+            child: FutureBuilder<Project>(
+              future: _getProjectDetails(projectId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                } else if (snapshot.hasData) {
+                  return ProjectDetailsScreen(project: snapshot.data!);
+                } else {
+                  return const Center(child: Text('Project not found'));
+                }
+              },
+            ),
+          ),
+        );
+      },
     ),
     GoRoute(
       path: '/projects/:projectId/edit',
-      redirect: (context, state) {
+      builder: (context, state) {
         final projectId = state.pathParameters['projectId']!;
-        return '/project-workspace/$projectId';
+        return RoleGuard(
+          requiredPermission: 'authenticated',
+          child: SidebarScaffold(
+            child: ProjectWorkspaceScreen(projectId: projectId),
+          ),
+        );
       },
     ),
     GoRoute(
@@ -356,14 +405,20 @@ final GoRouter _router = GoRouter(
     ),
     GoRoute(
       path: '/sprint-console',
-            builder: (context, state) => RouteGuard(
-              route: '/sprint-console',
-              child: SidebarScaffold(
-                child: SprintConsoleScreen(
-                  initialProjectKey: state.uri.queryParameters['projectKey'] ?? state.uri.queryParameters['projectId'],
+            builder: (context, state) {
+              final projectKey = state.uri.queryParameters['projectKey'];
+              final projectId = state.uri.queryParameters['projectId'];
+              final sprintId = state.uri.queryParameters['sprintId'];
+              return RouteGuard(
+                route: '/sprint-console',
+                child: SidebarScaffold(
+                  child: SprintConsoleScreen(
+                    initialProjectKey: projectKey ?? projectId,
+                    initialSprintId: sprintId,
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
     ),
     GoRoute(
       path: '/sprint-board/:sprintId',
@@ -419,24 +474,11 @@ final GoRouter _router = GoRouter(
     ),
     GoRoute(
       path: '/epics',
-      builder: (context, state) => const RouteGuard(
-        route: '/epics',
-        child: SidebarScaffold(
-          child: EpicManagementScreen(),
-        ),
-      ),
+      redirect: (context, state) => '/deliverables-overview',
     ),
     GoRoute(
       path: '/epics/:epicId',
-      builder: (context, state) {
-        final epicId = state.pathParameters['epicId']!;
-        return RouteGuard(
-          route: '/epics',
-          child: SidebarScaffold(
-            child: EpicDetailScreen(epicId: epicId),
-          ),
-        );
-      },
+      redirect: (context, state) => '/deliverables-overview',
     ),
     GoRoute(
       path: '/repository',

@@ -7,6 +7,7 @@ import 'package:khono/models/user_role.dart';
 import 'package:khono/models/deliverable.dart';
 import 'package:khono/models/sprint_metrics.dart';
 import 'package:khono/models/sign_off_report.dart';
+import 'package:khono/config/environment.dart';
 
 class BackendApiService {
   static final BackendApiService _instance = BackendApiService._internal();
@@ -30,7 +31,28 @@ class BackendApiService {
   }
 
   Future<ApiResponse> signUp(String email, String password, String name, UserRole role) async {
-    return await _apiClient.register(email, password, name, role.name);
+    // Parse the full name into firstName and lastName for the backend
+    final nameParts = name.trim().split(' ');
+    final firstName = nameParts.isNotEmpty ? nameParts[0] : '';
+    final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+
+    // Use different endpoints based on environment
+    final endpoint = Environment.isRenderDeployed ? '/auth/signup' : '/auth/register';
+    
+    debugPrint('🔍 Environment.isRenderDeployed: ${Environment.isRenderDeployed}');
+    debugPrint('🔍 Using endpoint: $endpoint');
+    debugPrint('🔍 Signing up with email: $email');
+    
+    final response = await _apiClient.post(endpoint, body: {
+      'email': email,
+      'password': password,
+      'firstName': firstName,
+      'lastName': lastName,
+      'role': role.name,
+    });
+
+    debugPrint('🔍 Signup response: ${response.statusCode} - ${response.error ?? "Success"}');
+    return response;
   }
 
   Future<ApiResponse> signOut() async {
@@ -201,11 +223,6 @@ class BackendApiService {
 
   Future<ApiResponse> createSprint(Map<String, dynamic> sprintData) async {
     return await _apiClient.post('/sprints', body: sprintData);
-  }
-
-  /// Create sprint via project-scoped endpoint (fallback when main create fails)
-  Future<ApiResponse> createSprintForProject(String projectId, Map<String, dynamic> sprintData) async {
-    return await _apiClient.post('/projects/$projectId/sprints/new', body: sprintData);
   }
 
   Future<ApiResponse> updateSprint(String sprintId, Map<String, dynamic> updates) async {
@@ -380,6 +397,14 @@ class BackendApiService {
     return await _apiClient.delete('/projects/$projectId');
   }
 
+  Future<ApiResponse> remindProjectOwner(String projectId, {bool force = false}) async {
+    final body = <String, dynamic>{};
+    if (force) {
+      body['force'] = true;
+    }
+    return await _apiClient.post('/projects/$projectId/remind-owner', body: body.isEmpty ? null : body);
+  }
+
   // Project member management
   Future<ApiResponse> addProjectMember(String projectId, Map<String, dynamic> memberData) async {
     return await _apiClient.post('/projects/$projectId/members', body: memberData);
@@ -391,19 +416,23 @@ class BackendApiService {
 
   // Project deliverable linking
   Future<ApiResponse> linkDeliverableToProject(String projectId, String deliverableId) async {
-    return await _apiClient.post('/projects/$projectId/deliverables', body: {
-      'deliverableId': deliverableId,
+    // Implement by updating the deliverable's project_id field
+    return await _apiClient.put('/deliverables/$deliverableId', body: {
+      'project_id': projectId,
     });
   }
 
   Future<ApiResponse> unlinkDeliverableFromProject(String projectId, String deliverableId) async {
-    return await _apiClient.delete('/projects/$projectId/deliverables/$deliverableId');
+    // Implement by clearing the deliverable's project_id field
+    return await _apiClient.put('/deliverables/$deliverableId', body: {
+      'project_id': null,
+    });
   }
 
   // Project sprint association
-  Future<ApiResponse> associateSprintWithProject(String projectId, String sprintId) async {
+  Future<ApiResponse> associateSprintWithProject(String projectId, List<String> sprintIds) async {
     return await _apiClient.post('/projects/$projectId/sprints', body: {
-      'sprintId': sprintId,
+      'sprintIds': sprintIds,
     });
   }
 

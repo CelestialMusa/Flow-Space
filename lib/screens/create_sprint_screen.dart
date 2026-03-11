@@ -1,14 +1,19 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../services/sprint_database_service.dart';
-import '../services/project_service.dart';
 import '../models/project.dart';
+import '../services/sprint_database_service.dart';
 
 class CreateSprintScreen extends StatefulWidget {
   final String? projectId;
   final String? projectName;
+  final Map<String, dynamic>? sprint;
 
-  const CreateSprintScreen({super.key, this.projectId, this.projectName});
+  const CreateSprintScreen({
+    super.key,
+    this.projectId,
+    this.projectName,
+    this.sprint,
+  });
 
   @override
   State<CreateSprintScreen> createState() => _CreateSprintScreenState();
@@ -19,15 +24,17 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
 
   final _formKey = GlobalKey<FormState>();
   
+  bool get _isEditing => widget.sprint != null;
+  
   // Controllers
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _plannedPointsController = TextEditingController();
   
   // Project selection
-  List<Project> _projects = [];
+  final List<Project> _projects = [];
   Project? _selectedProject;
-  bool _isLoadingProjects = false;
+  final bool _isLoadingProjects = false;
   String? _selectedProjectId;
   final TextEditingController _committedPointsController = TextEditingController();
   final TextEditingController _completedPointsController = TextEditingController();
@@ -52,41 +59,114 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
 
   DateTime? _startDate;
   DateTime? _endDate;
+  DateTime? _projectStartDate;
+  DateTime? _projectEndDate;
+  bool _hasActiveSprint = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedProjectId = widget.projectId;
-    if (widget.projectId == null) {
-      _loadProjects();
+    _fetchProjectDates();
+    _checkActiveSprints();
+    if (_isEditing) {
+      _fillSprintData();
     }
   }
 
-  Future<void> _loadProjects() async {
-    setState(() => _isLoadingProjects = true);
+  Future<void> _checkActiveSprints() async {
+    if (widget.projectId == null || _isEditing) return;
+
     try {
-      final projects = await ProjectService.getAllProjects(limit: 1000);
-      setState(() {
-        _projects = projects;
-        _isLoadingProjects = false;
-        // If projectId was passed, try to find and select it
-        if (widget.projectId != null) {
-          try {
-            _selectedProject = _projects.firstWhere(
-              (p) => p.id == widget.projectId,
-            );
-            _selectedProjectId = _selectedProject?.id;
-          } catch (_) {
-            // Project not found in list, that's okay
-          }
-        }
+      final sprints = await _sprintService.getSprints(projectId: widget.projectId);
+      final hasActive = sprints.any((s) {
+        final status = (s['status'] ?? '').toString().toLowerCase();
+        return status != 'completed' && status != 'done';
       });
-    } catch (e) {
-      setState(() => _isLoadingProjects = false);
+      
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading projects: $e')),
-        );
+        setState(() {
+          _hasActiveSprint = hasActive;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking active sprints: $e');
+    }
+  }
+
+  void _fillSprintData() {
+    final sprint = widget.sprint!;
+    _nameController.text = sprint['name']?.toString() ?? '';
+    _descriptionController.text = sprint['description']?.toString() ?? '';
+    _plannedPointsController.text = sprint['planned_points']?.toString() ?? '0';
+    _committedPointsController.text = sprint['committed_points']?.toString() ?? '';
+    _completedPointsController.text = sprint['completed_points']?.toString() ?? '';
+    _carriedOverPointsController.text = sprint['carried_over_points']?.toString() ?? '';
+    _testPassRateController.text = sprint['test_pass_rate']?.toString() ?? '';
+    _codeCoverageController.text = sprint['code_coverage']?.toString() ?? '';
+    _escapedDefectsController.text = sprint['escaped_defects']?.toString() ?? '';
+    _defectsOpenedController.text = sprint['defects_opened']?.toString() ?? '';
+    _defectsClosedController.text = sprint['defects_closed']?.toString() ?? '';
+    _codeReviewCompletionController.text = sprint['code_review_completion']?.toString() ?? '';
+    _documentationStatusController.text = sprint['documentation_status']?.toString() ?? '';
+    _uatNotesController.text = sprint['uat_notes']?.toString() ?? '';
+    _uatPassRateController.text = sprint['uat_pass_rate']?.toString() ?? '';
+    _risksIdentifiedController.text = sprint['risks_identified']?.toString() ?? '';
+    _risksController.text = sprint['risks']?.toString() ?? '';
+    _risksMitigatedController.text = sprint['risks_mitigated']?.toString() ?? '';
+    _blockersController.text = sprint['blockers']?.toString() ?? '';
+    _decisionsController.text = sprint['decisions']?.toString() ?? '';
+
+    if (sprint['defect_severity_mix'] != null) {
+      _defectSeverityMixController.text = jsonEncode(sprint['defect_severity_mix']);
+    }
+
+    if (sprint['start_date'] != null) {
+      _startDate = DateTime.tryParse(sprint['start_date'].toString());
+    } else if (sprint['startDate'] != null) {
+      _startDate = DateTime.tryParse(sprint['startDate'].toString());
+    }
+
+    if (sprint['end_date'] != null) {
+      _endDate = DateTime.tryParse(sprint['end_date'].toString());
+    } else if (sprint['endDate'] != null) {
+      _endDate = DateTime.tryParse(sprint['endDate'].toString());
+    }
+  }
+
+  Future<void> _fetchProjectDates() async {
+    if (widget.projectId == null) return;
+
+    setState(() {
+    });
+
+    try {
+      final projects = await _sprintService.getProjects();
+      final project = projects.firstWhere(
+        (p) => p['id']?.toString() == widget.projectId || p['key']?.toString() == widget.projectId,
+        orElse: () => <String, dynamic>{},
+      );
+
+      if (project.isNotEmpty) {
+        setState(() {
+          if (project['start_date'] != null) {
+            _projectStartDate = DateTime.parse(project['start_date'].toString());
+          } else if (project['startDate'] != null) {
+            _projectStartDate = DateTime.parse(project['startDate'].toString());
+          }
+
+          if (project['end_date'] != null) {
+            _projectEndDate = DateTime.parse(project['end_date'].toString());
+          } else if (project['endDate'] != null) {
+            _projectEndDate = DateTime.parse(project['endDate'].toString());
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching project dates: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+        });
       }
     }
   }
@@ -94,9 +174,9 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
   Future<void> _selectStartDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
+      initialDate: _startDate ?? _projectStartDate ?? DateTime.now(),
+      firstDate: _projectStartDate ?? DateTime(2020),
+      lastDate: _projectEndDate ?? DateTime(2100),
     );
     if (picked != null) {
       setState(() {
@@ -108,9 +188,9 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
   Future<void> _selectEndDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _startDate ?? DateTime.now(),
-      firstDate: _startDate ?? DateTime(2020),
-      lastDate: DateTime(2100),
+      initialDate: _endDate ?? _startDate ?? _projectEndDate ?? DateTime.now(),
+      firstDate: _startDate ?? _projectStartDate ?? DateTime(2020),
+      lastDate: _projectEndDate ?? DateTime(2100),
     );
     if (picked != null) {
       setState(() {
@@ -121,9 +201,42 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
 
   Future<void> _saveSprint() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    // Check for active sprints if creating a new one
+    if (!_isEditing && _hasActiveSprint) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot create a new sprint until all existing sprints in this project are completed.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     if (_startDate == null || _endDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select start and end dates')),
+      );
+      return;
+    }
+
+    // Date range validation against project dates
+    if (_projectStartDate != null && _startDate!.isBefore(_projectStartDate!)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Sprint start date cannot be before project start date (${_projectStartDate!.day}/${_projectStartDate!.month}/${_projectStartDate!.year})'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_projectEndDate != null && _endDate!.isAfter(_projectEndDate!)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Sprint end date cannot be after project end date (${_projectEndDate!.day}/${_projectEndDate!.month}/${_projectEndDate!.year})'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -178,12 +291,12 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sprint created successfully!')),
+          SnackBar(content: Text(_isEditing ? 'Sprint updated successfully!' : 'Sprint created successfully!')),
         );
         Navigator.pop(context, true);
       }
     } catch (e) {
-      debugPrint('Error creating sprint: $e');
+      debugPrint('Error saving sprint: $e');
       if (mounted) {
         final msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : 'Error creating sprint';
         ScaffoldMessenger.of(context).showSnackBar(
@@ -240,9 +353,11 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
     debugPrint('🟢 CreateSprintScreen.build() called - projectId: ${widget.projectId}, projectName: ${widget.projectName}');
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.projectName == null
-            ? 'Create Sprint'
-            : 'Create Sprint - ${widget.projectName}'),
+        title: Text(_isEditing
+            ? 'Edit Sprint - ${_nameController.text}'
+            : (widget.projectName == null
+                ? 'Create Sprint'
+                : 'Create Sprint - ${widget.projectName}')),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
       ),
@@ -488,15 +603,15 @@ class _CreateSprintScreenState extends State<CreateSprintScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _saveSprint,
+                  onPressed: (!_isEditing && _hasActiveSprint) ? null : _saveSprint,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    backgroundColor: (!_isEditing && _hasActiveSprint) ? Colors.grey : Theme.of(context).colorScheme.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: const Text(
-                    'Create Sprint',
-                    style: TextStyle(fontSize: 16),
+                  child: Text(
+                    _isEditing ? 'Save Changes' : 'Create Sprint',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),

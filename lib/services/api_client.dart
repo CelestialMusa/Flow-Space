@@ -513,7 +513,10 @@ static String get _baseUrlWithVersion => Environment.apiBaseUrl;
       } else {
         if (responseBody is Map) {
           final Map<String, dynamic> body = responseBody as Map<String, dynamic>;
-          final errorMessage = body['details']?.toString() ?? body['message']?.toString() ?? body['error']?.toString() ?? 'Request failed';
+          String errorMessage = body['message']?.toString() ?? body['error']?.toString() ?? 'Request failed';
+          if (body.containsKey('details')) {
+            errorMessage += ': ${body['details']}';
+          }
           return ApiResponse.error(errorMessage, response.statusCode);
         }
         return ApiResponse.error('Request failed', response.statusCode);

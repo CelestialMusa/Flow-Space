@@ -109,12 +109,12 @@ class CenteredVersionDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Positioned(
+    return const Positioned(
       bottom: 24,
       left: 0,
       right: 0,
       child: Center(
-        child: const ProfessionalVersionDisplay(),
+        child: ProfessionalVersionDisplay(),
       ),
     );
   }

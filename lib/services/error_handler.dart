@@ -94,7 +94,8 @@ class ErrorHandler {
           label: 'Dismiss',
           textColor: Colors.white,
           onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            // More robust than hideCurrentSnackBar: clears the active and any queued snackbars
+            ScaffoldMessenger.of(context).clearSnackBars();
           },
         ),
       ),
