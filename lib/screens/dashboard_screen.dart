@@ -7,7 +7,7 @@ import '../widgets/metrics_card.dart';
 import '../widgets/sprint_performance_chart.dart';
 import '../providers/dashboard_provider.dart';
 import '../widgets/notification_center_widget.dart';
-import '../services/backend_api_service.dart';
+import '../services/auth_service.dart';
 import '../widgets/app_modal.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -449,7 +449,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
               // Call backend logout API and clear local tokens
               try {
-                await BackendApiService().signOut();
+                await AuthService().signOut();
               } catch (e) {
                 // Even if backend logout fails, clear local tokens
                 debugPrint('Logout error: $e');
@@ -460,7 +460,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 // Use WidgetsBinding to safely navigate after async operation
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (mounted) {
-                    GoRouter.of(context).go('/');
+                    GoRouter.of(context).go('/login');
                   }
                 });
               }
