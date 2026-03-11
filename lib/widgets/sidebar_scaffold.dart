@@ -76,13 +76,6 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         requiredPermission: 'view_all_deliverables',
       ),
       const _NavItem(
-        label: 'Notifications',
-        icon: Icons.notifications_outlined,
-        iconName: 'notifications',
-        route: '/notifications',
-        requiredPermission: null,
-      ),
-      const _NavItem(
         label: 'Timeline',
         icon: Icons.calendar_today_outlined,
         iconName: 'timeline',
@@ -118,30 +111,18 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         requiredPermission: 'manage_users',
       ),
       const _NavItem(
-        label: 'Settings',
+        label: 'Settings', // kept for potential use outside sidebar
         icon: Icons.settings_outlined,
         iconName: 'settings',
         route: '/settings',
-        requiredPermission: null,
-      ),
-      const _NavItem(
-        label: 'Profile',
-        icon: Icons.person_outline,
-        iconName: 'account',
-        route: '/profile',
-        requiredPermission: null,
-      ),
-      const _NavItem(
-        label: 'Project Workspace',
-        icon: Icons.work_outline,
-        iconName: 'teams',
-        route: '/project-workspace',
-        requiredPermission: 'manage_projects',
+        requiredPermission: 'HIDE_FROM_SIDEBAR',
       ),
     ];
 
     // Filter items based on user permissions
     return allItems.where((item) {
+      // Special flag: hide from sidebar even if user has permission
+      if (item.requiredPermission == 'HIDE_FROM_SIDEBAR') return false;
       if (item.requiredPermission == null) return true;
       return authService.hasPermission(item.requiredPermission!);
     }).toList();
@@ -182,27 +163,31 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
         body: BackgroundImage(
           child: Row(
             children: [
-              // Sidebar with semi-transparent background
+              // Sidebar with glassmorphism styling (Busisiwe branch look)
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 width: _collapsed ? _collapsedWidth : _sidebarWidth,
-                decoration: const BoxDecoration(),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  borderRadius: const BorderRadius.only(
+                    topRight: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
+                  ),
+                  border: Border.all(
+                    color: Colors.white.withAlpha((0.1 * 255).round()),
+                    width: 1,
+                  ),
+                ),
                 child: ClipRRect(
                   borderRadius: const BorderRadius.only(
                     topRight: Radius.circular(16),
                     bottomRight: Radius.circular(16),
                   ),
                   child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0D0D0D),
-                      border: const Border(
-                        right: BorderSide(
-                          color: Color.fromARGB(51, 255, 255, 255),
-                          width: 1,
-                        ),
-                      ),
+                    decoration: const BoxDecoration(
+                      color: Colors.transparent,
                     ),
-                      child: Column(
+                    child: Column(
                         children: [
                           // Header with logo and collapse toggle
                           Padding(
@@ -232,69 +217,97 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
                               ],
                             ),
                           ),
-                          // Navigation items
+                          // Navigation items (pill-style highlight like reference UI)
                           Expanded(
                             child: ListView.builder(
                               padding: const EdgeInsets.symmetric(horizontal: 8),
                               itemCount: _navItems.length,
-                              itemExtent: 56, // Fixed height for better performance
-                              cacheExtent: 200, // Cache more items for smoother scrolling
-                              addAutomaticKeepAlives: true, // Keep state of list items
+                              itemExtent: 56, // Match Busisiwe sidebar height
+                              cacheExtent: 200,
+                              addAutomaticKeepAlives: true,
                               itemBuilder: (context, index) {
                                 final item = _navItems[index];
-                                final active = routeLocation.startsWith(item.route);
+                                final active =
+                                    routeLocation.startsWith(item.route);
                                 return Container(
                                   margin: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 2,),
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
+                                    // Active item: soft pill-shaped dark highlight, no red border
                                     color: active
-                                        ? FlownetColors.crimsonRed.withOpacity(0.35)
-                                        : const Color(0xFF1A1A1A),
-                                    borderRadius: BorderRadius.circular(12),
+                                        ? Colors.white.withAlpha(
+                                            (0.08 * 255).round(),
+                                          )
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Material(
                                     color: Colors.transparent,
-                                    child: ListTile(
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      leading: SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: AppIcons.getIconWidget(
-                                          item.iconName,
-                                          fallbackIcon: item.icon,
-                                          isActive: active,
-                                          size: 20,
-                                          color: FlownetColors.crimsonRed,
-                                        ),
-                                      ),
-                                      title: Text(
-                                        item.label,
-                                        style: TextStyle(
-                                          color: FlownetColors.pureWhite,
-                                          fontWeight: active
-                                              ? FontWeight.w600
-                                              : FontWeight.normal,
-                                          fontSize: 14,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                    child: InkWell(
                                       onTap: () {
-                                        if (!routeLocation.startsWith(item.route)) {
+                                        if (!routeLocation
+                                            .startsWith(item.route)) {
                                           context.go(item.route);
                                         }
                                       },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: _collapsed ? 8 : 16,
+                                          vertical: 12,
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: _collapsed
+                                              ? MainAxisAlignment.center
+                                              : MainAxisAlignment.start,
+                                          children: [
+                                            SizedBox(
+                                              width: 24,
+                                              height: 24,
+                                              child: AppIcons.getIconWidget(
+                                                item.iconName,
+                                                fallbackIcon: item.icon,
+                                                isActive: active,
+                                                size: 20,
+                                                color: active
+                                                    ? FlownetColors.pureWhite
+                                                    : FlownetColors
+                                                        .textSecondary,
+                                              ),
+                                            ),
+                                            if (!_collapsed) ...[
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Text(
+                                                  item.label,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 14,
+                                                    fontWeight:
+                                                        FontWeight.w500,
+                                                  ),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 );
                               },
                             ),
                           ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                            child: _buildLogoutButton(),
+                          ),
                           SidebarVersionDisplay(
                             isSidebarCollapsed: _collapsed,
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 32),
-                            child: _buildLogoutButton(),
                           ),
                         ],
                       ),
