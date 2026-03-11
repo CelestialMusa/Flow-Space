@@ -22,7 +22,8 @@ import 'create_sprint_screen.dart';
 
 class SprintConsoleScreen extends StatefulWidget {
   final String? initialProjectKey;
-  const SprintConsoleScreen({super.key, this.initialProjectKey});
+  final String? initialSprintId;
+  const SprintConsoleScreen({super.key, this.initialProjectKey, this.initialSprintId});
 
   @override
   State<SprintConsoleScreen> createState() => _SprintConsoleScreenState();
@@ -52,6 +53,7 @@ class _SprintConsoleScreenState extends State<SprintConsoleScreen> {
   void initState() {
     super.initState();
     _selectedProjectKey = widget.initialProjectKey;
+    _selectedSprintId = widget.initialSprintId;
     _loadData();
     _setupRealtime();
   }
