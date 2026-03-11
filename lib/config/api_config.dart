@@ -17,7 +17,7 @@ class ApiConfig {
   // Use 127.0.0.1 instead of localhost for better Flutter Web compatibility
   static const String developmentUrl = 'http://127.0.0.1:8001/api';
   static const String stagingUrl = 'https://staging-api.flownet.works';
-  static const String productionUrl = 'https://flow-space.onrender.com/api';
+  static const String productionUrl = 'https://backend-532p.onrender.com/api';
 
   // API Endpoints
   static const String authLogin = '/auth/login';
