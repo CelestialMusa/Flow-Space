@@ -161,8 +161,16 @@ class SignOffReport {
     final String? knownLimitations = (json['knownLimitations'] ?? content['knownLimitations'] ?? content['limitations'])?.toString();
     final String? nextSteps = (json['nextSteps'] ?? content['nextSteps'])?.toString();
 
-    final String? preparedBy = (json['preparedBy'] ?? json['prepared_by'])?.toString();
-    final String? preparedByName = (json['preparedByName'] ?? json['prepared_by_name'])?.toString();
+    final String? preparedBy = (json['preparedBy'] ?? json['prepared_by'] ?? content['preparedBy'] ?? content['prepared_by'])?.toString();
+    final String? preparedByName = (json['preparedByName'] ??
+            json['prepared_by_name'] ??
+            content['preparedByName'] ??
+            content['prepared_by_name'] ??
+            json['createdByName'] ??
+            json['created_by_name'] ??
+            content['createdByName'] ??
+            content['created_by_name'])
+        ?.toString();
 
     final String statusStr = (json['status'] ?? json['review_status'] ?? content['status'] ?? '').toString();
     final ReportStatus status = ReportStatus.values.firstWhere(
@@ -173,7 +181,15 @@ class SignOffReport {
     final String createdAtStr = (json['createdAt'] ?? json['created_at'] ?? '').toString();
     final DateTime createdAt = createdAtStr.isNotEmpty ? DateTime.parse(createdAtStr) : DateTime.now();
 
-    final String createdBy = (json['createdBy'] ?? json['created_by'] ?? content['createdBy'] ?? '').toString();
+    final String createdBy = (json['createdByName'] ??
+            json['created_by_name'] ??
+            json['createdBy'] ??
+            json['created_by'] ??
+            content['createdByName'] ??
+            content['created_by_name'] ??
+            content['createdBy'] ??
+            '')
+        .toString();
 
     final String submittedAtStr = (json['submittedAt'] ?? json['submitted_at'] ?? '').toString();
     final DateTime? submittedAt = submittedAtStr.isNotEmpty ? DateTime.parse(submittedAtStr) : null;
