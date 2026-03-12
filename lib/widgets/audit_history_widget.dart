@@ -50,6 +50,7 @@ class _AuditHistoryWidgetState extends State<AuditHistoryWidget> {
     return a == 'submitted' || a == 'submit_report' || a == 'submit';
   }
 
+
   String? _fallbackUserIdFromReportForAction(String action) {
     final a = action.toLowerCase();
     if (_report == null) return null;

@@ -147,12 +147,12 @@ class _ReportRepositoryScreenState extends ConsumerState<ReportRepositoryScreen>
           _reports = reportsData.map((json) {
             final dynamic contentRaw = json['content'];
             final Map<String, dynamic>? parsedContent = contentRaw is Map
-                ? Map<String, dynamic>.from(contentRaw as Map)
+                ? Map<String, dynamic>.from(contentRaw)
                 : (contentRaw is String
                     ? (() {
                         try {
                           final decoded = jsonDecode(contentRaw);
-                          return decoded is Map ? Map<String, dynamic>.from(decoded as Map) : null;
+                          return decoded is Map ? Map<String, dynamic>.from(decoded) : null;
                         } catch (_) {
                           return null;
                         }
@@ -213,12 +213,12 @@ class _ReportRepositoryScreenState extends ConsumerState<ReportRepositoryScreen>
             _reports = reportsData.map((json) {
               final dynamic contentRaw = json['content'];
               final Map<String, dynamic>? parsedContent = contentRaw is Map
-                  ? Map<String, dynamic>.from(contentRaw as Map)
+                  ? Map<String, dynamic>.from(contentRaw)
                   : (contentRaw is String
                       ? (() {
                           try {
                             final decoded = jsonDecode(contentRaw);
-                            return decoded is Map ? Map<String, dynamic>.from(decoded as Map) : null;
+                            return decoded is Map ? Map<String, dynamic>.from(decoded) : null;
                           } catch (_) {
                             return null;
                           }

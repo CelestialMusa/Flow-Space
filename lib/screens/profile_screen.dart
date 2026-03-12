@@ -50,7 +50,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _loadProfileData() async {
     try {
       final profile = await ProfileService.getUserProfile();
-      setState(() {
+      setState(() async {
         _firstNameController.text = profile['first_name'] ?? '';
         _lastNameController.text = profile['last_name'] ?? '';
         _emailController.text = profile['email'] ?? '';
