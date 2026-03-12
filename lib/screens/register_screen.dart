@@ -571,9 +571,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFFC10D00),
                                   foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
+                                  shape: const StadiumBorder(),
                                   elevation: 2,
                                 ),
                                 child: _isLoading
@@ -588,7 +586,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         ),
                                       )
                                     : const Text(
-                                        'Create Account',
+                                        'CREATE ACCOUNT',
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600,
@@ -611,7 +609,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 TextButton(
                                   onPressed: () => context.go('/login'),
                                   child: const Text(
-                                    'Sign In',
+                                    'SIGN IN',
                                     style: TextStyle(
                                       color: Color(0xFFC10D00),
                                       fontWeight: FontWeight.w600,
