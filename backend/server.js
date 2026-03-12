@@ -604,15 +604,14 @@ function validateEmail(email) {
     return { valid: false, error: 'This email domain appears to be invalid or non-existent' };
   }
   
-  // Enhanced username validation - detect fake patterns even on legitimate domains
+  // Enhanced username validation - detect fake patterns but allow legitimate ones
   const suspiciousUsernamePatterns = [
     /^(test|fake|dummy|sample|example|demo|user|admin|support|info|contact)/i,  // generic usernames
-    /^[a-z]+\d{3,}$/,  // usernames ending with 3+ numbers (like thembus123)
-    /^[a-z]{1,2}\d{2,}$/,  // short usernames with numbers (like ab123)
-    /^(no|not|fake|invalid|nonexistent|random|temp|temporal)/i,  // suspicious words
-    /^.{1,3}\d{2,}$/,  // very short usernames with numbers
-    /^[a-z]{20,}$/,  // unusually long usernames
     /^(test|demo|sample)\d*@/i,  // test/demo accounts with numbers
+    /^(no|not|fake|invalid|nonexistent|random|temp|temporal)/i,  // suspicious words
+    /^[a-z]{1,2}\d{4,}$/,  // very short usernames with many numbers (like ab1234)
+    /^[a-z]{25,}$/,  // unusually long usernames
+    /^\d{5,}@/,  // usernames that are mostly numbers
   ];
   
   if (suspiciousUsernamePatterns.some(pattern => pattern.test(username))) {
@@ -624,7 +623,7 @@ function validateEmail(email) {
   const fakeCombinations = [
     /^(test|fake|dummy|sample|example|demo)@(gmail|yahoo|outlook|hotmail)\.com$/i,
     /^(user|admin|support|info|contact)@(gmail|yahoo|outlook|hotmail)\.com$/i,
-    /^[a-z]{1,3}\d{2,}@(gmail|yahoo|outlook|hotmail)\.com$/i,
+    /^[a-z]{1,2}\d{4,}@(gmail|yahoo|outlook|hotmail)\.com$/i,  // Only block very short usernames with many numbers
   ];
   
   if (fakeCombinations.some(pattern => pattern.test(email))) {
