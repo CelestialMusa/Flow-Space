@@ -144,7 +144,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Sign in to your Flownet account',
+                            'Sign in to manage your projects',
                             style: Theme.of(context)
                                 .textTheme
                                 .bodyMedium
