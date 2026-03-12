@@ -30,8 +30,7 @@ router.post('/register', async (req, res) => {
     // Determine first name and last name from various input formats
     let firstName, lastName;
     
-    console.log('Registration request body:', req.body);
-    console.log('Extracted fields:', { email, password, fullName, reqFirstName, reqLastName, reqFirstNameSnake, reqLastNameSnake, role });
+    console.log('Registration request:', { email, fullName, role });
     
     if (fullName) {
       // If fullName is provided, split it
@@ -98,14 +97,31 @@ router.post('/register', async (req, res) => {
       is_active: true
     });
 
-    const enabled = (process.env.ENABLE_EMAIL_VERIFICATION === 'true') || (process.env.EMAIL_VERIFICATION_ENABLED === 'true') || (process.env.EMAIL_SERVICE_ENABLED === 'true') || ((process.env.SMTP_USER && process.env.SMTP_PASS) ? true : false);
+    const enabled =
+      (process.env.ENABLE_EMAIL_VERIFICATION === 'true') ||
+      (process.env.EMAIL_VERIFICATION_ENABLED === 'true') ||
+      (process.env.EMAIL_SERVICE_ENABLED === 'true') ||
+      ((process.env.SMTP_USER && process.env.SMTP_PASS) ? true : false);
     let emailVerificationSent = false;
     if (enabled) {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      await user.update({ verification_token: code });
-      const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
-      const result = await emailService.sendVerificationEmail(user.email, name, code);
-      emailVerificationSent = !!(result && result.success);
+      try {
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        await user.update({ verification_token: code });
+        const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
+        Promise.resolve()
+          .then(() => emailService.sendVerificationEmail(user.email, name, code))
+          .then((result) => {
+            if (!(result && result.success)) {
+              console.error('Verification email send failed:', result && result.error ? result.error : 'unknown error');
+            }
+          })
+          .catch((e) => {
+            console.error('Verification email send failed:', e?.message || e);
+          });
+        emailVerificationSent = true;
+      } catch (e) {
+        console.error('Verification email send failed:', e?.message || e);
+      }
     }
 
     // Generate JWT token

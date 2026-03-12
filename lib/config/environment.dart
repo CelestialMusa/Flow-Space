@@ -23,7 +23,7 @@ class Environment {
 
     // Fallback to production URL if deployed on Render
     if (isRenderDeployed) {
-      return "https://flow-space.onrender.com/api/v1";
+      return "https://backend-532p.onrender.com/api/v1";
     }
 
     // Default to localhost for development

@@ -569,7 +569,7 @@ class _SidebarScaffoldState extends State<SidebarScaffold> {
   Future<void> _handleLogout(GoRouter router) async {
     await AuthService().signOut();
     if (!mounted) return;
-    router.go('/');
+    router.go('/login');
   }
 
   void _showMainMenu(BuildContext context) {
