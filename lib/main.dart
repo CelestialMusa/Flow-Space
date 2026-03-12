@@ -304,10 +304,11 @@ final GoRouter _router = GoRouter(
       path: '/report-editor/:deliverableId',
       builder: (context, state) {
         final deliverableId = state.pathParameters['deliverableId']!;
+        final reportId = state.uri.queryParameters['reportId'];
         return RouteGuard(
           route: '/report-editor',
           child: SidebarScaffold(
-            child: ReportEditorScreen(deliverableId: deliverableId),
+            child: ReportEditorScreen(deliverableId: deliverableId, reportId: reportId),
           ),
         );
       },
@@ -320,6 +321,18 @@ final GoRouter _router = GoRouter(
           route: '/report-builder', // Using same guard as builder for now
           child: SidebarScaffold(
             child: ReportViewScreen(reportId: reportId),
+          ),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/report-sent/:reportId',
+      builder: (context, state) {
+        final reportId = state.pathParameters['reportId']!;
+        return RouteGuard(
+          route: '/report-builder',
+          child: SidebarScaffold(
+            child: ReportViewScreen(reportId: reportId, showPostSubmitBanner: true),
           ),
         );
       },
