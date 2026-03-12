@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
@@ -298,7 +299,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
   double _getEventTopPosition(DateTime eventTime, {double headerOffset = 0.0}) {
     // Professional minute-based positioning for exact time slot alignment
-    final timelineStartMinutes = _startHour * 60; // 6:00 AM = 360 minutes
+    const timelineStartMinutes = _startHour * 60; // 6:00 AM = 360 minutes
     final eventMinutes = eventTime.hour * 60 +
         eventTime.minute; // 8:30 = 8*60 + 30 = 510 minutes
 
@@ -307,7 +308,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
         eventMinutes - timelineStartMinutes; // 510 - 360 = 150 minutes
 
     // Clamp to valid timeline range
-    final validRange =
+    const validRange =
         (_endHour - _startHour) * 60; // 22-6 = 16 hours = 960 minutes
     final clampedMinutes = minutesFromStart.clamp(0.0, validRange.toDouble());
 
@@ -316,17 +317,18 @@ class _TimelineScreenState extends State<TimelineScreen> {
         clampedMinutes * _minuteHeight - headerOffset; // 150 * 1.5 = 225px
 
     // Debug output to verify correct positioning
-    print('=== EVENT POSITIONING DEBUG ===');
-    print(
-        'Event Time: ${eventTime.hour}:${eventTime.minute.toString().padLeft(2, '0')}');
-    print('Timeline Start: ${_startHour}:00 (${timelineStartMinutes} minutes)');
-    print('Event Minutes: ${eventMinutes} minutes');
-    print('Minutes from Start: ${minutesFromStart} minutes');
-    print('Pixel per Minute: ${_minuteHeight} px');
-    print('Calculated Position: ${position} px');
-    print(
+    debugPrint('=== EVENT POSITIONING DEBUG ===');
+    debugPrint(
+        'Event Time: $eventTime.hour:${eventTime.minute.toString().padLeft(2, '0')}');
+    debugPrint(
+        'Timeline Start: $_startHour:00 ($timelineStartMinutes minutes)');
+    debugPrint('Event Minutes: $eventMinutes minutes');
+    debugPrint('Minutes from Start: $minutesFromStart minutes');
+    debugPrint('Pixel per Minute: $_minuteHeight px');
+    debugPrint('Calculated Position: $position px');
+    debugPrint(
         'Expected: 8:30 should be at 225px (halfway between 8:00=180px and 9:00=270px)');
-    print('=============================');
+    debugPrint('=============================');
 
     return position;
   }

@@ -108,11 +108,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 padding: const EdgeInsets.all(8.0),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 400),
-                  child: RawKeyboardListener(
+                  child: KeyboardListener(
                     focusNode: _keyboardFocusNode,
-                    onKey: (RawKeyEvent event) {
+                    onKeyEvent: (KeyEvent event) {
                       // Handle Enter key press
-                      if (event is RawKeyDownEvent &&
+                      if (event is KeyDownEvent &&
                           event.logicalKey == LogicalKeyboardKey.enter) {
                         // Prevent default behavior and trigger login
                         if (!_isLoading) {
