@@ -31,13 +31,15 @@ class _TimelineScreenState extends State<TimelineScreen> {
   // Events
   final List<TimelineEvent> _events = [];
 
-  // Calendar view constants
+  // Calendar view constants - Professional scheduling standards
   static const int _startHour = 6; // 6 AM
   static const int _endHour = 22; // 10 PM
-  static const double _hourHeight = 80.0; // Height of each hour slot in pixels
-  static const double _minuteHeight = _hourHeight / 60.0; // Height per minute
+  static const double _hourHeight = 90.0; // Professional hour height
+  static const double _minuteHeight =
+      _hourHeight / 60.0; // 1.5 pixels per minute
   static const Duration _defaultEventDuration =
       Duration(hours: 1); // Default 1 hour for events
+  static const double _minEventHeight = 40.0; // Minimum readable height
 
   @override
   void initState() {
@@ -295,30 +297,47 @@ class _TimelineScreenState extends State<TimelineScreen> {
   }
 
   double _getEventTopPosition(DateTime eventTime, {double headerOffset = 0.0}) {
-    // Calculate total minutes from start of timeline (6 AM)
-    final timelineStartMinutes = _startHour * 60;
-    final eventMinutes = eventTime.hour * 60 + eventTime.minute;
+    // Professional minute-based positioning for exact time slot alignment
+    final timelineStartMinutes = _startHour * 60; // 6:00 AM = 360 minutes
+    final eventMinutes = eventTime.hour * 60 +
+        eventTime.minute; // 8:30 = 8*60 + 30 = 510 minutes
 
     // Calculate minutes from start of timeline
-    final minutesFromStart = eventMinutes - timelineStartMinutes;
+    final minutesFromStart =
+        eventMinutes - timelineStartMinutes; // 510 - 360 = 150 minutes
 
     // Clamp to valid timeline range
-    final validRange = (_endHour - _startHour) * 60;
+    final validRange =
+        (_endHour - _startHour) * 60; // 22-6 = 16 hours = 960 minutes
     final clampedMinutes = minutesFromStart.clamp(0.0, validRange.toDouble());
 
-    // Convert to pixels using minute-based positioning
-    return clampedMinutes * _minuteHeight - headerOffset;
+    // Convert to pixels using professional minute-based positioning
+    final position =
+        clampedMinutes * _minuteHeight - headerOffset; // 150 * 1.5 = 225px
+
+    // Debug output to verify correct positioning
+    print('=== EVENT POSITIONING DEBUG ===');
+    print(
+        'Event Time: ${eventTime.hour}:${eventTime.minute.toString().padLeft(2, '0')}');
+    print('Timeline Start: ${_startHour}:00 (${timelineStartMinutes} minutes)');
+    print('Event Minutes: ${eventMinutes} minutes');
+    print('Minutes from Start: ${minutesFromStart} minutes');
+    print('Pixel per Minute: ${_minuteHeight} px');
+    print('Calculated Position: ${position} px');
+    print(
+        'Expected: 8:30 should be at 225px (halfway between 8:00=180px and 9:00=270px)');
+    print('=============================');
+
+    return position;
   }
 
   double _getEventHeight(DateTime startTime, DateTime endTime) {
-    // Calculate exact duration in minutes
+    // Height based on actual duration for professional calendar
     final durationMinutes = endTime.difference(startTime).inMinutes;
-
-    // Height based on exact duration using minute-based scale
     final height = durationMinutes * _minuteHeight;
 
-    // Ensure minimum height for readability but maintain exact proportions
-    return height.clamp(30.0, double.infinity); // Min 30px for visibility
+    // Ensure minimum height for readability
+    return height.clamp(_minEventHeight, double.infinity);
   }
 
   @override
@@ -509,17 +528,18 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   child: Column(
                     children: List.generate(
                       _endHour - _startHour,
-                      (index) => Container(
-                        height: _hourHeight,
-                        padding: const EdgeInsets.only(right: 8, top: 4),
-                        alignment: Alignment.topRight,
-                        child: Text(
-                          '${_startHour + index}:00',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: FlownetColors.coolGray,
-                                    fontSize: 12,
-                                  ),
+                      (index) => Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.only(right: 8, top: 4),
+                          alignment: Alignment.topRight,
+                          child: Text(
+                            '${_startHour + index}:00',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: FlownetColors.coolGray,
+                                      fontSize: 12,
+                                    ),
+                          ),
                         ),
                       ),
                     ),
@@ -722,24 +742,28 @@ class _TimelineScreenState extends State<TimelineScreen> {
                 ),
               ),
               if (_formatEventTime(event).isNotEmpty) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(4),
+                    color: color.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(
+                        color: FlownetColors.pureWhite.withValues(alpha: 0.3),
+                        width: 1),
                   ),
                   child: Text(
                     _formatEventTime(event),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: FlownetColors.pureWhite,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.4,
                         ),
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    softWrap: true,
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ],
@@ -811,17 +835,18 @@ class _TimelineScreenState extends State<TimelineScreen> {
               ],
             ),
           ),
-          // Day Timeline
+          // Professional Day Timeline
           Container(
-            height: (_endHour - _startHour) * _hourHeight,
+            height: (_endHour - _startHour) *
+                _hourHeight, // 16 hours × 90px = 1440px total
             constraints: const BoxConstraints(
-              minHeight: 400, // Minimum height for better UX
-              maxHeight: 800, // Maximum height to prevent overflow
+              minHeight: 500, // Professional minimum height
+              // maxHeight: 900, // REMOVED - This was causing visual scaling issues!
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Time Column
+                // Professional Time Column
                 Container(
                   width: 80,
                   decoration: BoxDecoration(
@@ -843,6 +868,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                 Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: FlownetColors.coolGray,
                                       fontSize: 12,
+                                      fontWeight: FontWeight.w500,
                                     ),
                           ),
                         ),
@@ -850,11 +876,11 @@ class _TimelineScreenState extends State<TimelineScreen> {
                     ),
                   ),
                 ),
-                // Events Column
+                // Professional Events Column
                 Expanded(
                   child: Stack(
                     children: [
-                      // Hour Lines
+                      // Professional Hour Grid
                       Column(
                         children: List.generate(
                           _endHour - _startHour,
@@ -864,7 +890,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                 border: Border(
                                   bottom: BorderSide(
                                     color: FlownetColors.slate
-                                        .withValues(alpha: 0.2),
+                                        .withValues(alpha: 0.15),
+                                    width: 0.5,
                                   ),
                                 ),
                               ),
@@ -872,23 +899,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
                           ),
                         ),
                       ),
-                      // Events
+                      // Professional Overlapping Events
                       if (dayEvents.isNotEmpty)
-                        ...dayEvents.map((event) {
-                          final startTime = _getEventStartDateTime(event);
-                          final endTime = _getEventEndDateTime(event);
-                          final top = _getEventTopPosition(startTime);
-                          final height = _getEventHeight(startTime, endTime);
-                          final color = _getColorForTag(event.colorTag);
-
-                          return Positioned(
-                            top: top,
-                            left: 8,
-                            right: 8,
-                            height: height.clamp(48.0, double.infinity),
-                            child: _buildDayEventCard(event, color),
-                          );
-                        }),
+                        ..._buildOverlappingEvents(dayEvents),
                       // No events message
                       if (dayEvents.isEmpty)
                         Center(
@@ -914,7 +927,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Click the "New Event" button to add one',
+                                'Click "New Event" button to add one',
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodySmall
@@ -937,98 +950,137 @@ class _TimelineScreenState extends State<TimelineScreen> {
     );
   }
 
-  Widget _buildDayEventCard(TimelineEvent event, Color color) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _showEventDetails(event),
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.25),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: color.withValues(alpha: 0.7), width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.3),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
+  List<Widget> _buildOverlappingEvents(List<TimelineEvent> dayEvents) {
+    // Simple approach - sort events and position them directly without nested Stacks
+    final sortedEvents = List<TimelineEvent>.from(dayEvents)
+      ..sort((a, b) =>
+          _getEventStartDateTime(a).compareTo(_getEventStartDateTime(b)));
+
+    return sortedEvents.map((event) {
+      final startTime = _getEventStartDateTime(event);
+      final endTime = _getEventEndDateTime(event);
+      final top = _getEventTopPosition(startTime);
+      final height = _getEventHeight(startTime, endTime);
+      final color = _getColorForTag(event.colorTag);
+
+      return Positioned(
+        top: top,
+        left: 8.0,
+        right: 8.0,
+        height: height,
+        child: _buildProfessionalEventCard(event, color, 200.0),
+      );
+    }).toList();
+  }
+
+  Widget _buildProfessionalEventCard(
+      TimelineEvent event, Color color, double availableWidth) {
+    final startTime = _getEventStartDateTime(event);
+    final endTime = _getEventEndDateTime(event);
+    final duration = endTime.difference(startTime);
+    final durationMinutes = duration.inMinutes;
+    final isSmallEvent = durationMinutes < 30;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _showEventDetails(event),
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            padding: EdgeInsets.all(isSmallEvent ? 4 : 6),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: color.withValues(alpha: 0.7),
+                width: 1,
               ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Event title with enhanced styling
-              Flexible(
-                child: Text(
-                  event.title,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: FlownetColors.pureWhite,
-                        fontSize: 13,
-                        height: 1.2,
-                        letterSpacing: 0.3,
-                      ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: true,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.2),
+                  blurRadius: 3,
+                  offset: const Offset(0, 1),
                 ),
-              ),
-              if (_formatEventTime(event).isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Professional time display
+                if (!isSmallEvent) ...[
+                  Text(
                     _formatEventTime(event),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: FlownetColors.pureWhite,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                        ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    softWrap: true,
-                  ),
-                ),
-              ],
-              // Optional: Show priority indicator
-              if (event.priority != null) ...[
-                const SizedBox(height: 4),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                        color: color.withValues(alpha: 0.5), width: 0.5),
-                  ),
-                  child: Text(
-                    event.priority!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: FlownetColors.pureWhite,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
                         ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 2),
+                ],
+                // Professional title display
+                Flexible(
+                  child: Text(
+                    event.title,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: FlownetColors.pureWhite,
+                          fontSize: isSmallEvent ? 11 : 12,
+                          fontWeight: FontWeight.w600,
+                          height: 1.2,
+                          letterSpacing: 0.2,
+                        ),
+                    maxLines: isSmallEvent ? 1 : 2,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: true,
+                  ),
                 ),
+                // Priority indicator for larger events
+                if (!isSmallEvent && event.priority != null) ...[
+                  const SizedBox(height: 3),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: _getPriorityColor(event.priority!),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: Text(
+                      event.priority!.toUpperCase(),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: FlownetColors.pureWhite,
+                            fontSize: 8,
+                            fontWeight: FontWeight.w600,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  Color _getPriorityColor(String priority) {
+    switch (priority.toLowerCase()) {
+      case 'high':
+        return FlownetColors.crimsonRed;
+      case 'medium':
+        return FlownetColors.slate;
+      case 'low':
+        return FlownetColors.coolGray;
+      default:
+        return FlownetColors.coolGray;
+    }
   }
 
   Widget _buildCalendarView() {
