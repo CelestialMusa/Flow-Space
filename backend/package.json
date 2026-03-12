@@ -17,7 +17,8 @@
     "test-db": "node migrations/test-connection.js",
     "db-status": "node migrations/test-connection.js",
     "migrate-render": "node migrations/migrate-render.js",
-    "test-render": "node migrations/migrate-render.js"
+    "test-render": "node migrations/migrate-render.js",
+    "update-render": "node migrations/update-render.js"
   },
   "keywords": [
     "flow-space",
