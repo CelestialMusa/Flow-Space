@@ -23,6 +23,8 @@ class TimelineScreen extends StatefulWidget {
 class _TimelineScreenState extends State<TimelineScreen> {
   // View state
   String _activeView = 'Month'; // 'Month' | 'Week' | 'Day' | 'Timeline'
+  String? _hoveredView; // For subtle hover effects on view buttons
+  DateTime? _hoveredSlotStart; // For hover highlighting on week/day slots
 
   // Calendar state
   DateTime _focusedDay = DateTime.now();
@@ -199,6 +201,25 @@ class _TimelineScreenState extends State<TimelineScreen> {
       _selectedDay = selectedDay;
       _focusedDay = focusedDay;
     });
+
+    // If user clicks a future (or today) date in Month view, open event creation modal
+    if (_activeView == 'Month') {
+      final today = DateTime.now();
+      final normalizedToday = DateTime(today.year, today.month, today.day);
+      final normalizedSelected =
+          DateTime(selectedDay.year, selectedDay.month, selectedDay.day);
+
+      final isFutureOrToday = !normalizedSelected.isBefore(normalizedToday);
+      if (isFutureOrToday) {
+        showAppDialog(
+          context: context,
+          builder: (context) => AddEventModal(
+            initialDate: normalizedSelected,
+            onEventAdded: _addEvent,
+          ),
+        );
+      }
+    }
   }
 
   void _onFormatChanged(CalendarFormat format) {
@@ -217,6 +238,34 @@ class _TimelineScreenState extends State<TimelineScreen> {
     setState(() {
       _events.add(event);
     });
+  }
+
+  void _handleTimeSlotTap(DateTime day, int hour) {
+    // Normalize to the exact hour for this slot
+    final slotStart = DateTime(day.year, day.month, day.day, hour);
+    final now = DateTime.now();
+
+    // Prevent creating events in the past
+    if (slotStart.isBefore(now)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You can only create events in future time slots.'),
+          backgroundColor: FlownetColors.amberOrange,
+        ),
+      );
+      return;
+    }
+
+    final slotDate = DateTime(day.year, day.month, day.day);
+
+    showAppDialog(
+      context: context,
+      builder: (context) => AddEventModal(
+        initialDate: slotDate,
+        initialStartTime: slotStart,
+        onEventAdded: _addEvent,
+      ),
+    );
   }
 
   DateTime _getEventStartDateTime(TimelineEvent event) {
@@ -373,8 +422,16 @@ class _TimelineScreenState extends State<TimelineScreen> {
                     _buildViewSwitcher(),
                     const SizedBox(height: 24),
 
-                    // Calendar/Timeline Content
-                    _buildCalendarContent(),
+                    // Calendar/Timeline Content with subtle view transition
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      switchInCurve: Curves.easeOut,
+                      switchOutCurve: Curves.easeIn,
+                      child: KeyedSubtree(
+                        key: ValueKey(_activeView),
+                        child: _buildCalendarContent(),
+                      ),
+                    ),
                     const SizedBox(height: 24),
 
                     // My Deliverables
@@ -391,58 +448,83 @@ class _TimelineScreenState extends State<TimelineScreen> {
   }
 
   Widget _buildViewSwitcher() {
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildViewButton('Month', Icons.calendar_view_month),
-          const SizedBox(width: 8),
-          _buildViewButton('Week', Icons.calendar_view_week),
-          const SizedBox(width: 8),
-          _buildViewButton('Day', Icons.calendar_today),
-          const SizedBox(width: 8),
-          _buildViewButton('Timeline', Icons.timeline),
-        ],
+    // Make the view switcher span the same width as the calendar card below.
+    return SizedBox(
+      width: double.infinity,
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Expanded(child: _buildViewButton('Month', Icons.calendar_view_month)),
+            const SizedBox(width: 8),
+            Expanded(child: _buildViewButton('Week', Icons.calendar_view_week)),
+            const SizedBox(width: 8),
+            Expanded(child: _buildViewButton('Day', Icons.calendar_today)),
+            const SizedBox(width: 8),
+            Expanded(child: _buildViewButton('Timeline', Icons.timeline)),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildViewButton(String view, IconData icon) {
     final isActive = _activeView == view;
-    return GlassContainer(
-      onTap: () {
-        setState(() {
-          _activeView = view;
-          if (view == 'Month') {
-            _calendarFormat = CalendarFormat.month;
-          } else if (view == 'Week') {
-            _calendarFormat = CalendarFormat.week;
-          }
-        });
-      },
-      borderRadius: 12.0,
-      opacity: isActive ? 0.20 : 0.10,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 18,
-            color: isActive ? FlownetColors.crimsonRed : FlownetColors.coolGray,
+    final isHovered = _hoveredView == view;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hoveredView = view),
+      onExit: (_) => setState(() => _hoveredView = null),
+      child: AnimatedScale(
+        scale: isActive ? 1.02 : (isHovered ? 1.01 : 1.0),
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: GlassContainer(
+          onTap: () {
+            if (_activeView == view) return;
+            setState(() {
+              _activeView = view;
+              if (view == 'Month') {
+                _calendarFormat = CalendarFormat.month;
+              } else if (view == 'Week') {
+                _calendarFormat = CalendarFormat.week;
+              }
+            });
+          },
+          borderRadius: 14.0,
+          opacity: isActive
+              ? 0.24
+              : (isHovered ? 0.16 : 0.10),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: isActive
+                    ? FlownetColors.crimsonRed
+                    : (isHovered
+                        ? FlownetColors.pureWhite
+                        : FlownetColors.coolGray),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                view,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight:
+                          isActive ? FontWeight.w600 : FontWeight.normal,
+                      color: isActive
+                          ? FlownetColors.crimsonRed
+                          : (isHovered
+                              ? FlownetColors.pureWhite
+                              : FlownetColors.coolGray),
+                    ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Text(
-            view,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                  color: isActive
-                      ? FlownetColors.crimsonRed
-                      : FlownetColors.coolGray,
-                ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -595,24 +677,51 @@ class _TimelineScreenState extends State<TimelineScreen> {
                           ),
                           child: Stack(
                             children: [
-                              // Hour Lines
-                              Expanded(
-                                child: Column(
-                                  children: List.generate(
-                                    _endHour - _startHour,
-                                    (index) => Expanded(
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          border: Border(
-                                            bottom: BorderSide(
-                                              color: FlownetColors.slate
-                                                  .withValues(alpha: 0.2),
+                              // Hour Lines with clickable slots
+                              Column(
+                                children: List.generate(
+                                  _endHour - _startHour,
+                                  (index) {
+                                    final slotStartHour = _startHour + index;
+                                    final slotStart = DateTime(
+                                      day.year,
+                                      day.month,
+                                      day.day,
+                                      slotStartHour,
+                                    );
+                                    final isHovered =
+                                        _hoveredSlotStart == slotStart;
+
+                                    return Expanded(
+                                      child: MouseRegion(
+                                        onEnter: (_) => setState(
+                                            () => _hoveredSlotStart = slotStart),
+                                        onExit: (_) =>
+                                            setState(() => _hoveredSlotStart = null),
+                                        child: GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onTap: () =>
+                                              _handleTimeSlotTap(day, slotStartHour),
+                                          child: AnimatedContainer(
+                                            duration: const Duration(
+                                                milliseconds: 120),
+                                            decoration: BoxDecoration(
+                                              color: isHovered
+                                                  ? FlownetColors.pureWhite
+                                                      .withValues(alpha: 0.04)
+                                                  : null,
+                                              border: Border(
+                                                bottom: BorderSide(
+                                                  color: FlownetColors.slate
+                                                      .withValues(alpha: 0.2),
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  ),
+                                    );
+                                  },
                                 ),
                               ),
                               // Day Header
@@ -886,19 +995,50 @@ class _TimelineScreenState extends State<TimelineScreen> {
                       Column(
                         children: List.generate(
                           _endHour - _startHour,
-                          (index) => Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: FlownetColors.slate
-                                        .withValues(alpha: 0.15),
-                                    width: 0.5,
+                          (index) {
+                            final slotStartHour = _startHour + index;
+                            final slotStart = DateTime(
+                              _selectedDay.year,
+                              _selectedDay.month,
+                              _selectedDay.day,
+                              slotStartHour,
+                            );
+                            final isHovered =
+                                _hoveredSlotStart == slotStart;
+
+                            return Expanded(
+                              child: MouseRegion(
+                                onEnter: (_) => setState(
+                                    () => _hoveredSlotStart = slotStart),
+                                onExit: (_) =>
+                                    setState(() => _hoveredSlotStart = null),
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () => _handleTimeSlotTap(
+                                    _selectedDay,
+                                    slotStartHour,
+                                  ),
+                                  child: AnimatedContainer(
+                                    duration:
+                                        const Duration(milliseconds: 120),
+                                    decoration: BoxDecoration(
+                                      color: isHovered
+                                          ? FlownetColors.pureWhite
+                                              .withValues(alpha: 0.04)
+                                          : null,
+                                      border: Border(
+                                        bottom: BorderSide(
+                                          color: FlownetColors.slate
+                                              .withValues(alpha: 0.15),
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         ),
                       ),
                       // Professional Overlapping Events
@@ -1148,8 +1288,14 @@ class _TimelineScreenState extends State<TimelineScreen> {
             startingDayOfWeek: StartingDayOfWeek.monday,
             calendarStyle: CalendarStyle(
               outsideDaysVisible: false,
-              weekendTextStyle: const TextStyle(color: FlownetColors.coolGray),
-              defaultTextStyle: const TextStyle(color: FlownetColors.pureWhite),
+              // Slightly lighter date text for better contrast
+              weekendTextStyle: const TextStyle(
+                color: FlownetColors.pureWhite,
+              ),
+              defaultTextStyle: const TextStyle(
+                color: FlownetColors.pureWhite,
+                fontWeight: FontWeight.w500,
+              ),
               selectedTextStyle: const TextStyle(
                 color: FlownetColors.pureWhite,
                 fontWeight: FontWeight.bold,
@@ -1157,6 +1303,15 @@ class _TimelineScreenState extends State<TimelineScreen> {
               todayTextStyle: const TextStyle(
                 color: FlownetColors.crimsonRed,
                 fontWeight: FontWeight.bold,
+              ),
+              // Extra breathing room between cells
+              cellMargin: const EdgeInsets.symmetric(
+                horizontal: 4,
+                vertical: 4,
+              ),
+              cellPadding: const EdgeInsets.symmetric(
+                horizontal: 4,
+                vertical: 6,
               ),
               todayDecoration: BoxDecoration(
                 color: FlownetColors.crimsonRed.withValues(alpha: 0.2),
