@@ -2,6 +2,7 @@ class ApiConfig {
   // Base API configuration - prioritize production URL for deployed apps
   static const String _baseUrl = String.fromEnvironment(
     'API_BASE_URL',
+    // Local backend currently runs on port 8000
     defaultValue: 'http://localhost:8000/api',
   );
   
@@ -15,7 +16,7 @@ class ApiConfig {
 
   // Environment-specific URLs
   // Use 127.0.0.1 instead of localhost for better Flutter Web compatibility
-  static const String developmentUrl = 'http://127.0.0.1:8001/api';
+  static const String developmentUrl = 'http://127.0.0.1:8000/api';
   static const String stagingUrl = 'https://staging-api.flownet.works';
   static const String productionUrl = 'https://backend-532p.onrender.com/api';
 
