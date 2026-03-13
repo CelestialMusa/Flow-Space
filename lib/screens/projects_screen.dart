@@ -37,7 +37,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         _projects = projects;
         _isLoading = false;
       });
-      
+
       if (projects.isEmpty) {
         _showEmptyStateMessage();
       }
@@ -53,7 +53,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
   Future<void> _loadProjectSprints(String projectId) async {
     try {
-      final projectSprints = await ProjectSprintService.getProjectSprints(projectId);
+      final projectSprints =
+          await ProjectSprintService.getProjectSprints(projectId);
       if (mounted) {
         setState(() {
           _projectSprints = projectSprints;
@@ -89,8 +90,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     final queryParams = <String, String>{};
     if (projectId != null) queryParams['projectId'] = projectId;
     if (sprintId != null) queryParams['sprintId'] = sprintId;
-    
-    final uri = Uri(path: '/sprint-console', queryParameters: queryParams.isEmpty ? null : queryParams);
+
+    final uri = Uri(
+        path: '/sprint-console',
+        queryParameters: queryParams.isEmpty ? null : queryParams);
     context.go(uri.toString());
   }
 
@@ -120,7 +123,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   void _showEmptyStateMessage() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('No projects found. Create your first project to get started!'),
+        content: Text(
+            'No projects found. Create your first project to get started!'),
         backgroundColor: Colors.blue,
         duration: Duration(seconds: 3),
       ),
@@ -156,7 +160,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                               decoration: BoxDecoration(
                                 color: primaryColor.withAlpha(51),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: primaryColor.withAlpha(128)),
+                                border: Border.all(
+                                    color: primaryColor.withAlpha(128)),
                               ),
                               child: Icon(
                                 Icons.folder,
@@ -185,24 +190,35 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                         Row(
                           children: [
                             ElevatedButton.icon(
-                              onPressed: _selectedProjectId != null ? _deselectProject : null,
+                              onPressed: _selectedProjectId != null
+                                  ? _deselectProject
+                                  : null,
                               icon: const Icon(Icons.arrow_back),
-                              label: Text(_selectedProjectId != null ? 'Back to Projects' : 'All Projects'),
+                              label: Text(_selectedProjectId != null
+                                  ? 'Back to Projects'
+                                  : 'All Projects'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: _selectedProjectId != null ? Colors.grey : primaryColor,
+                                backgroundColor: _selectedProjectId != null
+                                    ? Colors.grey
+                                    : primaryColor,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
                               ),
                             ),
                             const SizedBox(width: 12),
                             ElevatedButton.icon(
-                              onPressed: () => _navigateToSprintConsole(_selectedProjectId),
+                              onPressed: () =>
+                                  _navigateToSprintConsole(_selectedProjectId),
                               icon: const Icon(Icons.directions_run),
-                              label: Text(_selectedProjectId != null ? 'View Sprints' : 'Sprint Console'),
+                              label: Text(_selectedProjectId != null
+                                  ? 'View Sprints'
+                                  : 'Sprint Console'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: primaryColor,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -213,7 +229,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.purple,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
                               ),
                             ),
                           ],
@@ -250,16 +267,17 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             Text(
               'No projects yet',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontWeight: FontWeight.bold,
-              ),
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
               'Create your first project to get started',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(179),
-              ),
+                    color:
+                        Theme.of(context).colorScheme.onSurface.withAlpha(179),
+                  ),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -269,7 +287,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
             ),
           ],
@@ -283,9 +302,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         Text(
           'Your Projects',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: Theme.of(context).colorScheme.onSurface,
-            fontWeight: FontWeight.bold,
-          ),
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(height: 16),
         ListView.builder(
@@ -351,14 +370,16 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   ),
                   const SizedBox(width: 8),
                   PopupMenuButton<String>(
-                    icon: Icon(Icons.more_vert, color: theme.colorScheme.onSurface.withAlpha(179)),
+                    icon: Icon(Icons.more_vert,
+                        color: theme.colorScheme.onSurface.withAlpha(179)),
                     color: Colors.transparent,
                     itemBuilder: (context) => [
                       PopupMenuItem(
                         value: 'view',
                         child: Row(
                           children: [
-                            Icon(Icons.visibility, size: 16, color: Colors.grey[700]),
+                            Icon(Icons.visibility,
+                                size: 16, color: Colors.grey[700]),
                             const SizedBox(width: 8),
                             const Text('View Details'),
                           ],
@@ -377,10 +398,17 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     ],
                     onSelected: (value) {
                       if (value == 'view') {
-                        debugPrint('ProjectsScreen: Navigating to project workspace for ID: ${project.id}');
-                        context.push('/project-workspace/${project.id}');
+                        debugPrint(
+                            'ProjectsScreen: Navigating to project workspace for ID: ${project.id}');
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                ProjectWorkspaceScreen(projectId: project.id),
+                          ),
+                        );
                       } else if (value == 'edit') {
-                        debugPrint('ProjectsScreen: Navigating to edit project for ID: ${project.id}');
+                        debugPrint(
+                            'ProjectsScreen: Navigating to edit project for ID: ${project.id}');
                         context.push('/project-workspace/${project.id}');
                       }
                     },
@@ -413,27 +441,27 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   const SizedBox(width: 8),
                   Text(
                     'Start: ${_formatDate(project.startDate)}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withAlpha(179),
-                  ),
-                ),
-                if (project.endDate != null) ...[
-                  const SizedBox(width: 16),
-                  Icon(
-                    Icons.event,
-                    size: 16,
-                    color: theme.colorScheme.onSurface.withAlpha(179),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'End: ${_formatDate(project.endDate!)}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurface.withAlpha(179),
                     ),
                   ),
+                  if (project.endDate != null) ...[
+                    const SizedBox(width: 16),
+                    Icon(
+                      Icons.event,
+                      size: 16,
+                      color: theme.colorScheme.onSurface.withAlpha(179),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'End: ${_formatDate(project.endDate!)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withAlpha(179),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
-            ),
+              ),
             ],
           ),
         ),
@@ -503,7 +531,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: _getProjectStatusColor(project.status),
                       borderRadius: BorderRadius.circular(8),
@@ -573,13 +602,15 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     ),
                   ),
                   ElevatedButton.icon(
-                    onPressed: () => _navigateToSprintConsole(_selectedProjectId),
+                    onPressed: () =>
+                        _navigateToSprintConsole(_selectedProjectId),
                     icon: const Icon(Icons.add),
                     label: const Text('Manage Sprints'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryColor,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                     ),
                   ),
                 ],
@@ -629,6 +660,24 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             ],
           ),
         ),
+        const SizedBox(height: 24),
+        Text(
+          'Use the full Project Workspace form to create a project.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(179),
+              ),
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: () {
+            context.push<bool>('/project-workspace/new').then((created) {
+              if (created == true) {
+                _loadProjects();
+              }
+            });
+          },
+          child: const Text('Open Project Workspace'),
+        ),
       ],
     );
   }
@@ -636,71 +685,73 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   Widget _buildSprintCard(Map<String, dynamic> sprint) {
     final theme = Theme.of(context);
     final sprintId = (sprint['id'] ?? '').toString();
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: GlassCard(
         padding: const EdgeInsets.all(16),
         child: InkWell(
-          onTap: () => _navigateToSprintConsole(_selectedProjectId, sprintId: sprintId),
+          onTap: () =>
+              _navigateToSprintConsole(_selectedProjectId, sprintId: sprintId),
           borderRadius: BorderRadius.circular(12),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: _getSprintStatusColor(sprint['status'] ?? 'planned'),
-                borderRadius: BorderRadius.circular(8),
+                decoration: BoxDecoration(
+                  color: _getSprintStatusColor(sprint['status'] ?? 'planned'),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.directions_run,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
-              child: const Icon(
-                Icons.directions_run,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    sprint['name'] ?? 'Untitled Sprint',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: theme.colorScheme.onSurface,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  if (sprint['description'] != null && sprint['description'].isNotEmpty) ...[
-                    const SizedBox(height: 4),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      sprint['description'],
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withAlpha(179),
+                      sprint['name'] ?? 'Untitled Sprint',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.bold,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ],
-                  if (sprint['start_date'] != null) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          size: 14,
-                          color: theme.colorScheme.onSurface.withAlpha(128),
+                    if (sprint['description'] != null &&
+                        sprint['description'].isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        sprint['description'],
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withAlpha(179),
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Start: ${_formatDate(DateTime.parse(sprint['start_date']))}',
-                          style: theme.textTheme.bodySmall?.copyWith(
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    if (sprint['start_date'] != null) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            size: 14,
                             color: theme.colorScheme.onSurface.withAlpha(128),
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Start: ${_formatDate(DateTime.parse(sprint['start_date']))}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurface.withAlpha(128),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
-                ],
                 ),
               ),
             ],
